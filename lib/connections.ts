@@ -24,6 +24,7 @@ export async function getConnection(
   const supabase = await createClient();
  
   const { data, error } = await supabase
+    .schema("contentiq")
     .from("platform_connections")
     .select("*")
     .eq("workspace_id", workspaceId)
@@ -43,6 +44,7 @@ export async function getAllConnections(workspaceId: string): Promise<PlatformCo
   const supabase = await createClient();
  
   const { data } = await supabase
+    .schema("contentiq")
     .from("platform_connections")
     .select("*")
     .eq("workspace_id", workspaceId)
@@ -121,6 +123,7 @@ export async function refreshTokenIfNeeded(connection: PlatformConnection): Prom
     if (newToken !== connection.access_token) {
       const supabase = await createClient();
       await supabase
+        .schema("contentiq")
         .from("platform_connections")
         .update({ access_token: newToken, token_expires_at: expiresAt })
         .eq("id", connection.id);

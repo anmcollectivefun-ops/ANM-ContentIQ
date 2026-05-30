@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase
+    .schema("contentiq")
     .from("platform_connections")
     .upsert(
       {

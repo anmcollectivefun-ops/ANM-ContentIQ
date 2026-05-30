@@ -234,6 +234,7 @@ export async function GET(
       : null;
  
     const { error: dbError } = await supabase
+      .schema("contentiq")
       .from("platform_connections")
       .upsert(
         {

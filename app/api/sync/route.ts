@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: connection, error: fetchError } = await supabase
+    .schema("contentiq")
     .from("platform_connections")
     .select("id, platform, connected")
     .eq("id", body.connection_id)
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: updateError } = await supabase
+    .schema("contentiq")
     .from("platform_connections")
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", connection.id);

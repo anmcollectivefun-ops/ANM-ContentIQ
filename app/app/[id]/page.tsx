@@ -712,6 +712,7 @@ export default function AppWorkspacePage() {
     });
 
     supabase
+      .schema("contentiq")
       .from("platform_connections")
       .select("id, platform, account_name, last_synced_at, connected")
       .eq("workspace_id", workspaceId)

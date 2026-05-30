@@ -214,6 +214,7 @@ export default function IntegrationsPage() {
   async function loadConnections() {
     setLoading(true);
     const { data } = await supabase
+      .schema("contentiq")
       .from("platform_connections")
       .select("*")
       .eq("workspace_id", workspaceId)
@@ -232,6 +233,7 @@ export default function IntegrationsPage() {
   async function disconnect(connection: Connection) {
     setDisconnecting(connection.id);
     await supabase
+      .schema("contentiq")
       .from("platform_connections")
       .update({ connected: false, access_token: null, refresh_token: null })
       .eq("id", connection.id);
