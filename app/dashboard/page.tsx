@@ -319,7 +319,7 @@ export default function DashboardPage() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 12, color: muted }}>{userEmail}</span>
-            <Link href="/app/anm-collective/settings?tab=integrations" className="btn-hover"
+            <Link href="/app/anm-collective/settings" className="btn-hover"
               style={{ padding: "7px 14px", borderRadius: 9, border: `1px solid ${border}`, background: surfaceUp, color: muted, fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
               ⊕ Integracje API
             </Link>
