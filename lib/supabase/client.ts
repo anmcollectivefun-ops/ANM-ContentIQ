@@ -1,12 +1,18 @@
-import { createBrowserClient } from "@supabase/ssr";
+// lib/supabase/client.ts
+import { createClient } from "@supabase/supabase-js";
 
-export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables.");
+let supabase: ReturnType<typeof createClient> | null = null;
+
+export function getSupabase() {
+  if (supabase) return supabase;
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: true },
+    });
+    return supabase;
   }
-
-  return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  return null;
 }
