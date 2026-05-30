@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
  
-// ─── Typy ────────────────────────────────────────────────────────────────────
 interface TokenResult {
   access_token: string;
   refresh_token?: string;
@@ -16,10 +15,7 @@ interface StateData {
   nonce: string;
 }
  
-// ─── Wymiana code → token dla każdej platformy ───────────────────────────────
- 
 async function exchangeMeta(code: string, redirectUri: string): Promise<TokenResult> {
-  // Krok 1: short-lived token
   const shortRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
     `client_id=${process.env.META_APP_ID}&` +
@@ -28,10 +24,8 @@ async function exchangeMeta(code: string, redirectUri: string): Promise<TokenRes
     `code=${code}`
   );
   const short = await shortRes.json();
- 
   if (short.error) throw new Error(`Meta token error: ${short.error.message}`);
  
-  // Krok 2: zamień na long-lived token (60 dni)
   const longRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
     `grant_type=fb_exchange_token&` +
@@ -40,13 +34,9 @@ async function exchangeMeta(code: string, redirectUri: string): Promise<TokenRes
     `fb_exchange_token=${short.access_token}`
   );
   const long = await longRes.json();
- 
   if (long.error) throw new Error(`Meta long token error: ${long.error.message}`);
  
-  return {
-    access_token: long.access_token,
-    expires_in: long.expires_in, // ~5184000 sekund = 60 dni
-  };
+  return { access_token: long.access_token, expires_in: long.expires_in };
 }
  
 async function exchangeLinkedIn(code: string, redirectUri: string): Promise<TokenResult> {
@@ -100,12 +90,12 @@ async function exchangeGoogle(code: string, redirectUri: string): Promise<TokenR
   return data;
 }
  
-// ─── Pobierz info o koncie po uzyskaniu tokenu ────────────────────────────────
- 
-async function fetchAccountInfo(platform: string, token: string): Promise<{ account_id: string; account_name: string }> {
+async function fetchAccountInfo(
+  platform: string,
+  token: string
+): Promise<{ account_id: string; account_name: string }> {
   try {
     if (platform === "instagram") {
-      // Pobierz Page → potem konto Instagram Business powiązane z Page
       const pagesRes = await fetch(
         `https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`
       );
@@ -144,9 +134,10 @@ async function fetchAccountInfo(platform: string, token: string): Promise<{ acco
     }
  
     if (platform === "tiktok") {
-      const res = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       const data = await res.json();
       return {
         account_id: data.data?.user?.open_id || "unknown",
@@ -173,7 +164,6 @@ async function fetchAccountInfo(platform: string, token: string): Promise<{ acco
   return { account_id: "unknown", account_name: platform };
 }
  
-// ─── REDIRECT_URI per platforma ───────────────────────────────────────────────
 const REDIRECT_URIS: Record<string, string> = {
   instagram: process.env.META_REDIRECT_URI || "",
   facebook: process.env.META_REDIRECT_URI || "",
@@ -182,21 +172,17 @@ const REDIRECT_URIS: Record<string, string> = {
   youtube: process.env.GOOGLE_REDIRECT_URI || "",
 };
  
-// ─── MAIN CALLBACK ────────────────────────────────────────────────────────────
- 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
-  const platform = params.platform;
+  const { platform } = await params;
   const { searchParams } = req.nextUrl;
   const code = searchParams.get("code");
   const stateRaw = searchParams.get("state");
   const error = searchParams.get("error");
  
-  // Błąd autoryzacji od platformy (np. user odrzucił)
   if (error) {
-    console.error(`OAuth error from ${platform}:`, error);
     return NextResponse.redirect(
       new URL(`/app/settings?error=oauth_denied&platform=${platform}`, req.url)
     );
@@ -208,7 +194,6 @@ export async function GET(
     );
   }
  
-  // Odkoduj state
   let state: StateData;
   try {
     state = JSON.parse(Buffer.from(stateRaw, "base64url").toString());
@@ -218,7 +203,6 @@ export async function GET(
     );
   }
  
-  // Sprawdź czy zalogowany user zgadza się ze state
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
  
@@ -227,7 +211,6 @@ export async function GET(
   }
  
   try {
-    // ── 1. Wymień code na token ──────────────────────────────────────────────
     const redirectUri = REDIRECT_URIS[platform];
     let tokenData: TokenResult;
  
@@ -243,16 +226,12 @@ export async function GET(
       throw new Error(`Nieobsługiwana platforma: ${platform}`);
     }
  
-    // ── 2. Pobierz info o koncie ─────────────────────────────────────────────
     const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
  
-    // ── 3. Oblicz datę wygaśnięcia tokenu ───────────────────────────────────
     const expiresAt = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
  
-    // ── 4. Zapisz token do Supabase — przypisany do user_id i workspace ──────
-    // Używamy upsert żeby nadpisać jeśli to konto było już wcześniej podpięte
     const { error: dbError } = await supabase
       .from("platform_connections")
       .upsert(
@@ -267,11 +246,7 @@ export async function GET(
           connected: true,
           last_synced_at: new Date().toISOString(),
         },
-        {
-          // Upsert po workspace + platform + account_id
-          // Jeden user może mieć kilka kont na tej samej platformie
-          onConflict: "workspace_id,platform,account_id",
-        }
+        { onConflict: "workspace_id,platform,account_id" }
       );
  
     if (dbError) {
@@ -279,13 +254,11 @@ export async function GET(
       throw new Error(dbError.message);
     }
  
-    // ── 5. Przekieruj z powrotem do ustawień ─────────────────────────────────
     const redirectTo = state.workspace_id
       ? `/app/${state.workspace_id}/settings?connected=${platform}&account=${encodeURIComponent(accountInfo.account_name)}`
       : `/app/settings?connected=${platform}`;
  
     return NextResponse.redirect(new URL(redirectTo, req.url));
- 
   } catch (err) {
     console.error(`OAuth callback error [${platform}]:`, err);
     return NextResponse.redirect(
