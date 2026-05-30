@@ -4,9 +4,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getSupabase } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client"; // ✔ jedyne miejsce importu
 import ContentStudio from "@/components/ContentStudio";
 
+// ─── TYPES ───────────────────────────────────────────────────────────────────
 type Platform = "instagram" | "linkedin" | "tiktok" | "youtube" | "facebook" | "blog";
 
 interface Account {
@@ -34,6 +35,7 @@ interface Post {
   ai: string;
 }
 
+// ─── MOCK DATA ───────────────────────────────────────────────────────────────
 const ACCOUNTS: Account[] = [
   { id: "instagram", name: "Instagram", handle: "@anm_collective", score: 84, trend: 11, posts: 38, engRate: "4.2%", reach: "12.4k", aiTag: "Reels edukacyjne mają 2× wyższy zasięg", color: "#E1306C" },
   { id: "linkedin", name: "LinkedIn", handle: "ANM Collective", score: 91, trend: 18, posts: 22, engRate: "6.8%", reach: "28.1k", aiTag: "Case studies dominują", color: "#0A66C2" },
@@ -75,6 +77,7 @@ const INSIGHTS = [
   { type: "up", text: "Content edukacyjny ma 2× wyższe zaangażowanie." },
 ];
 
+// ─── SCORE BAR ───────────────────────────────────────────────────────────────
 function ScoreBar({ score }: { score: number }) {
   const color = score >= 80 ? "#22c55e" : score >= 60 ? "#f59e0b" : "#ef4444";
   return (
@@ -87,10 +90,11 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function AppWorkspacePage() {
   const params = useParams();
   const router = useRouter();
-  const supabase = getSupabase();
+  const supabase = getSupabase(); // ✔ bezpiecznie, może być null
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [dark, setDark] = useState(true);
@@ -127,6 +131,7 @@ export default function AppWorkspacePage() {
       `}</style>
 
       <div style={st.shell}>
+        {/* SIDEBAR */}
         <aside style={{ ...st.sidebar, background: css.sidebar, borderRight: `1px solid ${css.border}` }}>
           <div style={st.sidebarLogo}>
             <div style={{ ...st.logoMark, background: dark ? "#fff" : "#0f172a", color: dark ? "#0f172a" : "#fff" }}>IQ</div>
@@ -149,6 +154,7 @@ export default function AppWorkspacePage() {
           </div>
         </aside>
 
+        {/* MAIN AREA */}
         <div style={{ ...st.mainArea, background: css.bg }}>
           <header style={{ ...st.topbar, borderBottom: `1px solid ${css.border}` }}>
             <div>
@@ -162,6 +168,7 @@ export default function AppWorkspacePage() {
           </header>
 
           <div style={st.content}>
+            {/* DASHBOARD TAB */}
             {activeTab === "dashboard" && !activeAccount && (
               <div>
                 <div style={{ ...st.insightStrip, background: css.surface, border: `1px solid ${css.border}` }}>
@@ -194,6 +201,7 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
+            {/* ACCOUNT DETAIL */}
             {activeTab === "dashboard" && activeAccount && (
               <div>
                 <button onClick={() => setActiveAccount(null)} style={{ ...st.backBtn, color: css.muted, background: css.surface, border: `1px solid ${css.border}` }}>← Wszystkie konta</button>
@@ -222,8 +230,10 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
+            {/* CONTENT STUDIO */}
             {activeTab === "studio" && <ContentStudio dark={dark} />}
 
+            {/* OTHER TABS */}
             {activeTab !== "dashboard" && activeTab !== "studio" && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 16 }}>
                 <div style={{ fontSize: 48, opacity: 0.15 }}>{NAV_TABS.find(t => t.id === activeTab)?.icon}</div>
@@ -238,6 +248,7 @@ export default function AppWorkspacePage() {
   );
 }
 
+// ─── THEME VARS ───────────────────────────────────────────────────────────────
 const darkVars = {
   bg: "#080c14", sidebar: "#070a11", surface: "#0f1520", text: "#eef2ff",
   muted: "#3d4966", border: "#151e30", accent: "#818cf8", activeBg: "#131b2e",
@@ -249,6 +260,7 @@ const lightVars = {
   hoverBg: "#f8f8ff", accentBorder: "#6366f1",
 };
 
+// ─── STATIC STYLES ────────────────────────────────────────────────────────────
 const st: Record<string, React.CSSProperties> = {
   root: { transition: "background 0.3s", minHeight: "100vh", fontFamily: "'DM Sans', sans-serif" },
   shell: { display: "grid", gridTemplateColumns: "240px 1fr", minHeight: "100vh" },
