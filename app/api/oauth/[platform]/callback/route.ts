@@ -175,7 +175,8 @@ function getRedirectUri(req: NextRequest, platform: string) {
 
 async function getWorkspaceId(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  slug: string
+  slug: string,
+  userId: string
 ) {
   const { data, error } = await supabase
     .schema("contentiq")
@@ -184,11 +185,30 @@ async function getWorkspaceId(
     .eq("slug", slug)
     .single();
 
-  if (error || !data?.id) {
-    throw new Error(`Workspace not found: ${slug}`);
+  if (data?.id) {
+    return data.id as string;
   }
 
-  return data.id as string;
+  const { data: created, error: createError } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .insert({
+      user_id: userId,
+      name: slug
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" "),
+      type: "Firma",
+      slug,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !created?.id) {
+    throw new Error(createError?.message || `Workspace not found: ${slug}`);
+  }
+
+  return created.id as string;
 }
  
 export async function GET(
@@ -246,7 +266,7 @@ export async function GET(
     }
  
     const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
-    const workspaceUuid = await getWorkspaceId(supabase, state.workspace_id);
+    const workspaceUuid = await getWorkspaceId(supabase, state.workspace_id, user.id);
  
     const expiresAt = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()

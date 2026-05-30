@@ -295,6 +295,41 @@ export default function DashboardPage() {
   const [expandedInsights, setExpandedInsights] = useState(true);
   const [accounts, setAccounts] = useState<AccountData[]>(ACCOUNTS);
 
+  async function getOrCreateWorkspace(slug: string) {
+    const { data: existing } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id")
+      .eq("slug", slug)
+      .single();
+
+    if (existing?.id) return existing.id as string;
+
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Brak aktywnej sesji");
+
+    const { data: created, error } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .insert({
+        user_id: auth.user.id,
+        name: slug
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+        type: "Firma",
+        slug,
+      })
+      .select("id")
+      .single();
+
+    if (error || !created?.id) {
+      throw new Error(error?.message || "Nie można utworzyć workspace");
+    }
+
+    return created.id as string;
+  }
+
   useEffect(() => {
     queueMicrotask(() => {
       setMounted(true);
@@ -307,23 +342,13 @@ export default function DashboardPage() {
       else setUserEmail(data.user.email || "");
     });
 
-    supabase
-      .schema("contentiq")
-      .from("workspaces")
-      .select("id")
-      .eq("slug", "anm-collective")
-      .single()
-      .then(({ data: workspace, error: workspaceError }) => {
-        if (workspaceError || !workspace?.id) {
-          console.error("Workspace load error:", workspaceError?.message || "anm-collective");
-          return;
-        }
-
+    getOrCreateWorkspace("anm-collective")
+      .then((resolvedWorkspaceId) => {
         supabase
           .schema("contentiq")
           .from("platform_connections")
           .select("id, platform, account_name, last_synced_at, connected")
-          .eq("workspace_id", workspace.id)
+          .eq("workspace_id", resolvedWorkspaceId)
           .eq("connected", true)
           .then(({ data, error }) => {
             if (error) {
@@ -333,6 +358,9 @@ export default function DashboardPage() {
 
             setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
           });
+      })
+      .catch((error) => {
+        console.error("Workspace load error:", error instanceof Error ? error.message : error);
       });
   }, []);
 

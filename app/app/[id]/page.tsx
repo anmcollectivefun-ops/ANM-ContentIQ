@@ -701,6 +701,41 @@ export default function AppWorkspacePage() {
     }));
   }, [accounts]);
 
+  async function getOrCreateWorkspace() {
+    const { data: existing } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id")
+      .eq("slug", workspaceId)
+      .single();
+
+    if (existing?.id) return existing.id as string;
+
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Brak aktywnej sesji");
+
+    const { data: created, error } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .insert({
+        user_id: auth.user.id,
+        name: workspaceId
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+        type: "Firma",
+        slug: workspaceId,
+      })
+      .select("id")
+      .single();
+
+    if (error || !created?.id) {
+      throw new Error(error?.message || "Nie można utworzyć workspace");
+    }
+
+    return created.id as string;
+  }
+
   useEffect(() => {
     queueMicrotask(() => {
       setMounted(true);
@@ -711,23 +746,13 @@ export default function AppWorkspacePage() {
       }
     });
 
-    supabase
-      .schema("contentiq")
-      .from("workspaces")
-      .select("id")
-      .eq("slug", workspaceId)
-      .single()
-      .then(({ data: workspace, error: workspaceError }) => {
-        if (workspaceError || !workspace?.id) {
-          console.error("Workspace load error:", workspaceError?.message || workspaceId);
-          return;
-        }
-
+    getOrCreateWorkspace()
+      .then((resolvedWorkspaceId) => {
         supabase
           .schema("contentiq")
           .from("platform_connections")
           .select("id, platform, account_name, last_synced_at, connected")
-          .eq("workspace_id", workspace.id)
+          .eq("workspace_id", resolvedWorkspaceId)
           .eq("connected", true)
           .then(({ data, error }) => {
             if (error) {
@@ -737,6 +762,9 @@ export default function AppWorkspacePage() {
 
             setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
           });
+      })
+      .catch((error) => {
+        console.error("Workspace load error:", error instanceof Error ? error.message : error);
       });
   }, [workspaceId]);
 

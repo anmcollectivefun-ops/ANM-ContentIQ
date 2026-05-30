@@ -5,7 +5,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 
 async function resolveWorkspaceId(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  workspace: string
+  workspace: string,
+  userId: string
 ) {
   if (UUID_RE.test(workspace)) return workspace;
 
@@ -16,11 +17,30 @@ async function resolveWorkspaceId(
     .eq("slug", workspace)
     .single();
 
-  if (error || !data?.id) {
-    throw new Error(`Workspace not found: ${workspace}`);
+  if (data?.id) {
+    return data.id as string;
   }
 
-  return data.id as string;
+  const { data: created, error: createError } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .insert({
+      user_id: userId,
+      name: workspace
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" "),
+      type: "Firma",
+      slug: workspace,
+    })
+    .select("id")
+    .single();
+
+  if (createError || !created?.id) {
+    throw new Error(createError?.message || `Workspace not found: ${workspace}`);
+  }
+
+  return created.id as string;
 }
 
 export async function POST(req: NextRequest) {
@@ -49,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   let workspaceId: string;
   try {
-    workspaceId = await resolveWorkspaceId(supabase, body.workspace_id);
+    workspaceId = await resolveWorkspaceId(supabase, body.workspace_id, user.id);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Workspace not found" },

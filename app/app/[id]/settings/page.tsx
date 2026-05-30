@@ -211,30 +211,61 @@ export default function IntegrationsPage() {
     setTimeout(() => setToast(null), 4000);
   }
 
-  // Pobierz podłączone konta z Supabase
-  async function loadConnections() {
-    setLoading(true);
-    const { data: workspace, error: workspaceError } = await supabase
+  async function getOrCreateWorkspace() {
+    const { data: existing } = await supabase
       .schema("contentiq")
       .from("workspaces")
       .select("id")
       .eq("slug", workspaceId)
       .single();
 
-    if (workspaceError || !workspace?.id) {
+    if (existing?.id) return existing.id as string;
+
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Brak aktywnej sesji");
+
+    const { data: created, error } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .insert({
+        user_id: auth.user.id,
+        name: workspaceId
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" "),
+        type: "Firma",
+        slug: workspaceId,
+      })
+      .select("id")
+      .single();
+
+    if (error || !created?.id) {
+      throw new Error(error?.message || "Nie można utworzyć workspace");
+    }
+
+    return created.id as string;
+  }
+
+  // Pobierz podłączone konta z Supabase
+  async function loadConnections() {
+    setLoading(true);
+    let resolvedWorkspaceId = "";
+    try {
+      resolvedWorkspaceId = await getOrCreateWorkspace();
+    } catch (err) {
       setConnections([]);
       setLoading(false);
-      showToast("Nie znaleziono workspace: " + workspaceId, "err");
+      showToast(err instanceof Error ? err.message : "Nie znaleziono workspace: " + workspaceId, "err");
       return;
     }
 
-    setWorkspaceDbId(workspace.id as string);
+    setWorkspaceDbId(resolvedWorkspaceId);
 
     const { data } = await supabase
       .schema("contentiq")
       .from("platform_connections")
       .select("*")
-      .eq("workspace_id", workspace.id)
+      .eq("workspace_id", resolvedWorkspaceId)
       .eq("connected", true);
     setConnections(data || []);
     setLoading(false);
