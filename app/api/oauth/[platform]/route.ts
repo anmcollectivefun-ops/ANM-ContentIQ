@@ -11,12 +11,12 @@ const PLATFORM_CONFIG: Record<string, {
   instagram: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_read_engagement,pages_show_list,read_insights",
+    scope: "instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list",
   },
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "pages_read_engagement,pages_show_list,read_insights,pages_manage_posts",
+    scope: "pages_read_engagement,pages_show_list",
   },
   linkedin: {
     authUrl: "https://www.linkedin.com/oauth/v2/authorization",
