@@ -179,6 +179,7 @@ export default function IntegrationsPage() {
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
+  const [workspaceDbId, setWorkspaceDbId] = useState("");
 
   const dark = true; // podłącz do globalnego stanu motywu jeśli masz
   const css = dark
@@ -213,11 +214,27 @@ export default function IntegrationsPage() {
   // Pobierz podłączone konta z Supabase
   async function loadConnections() {
     setLoading(true);
+    const { data: workspace, error: workspaceError } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id")
+      .eq("slug", workspaceId)
+      .single();
+
+    if (workspaceError || !workspace?.id) {
+      setConnections([]);
+      setLoading(false);
+      showToast("Nie znaleziono workspace: " + workspaceId, "err");
+      return;
+    }
+
+    setWorkspaceDbId(workspace.id as string);
+
     const { data } = await supabase
       .schema("contentiq")
       .from("platform_connections")
       .select("*")
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", workspace.id)
       .eq("connected", true);
     setConnections(data || []);
     setLoading(false);
@@ -410,7 +427,7 @@ export default function IntegrationsPage() {
                   {/* Manual form dla bloga */}
                   {platform.type === "manual" && (
                     <BlogForm
-                      workspaceId={workspaceId}
+                      workspaceId={workspaceDbId || workspaceId}
                       onSaved={() => { loadConnections(); showToast("Blog podłączony", "ok"); }}
                       css={css}
                     />

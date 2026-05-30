@@ -172,6 +172,24 @@ function getRedirectUri(req: NextRequest, platform: string) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
   return new URL(`/api/oauth/${platform}/callback`, origin).toString();
 }
+
+async function getWorkspaceId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  slug: string
+) {
+  const { data, error } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .select("id")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Workspace not found: ${slug}`);
+  }
+
+  return data.id as string;
+}
  
 export async function GET(
   req: NextRequest,
@@ -228,6 +246,7 @@ export async function GET(
     }
  
     const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
+    const workspaceUuid = await getWorkspaceId(supabase, state.workspace_id);
  
     const expiresAt = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
@@ -236,9 +255,9 @@ export async function GET(
     const { error: dbError } = await supabase
       .schema("contentiq")
       .from("platform_connections")
-      .upsert(
+      .insert(
         {
-          workspace_id: state.workspace_id || null,
+          workspace_id: workspaceUuid,
           platform,
           account_id: accountInfo.account_id,
           account_name: accountInfo.account_name,
@@ -247,8 +266,7 @@ export async function GET(
           token_expires_at: expiresAt,
           connected: true,
           last_synced_at: new Date().toISOString(),
-        },
-        { onConflict: "workspace_id,platform,account_id" }
+        }
       );
  
     if (dbError) {

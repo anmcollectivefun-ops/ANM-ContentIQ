@@ -1,6 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveWorkspaceId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workspace: string
+) {
+  if (UUID_RE.test(workspace)) return workspace;
+
+  const { data, error } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .select("id")
+    .eq("slug", workspace)
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Workspace not found: ${workspace}`);
+  }
+
+  return data.id as string;
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
@@ -22,6 +44,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Brakuje workspace_id albo adresu bloga" },
       { status: 400 }
+    );
+  }
+
+  let workspaceId: string;
+  try {
+    workspaceId = await resolveWorkspaceId(supabase, body.workspace_id);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Workspace not found" },
+      { status: 404 }
     );
   }
 
@@ -53,17 +85,16 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase
     .schema("contentiq")
     .from("platform_connections")
-    .upsert(
+    .insert(
       {
-        workspace_id: body.workspace_id,
+        workspace_id: workspaceId,
         platform: "blog",
         account_name: blogUrl.hostname,
         account_id: blogUrl.origin,
         access_token: token,
         connected: true,
         last_synced_at: new Date().toISOString(),
-      },
-      { onConflict: "workspace_id,platform,account_id" }
+      }
     );
 
   if (error) {

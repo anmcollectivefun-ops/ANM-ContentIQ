@@ -309,17 +309,30 @@ export default function DashboardPage() {
 
     supabase
       .schema("contentiq")
-      .from("platform_connections")
-      .select("id, platform, account_name, last_synced_at, connected")
-      .eq("workspace_id", "anm-collective")
-      .eq("connected", true)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Connections load error:", error.message);
+      .from("workspaces")
+      .select("id")
+      .eq("slug", "anm-collective")
+      .single()
+      .then(({ data: workspace, error: workspaceError }) => {
+        if (workspaceError || !workspace?.id) {
+          console.error("Workspace load error:", workspaceError?.message || "anm-collective");
           return;
         }
 
-        setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+        supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .select("id, platform, account_name, last_synced_at, connected")
+          .eq("workspace_id", workspace.id)
+          .eq("connected", true)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("Connections load error:", error.message);
+              return;
+            }
+
+            setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+          });
       });
   }, []);
 

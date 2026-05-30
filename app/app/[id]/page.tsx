@@ -713,17 +713,30 @@ export default function AppWorkspacePage() {
 
     supabase
       .schema("contentiq")
-      .from("platform_connections")
-      .select("id, platform, account_name, last_synced_at, connected")
-      .eq("workspace_id", workspaceId)
-      .eq("connected", true)
-      .then(({ data, error }) => {
-        if (error) {
-          console.error("Connections load error:", error.message);
+      .from("workspaces")
+      .select("id")
+      .eq("slug", workspaceId)
+      .single()
+      .then(({ data: workspace, error: workspaceError }) => {
+        if (workspaceError || !workspace?.id) {
+          console.error("Workspace load error:", workspaceError?.message || workspaceId);
           return;
         }
 
-        setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+        supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .select("id, platform, account_name, last_synced_at, connected")
+          .eq("workspace_id", workspace.id)
+          .eq("connected", true)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("Connections load error:", error.message);
+              return;
+            }
+
+            setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+          });
       });
   }, [workspaceId]);
 

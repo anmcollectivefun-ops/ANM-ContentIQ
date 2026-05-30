@@ -14,6 +14,26 @@ export interface PlatformConnection {
   connected: boolean;
   last_synced_at: string | null;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveWorkspaceId(workspaceIdOrSlug: string) {
+  if (UUID_RE.test(workspaceIdOrSlug)) return workspaceIdOrSlug;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .select("id")
+    .eq("slug", workspaceIdOrSlug)
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Workspace not found: ${workspaceIdOrSlug}`);
+  }
+
+  return data.id as string;
+}
  
 // ─── Pobierz token użytkownika dla danej platformy ───────────────────────────
  
@@ -22,12 +42,13 @@ export async function getConnection(
   platform: Platform
 ): Promise<PlatformConnection | null> {
   const supabase = await createClient();
+  const resolvedWorkspaceId = await resolveWorkspaceId(workspaceId);
  
   const { data, error } = await supabase
     .schema("contentiq")
     .from("platform_connections")
     .select("*")
-    .eq("workspace_id", workspaceId)
+    .eq("workspace_id", resolvedWorkspaceId)
     .eq("platform", platform)
     .eq("connected", true)
     .order("last_synced_at", { ascending: false })
@@ -42,12 +63,13 @@ export async function getConnection(
  
 export async function getAllConnections(workspaceId: string): Promise<PlatformConnection[]> {
   const supabase = await createClient();
+  const resolvedWorkspaceId = await resolveWorkspaceId(workspaceId);
  
   const { data } = await supabase
     .schema("contentiq")
     .from("platform_connections")
     .select("*")
-    .eq("workspace_id", workspaceId)
+    .eq("workspace_id", resolvedWorkspaceId)
     .eq("connected", true)
     .order("platform");
  
