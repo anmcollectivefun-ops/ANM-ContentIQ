@@ -1,1252 +1,508 @@
 "use client";
 
-import Link from "next/link";
+// app/dashboard/page.tsx
+// Jeden dashboard — wszystkie konta social media w kafelkach z wykresami.
+// Brak systemu projektów — jeden użytkownik, wszystkie platformy w jednym miejscu.
+
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-// ─── TYPES ───────────────────────────────────────────────────────────────────
+// ─── TYPY ────────────────────────────────────────────────────────────────────
 
-type WorkspaceStatus = "Aktywny" | "W przygotowaniu" | "Do rozbudowy";
+type Platform =
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "tiktok"
+  | "youtube"
+  | "blog"
+  | "spotify";
 
-type Workspace = {
-  id: string;
+interface AccountData {
+  id: Platform;
   name: string;
-  type: string;
+  handle: string;
+  color: string;
+  gradient: string;
   score: number;
   trend: number;
-  status: WorkspaceStatus;
-  platforms: string[];
   posts: number;
-  topPlatform: string;
-  insight: string;
-};
+  engRate: string;
+  reach: string;
+  followers: string;
+  bestFormat: string;
+  aiTag: string;
+  connected: boolean;
+  sparkline: number[]; // 12 punktów danych do mini wykresu
+  weeklyReach: number[];
+}
 
-type Stat = {
-  label: string;
-  value: string;
-  sub: string;
-};
+// ─── DANE ────────────────────────────────────────────────────────────────────
 
-type Activity = {
-  title: string;
-  meta: string;
-  type: "ai" | "content" | "integration" | "warning";
-};
-
-// ─── START DATA / LATER SUPABASE ─────────────────────────────────────────────
-
-const workspaces: Workspace[] = [
+const ACCOUNTS: AccountData[] = [
   {
-    id: "anm-collective",
-    name: "ANM Collective",
-    type: "Firma / SaaS",
-    score: 87,
+    id: "instagram",
+    name: "Instagram",
+    handle: "@anm_collective",
+    color: "#E1306C",
+    gradient: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)",
+    score: 84,
     trend: 11,
-    status: "Aktywny",
-    platforms: ["ig", "li", "tt", "yt", "fb", "blog", "sp"],
-    posts: 42,
-    topPlatform: "LinkedIn",
-    insight:
-      "Najlepsze wyniki daje content ekspercki i case studies. TikTok wymaga krótszych hooków.",
+    posts: 38,
+    engRate: "4.2%",
+    reach: "12.4k",
+    followers: "8.2k",
+    bestFormat: "Reels edukacyjne",
+    aiTag: "Reels mają 2× wyższy zasięg niż karuzele. Zwiększ częstotliwość krótkich video.",
+    connected: true,
+    sparkline: [40, 55, 48, 62, 58, 71, 65, 80, 74, 88, 82, 94],
+    weeklyReach: [8200, 9400, 8800, 11200, 10400, 13100, 12400],
   },
   {
-    id: "creator-planner",
-    name: "Creator Planner",
-    type: "Influencer",
-    score: 82,
-    trend: 4,
-    status: "W przygotowaniu",
-    platforms: ["ig", "tt", "yt", "sp"],
-    posts: 18,
-    topPlatform: "Instagram",
-    insight:
-      "Współprace sponsorowane wymagają balansu z contentem organicznym.",
-  },
-  {
-    id: "blog-seo",
-    name: "Blog & SEO Hub",
-    type: "Content marketing",
-    score: 74,
+    id: "facebook",
+    name: "Facebook",
+    handle: "ANM Collective",
+    color: "#1877F2",
+    gradient: "linear-gradient(135deg, #1877F2, #0d5fd8)",
+    score: 58,
     trend: -2,
-    status: "Do rozbudowy",
-    platforms: ["blog", "li", "yt"],
+    posts: 18,
+    engRate: "1.4%",
+    reach: "5.1k",
+    followers: "3.4k",
+    bestFormat: "Video + grupy",
+    aiTag: "Organiczny zasięg spada. Skup się na grupach tematycznych i video.",
+    connected: false,
+    sparkline: [62, 58, 55, 60, 52, 49, 55, 51, 48, 54, 56, 58],
+    weeklyReach: [5800, 5200, 4900, 5400, 4800, 5100, 5100],
+  },
+  {
+    id: "linkedin",
+    name: "LinkedIn",
+    handle: "ANM Collective",
+    color: "#0A66C2",
+    gradient: "linear-gradient(135deg, #0A66C2, #084fa0)",
+    score: 91,
+    trend: 18,
+    posts: 22,
+    engRate: "6.8%",
+    reach: "28.1k",
+    followers: "12.1k",
+    bestFormat: "Case studies",
+    aiTag: "Najlepszy kanał na leady B2B. Case studies z liczbami w tytule dominują.",
+    connected: true,
+    sparkline: [55, 62, 70, 68, 75, 80, 77, 85, 83, 88, 90, 91],
+    weeklyReach: [18200, 21400, 23800, 25200, 26400, 27800, 28100],
+  },
+  {
+    id: "tiktok",
+    name: "TikTok",
+    handle: "@anm_collective",
+    color: "#000000",
+    gradient: "linear-gradient(135deg, #010101, #69C9D0)",
+    score: 63,
+    trend: -4,
+    posts: 15,
+    engRate: "2.1%",
+    reach: "6.8k",
+    followers: "4.8k",
+    bestFormat: "Krótkie listy błędów",
+    aiTag: "Hook musi wejść w pierwszej sekundzie. Długie wstępy zabijają zasięg.",
+    connected: true,
+    sparkline: [72, 68, 65, 70, 63, 58, 65, 61, 57, 62, 64, 63],
+    weeklyReach: [7800, 7200, 6600, 7100, 6500, 6800, 6800],
+  },
+  {
+    id: "youtube",
+    name: "YouTube",
+    handle: "ANM Collective",
+    color: "#FF0000",
+    gradient: "linear-gradient(135deg, #FF0000, #cc0000)",
+    score: 77,
+    trend: 6,
+    posts: 9,
+    engRate: "54% ret.",
+    reach: "3.2k",
+    followers: "1.9k",
+    bestFormat: "Shorts + tutoriale",
+    aiTag: "Shorts mają 3× wyższy CTR niż długie filmy. Zwiększ do 3 Shorts tygodniowo.",
+    connected: true,
+    sparkline: [60, 65, 62, 68, 70, 72, 69, 74, 75, 76, 77, 77],
+    weeklyReach: [2400, 2600, 2800, 2900, 3000, 3100, 3200],
+  },
+  {
+    id: "blog",
+    name: "Blog",
+    handle: "anmcollective.pl",
+    color: "#22C55E",
+    gradient: "linear-gradient(135deg, #22C55E, #16a34a)",
+    score: 79,
+    trend: 22,
     posts: 11,
-    topPlatform: "Blog",
-    insight:
-      "Artykuły poradnikowe mają dobry potencjał SEO, ale wymagają dystrybucji w social mediach.",
+    engRate: "3:42 avg",
+    reach: "8.9k",
+    followers: "—",
+    bestFormat: "Poradniki SEO",
+    aiTag: "Artykuły poradnikowe mają najwyższy czas na stronie i generują leady organiczne.",
+    connected: true,
+    sparkline: [45, 50, 55, 58, 62, 65, 68, 72, 74, 76, 78, 79],
+    weeklyReach: [5200, 6100, 6800, 7400, 7900, 8400, 8900],
+  },
+  {
+    id: "spotify",
+    name: "Spotify",
+    handle: "ANM Podcast",
+    color: "#1DB954",
+    gradient: "linear-gradient(135deg, #1DB954, #158a3e)",
+    score: 72,
+    trend: 9,
+    posts: 7,
+    engRate: "41% compl.",
+    reach: "2.7k",
+    followers: "890",
+    bestFormat: "Odcinki poradnikowe",
+    aiTag: "Krótkie odcinki z konkretną obietnicą w tytule mają 2× wyższy completion rate.",
+    connected: false,
+    sparkline: [58, 62, 60, 65, 63, 68, 66, 70, 69, 72, 71, 72],
+    weeklyReach: [1800, 2000, 2100, 2300, 2400, 2600, 2700],
   },
 ];
 
-const baseStats: Stat[] = [
-  { label: "Projekty", value: "3", sub: "workspace’y contentowe" },
-  { label: "Publikacje", value: "71", sub: "we wszystkich projektach" },
-  { label: "Avg AI Score", value: "81", sub: "+5 vs ostatni miesiąc" },
-  { label: "Rekomendacje AI", value: "18", sub: "do przejrzenia" },
+const GLOBAL_INSIGHTS = [
+  { col: "#22c55e", text: "LinkedIn generuje 3× więcej leadów niż pozostałe platformy. Content ekspercki z case studies dominuje." },
+  { col: "#f59e0b", text: "TikTok i Facebook tracą zasięg. Hook pierwszych 2 sekund jest kluczowy — bez niego algorytm nie wypycha treści." },
+  { col: "#818cf8", text: "Blog rośnie najszybciej (+22%). Artykuły poradnikowe warto recyklować na LinkedIn i jako Shorts na YouTube." },
 ];
 
-const activities: Activity[] = [
-  {
-    title: "LinkedIn ma najwyższy wynik w projekcie ANM Collective",
-    meta: "AI rekomenduje więcej case studies i postów eksperckich.",
-    type: "ai",
-  },
-  {
-    title: "TikTok wymaga przebudowy hooków",
-    meta: "Długie wstępy obniżają retencję w pierwszych sekundach.",
-    type: "warning",
-  },
-  {
-    title: "Blog & SEO Hub ma potencjał do recyklingu treści",
-    meta: "Artykuły można przerobić na LinkedIn, newsletter i Shorts.",
-    type: "content",
-  },
-  {
-    title: "Integracje do podłączenia",
-    meta: "Priorytet: YouTube, Meta, LinkedIn, Spotify i Blog/WordPress.",
-    type: "integration",
-  },
-];
+// ─── MINI SPARKLINE SVG ───────────────────────────────────────────────────────
 
-const aiSummary = [
-  "Największy potencjał ma obecnie LinkedIn, bo treści eksperckie i case studies generują najlepszy wynik jakościowy.",
-  "TikTok i Instagram potrzebują krótszych formatów, mocniejszych hooków i treści bardziej dynamicznych.",
-  "Blog powinien działać jako baza wiedzy, z której AI generuje posty, newslettery, scenariusze video i podcasty.",
-];
-
-const PLATFORM_ICONS: Record<string, string> = {
-  ig: "IG",
-  li: "LI",
-  tt: "TT",
-  yt: "YT",
-  fb: "FB",
-  blog: "BL",
-  sp: "SP",
-};
-
-const PLATFORM_COLORS: Record<string, string> = {
-  ig: "#E1306C",
-  li: "#0A66C2",
-  tt: "#111827",
-  yt: "#FF0000",
-  fb: "#1877F2",
-  blog: "#22C55E",
-  sp: "#1DB954",
-};
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-function getInitials(email?: string | null) {
-  if (!email) return "U";
-  const name = email.split("@")[0] ?? "user";
-  return name.slice(0, 2).toUpperCase();
-}
-
-function getScoreColor(score: number) {
-  if (score >= 80) return "#22c55e";
-  if (score >= 60) return "#f59e0b";
-  return "#ef4444";
-}
-
-function getStatusColor(status: WorkspaceStatus, dark: boolean) {
-  if (status === "Aktywny") {
-    return {
-      background: dark ? "#052e16" : "#dcfce7",
-      color: "#22c55e",
-    };
-  }
-
-  if (status === "W przygotowaniu") {
-    return {
-      background: dark ? "#172554" : "#dbeafe",
-      color: "#60a5fa",
-    };
-  }
-
-  return {
-    background: dark ? "#1c1917" : "#f5f5f4",
-    color: dark ? "#a8a29e" : "#78716c",
-  };
-}
-
-function getActivityAccent(type: Activity["type"]) {
-  if (type === "ai") return "#818cf8";
-  if (type === "content") return "#22c55e";
-  if (type === "integration") return "#38bdf8";
-  return "#f59e0b";
-}
-
-// ─── SCORE RING ──────────────────────────────────────────────────────────────
-
-function ScoreRing({ score, size = 64 }: { score: number; size?: number }) {
-  const radius = (size - 7) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const fill = (score / 100) * circumference;
-  const color = getScoreColor(score);
+function Sparkline({ data, color, width = 120, height = 40 }: { data: number[]; color: string; width?: number; height?: number }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 8) - 4;
+    return `${x},${y}`;
+  });
+  const pathD = `M ${points.join(" L ")}`;
+  const areaD = `M ${points[0]} L ${points.join(" L ")} L ${width},${height} L 0,${height} Z`;
 
   return (
-    <div style={{ width: size, height: size, position: "relative" }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={3}
-          opacity={0.12}
-        />
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id={`sg-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill={`url(#sg-${color.replace("#", "")})`} />
+      <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={points[points.length - 1].split(",")[0]} cy={points[points.length - 1].split(",")[1]} r="3" fill={color} />
+    </svg>
+  );
+}
 
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth={3}
-          strokeDasharray={`${fill} ${circumference}`}
-          strokeLinecap="round"
-        />
-      </svg>
+// ─── BAR CHART (weekly reach) ─────────────────────────────────────────────────
 
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 15,
-          fontWeight: 800,
-          color,
-        }}
-      >
-        {score}
-      </div>
+function MiniBarChart({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(...data);
+  const days = ["P", "W", "Ś", "C", "P", "S", "N"];
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 36 }}>
+      {data.map((v, i) => (
+        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: 1 }}>
+          <div style={{ width: "100%", height: Math.max(3, (v / max) * 28), background: i === data.length - 1 ? color : color + "55", borderRadius: 3, transition: "height 0.6s ease" }} />
+          <span style={{ fontSize: 8, color: "#ffffff44", fontFamily: "inherit" }}>{days[i]}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+// ─── SCORE RING ───────────────────────────────────────────────────────────────
+
+function ScoreRing({ score, color, size = 52 }: { score: number; color: string; size?: number }) {
+  const r = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const fill = (score / 100) * circ;
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)", flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#ffffff15" strokeWidth={5} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={5}
+        strokeDasharray={`${fill} ${circ}`} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
-
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
-
-  const css = dark ? theme.dark : theme.light;
-
-  const bestWorkspace = useMemo(
-    () => [...workspaces].sort((a, b) => b.score - a.score)[0],
-    []
-  );
-
-  const weakestWorkspace = useMemo(
-    () => [...workspaces].sort((a, b) => a.score - b.score)[0],
-    []
-  );
+  const [expandedInsights, setExpandedInsights] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-
     const saved = localStorage.getItem("ciq-theme");
-    if (saved) {
-      setDark(saved === "dark");
-    }
+    if (saved) setDark(saved === "dark");
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.push("/login");
+      else setUserEmail(data.user.email || "");
+    });
+  }, []);
 
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      setUserEmail(user.email ?? null);
-      setLoadingUser(false);
-    }
-
-    loadUser();
-  }, [router, supabase.auth]);
-
-  function toggleTheme() {
+  const toggleTheme = () => {
     const next = !dark;
     setDark(next);
     localStorage.setItem("ciq-theme", next ? "dark" : "light");
-  }
+  };
 
-  async function handleSignOut() {
+  const handleSignOut = async () => {
     setSigningOut(true);
-
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      console.error("Sign out error:", error.message);
-      setSigningOut(false);
-      return;
-    }
-
+    await supabase.auth.signOut();
     router.push("/login");
-    router.refresh();
-  }
+  };
 
-  if (!mounted || loadingUser) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-          background: "#080c14",
-          color: "#f8fafc",
-          fontFamily: "system-ui, sans-serif",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 28, fontWeight: 800 }}>ANM ContentIQ</div>
-          <p style={{ marginTop: 8, color: "#94a3b8" }}>
-            Ładowanie dashboardu...
-          </p>
-        </div>
-      </main>
-    );
-  }
+  if (!mounted) return null;
+
+  const d = dark;
+  const bg = d ? "#07111e" : "#f0f4f8";
+  const surface = d ? "#0d1b2a" : "#ffffff";
+  const surfaceUp = d ? "#112235" : "#f7fafd";
+  const border = d ? "#1a2e42" : "#dce8f0";
+  const text = d ? "#e8f2ff" : "#0d1b2a";
+  const muted = d ? "#4a6480" : "#6b8299";
+  const accent = "#4E8FD4";
+  const cardBg = d ? "#0f1f30" : "#ffffff";
+  const cardBorder = d ? "#1e3248" : "#dde8f2";
+
+  const connectedCount = ACCOUNTS.filter(a => a.connected).length;
+  const avgScore = Math.round(ACCOUNTS.reduce((s, a) => s + a.score, 0) / ACCOUNTS.length);
+  const totalPosts = ACCOUNTS.reduce((s, a) => s + a.posts, 0);
 
   return (
-    <div style={{ ...s.root, background: css.bg, color: css.text }}>
+    <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", transition: "background 0.3s" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap');
-
-        * {
-          box-sizing: border-box;
-        }
-
-        body {
-          margin: 0;
-        }
-
-        ::selection {
-          background: ${dark ? "#6366f140" : "#0f172a20"};
-        }
-
-        .ciq-card {
-          transition: transform 0.22s cubic-bezier(.22,.68,0,1.2), border-color 0.22s ease, box-shadow 0.22s ease;
-        }
-
-        .ciq-card:hover {
-          transform: translateY(-3px);
-          border-color: ${css.accentBorder} !important;
-          box-shadow: ${dark ? "0 24px 60px rgba(0,0,0,0.28)" : "0 24px 60px rgba(15,23,42,0.08)"};
-        }
-
-        .ciq-card:hover .arrow-hint {
-          opacity: 1 !important;
-          transform: translateX(0) !important;
-        }
-
-        .ciq-stat {
-          transition: transform 0.18s ease, border-color 0.18s ease;
-        }
-
-        .ciq-stat:hover {
-          transform: translateY(-2px);
-          border-color: ${css.accentBorder} !important;
-        }
-
-        .ciq-link {
-          transition: opacity 0.15s ease;
-        }
-
-        .ciq-link:hover {
-          opacity: 0.65;
-        }
-
-        @media (max-width: 960px) {
-          .ciq-header-inner,
-          .ciq-main {
-            padding-left: 20px !important;
-            padding-right: 20px !important;
-          }
-
-          .ciq-nav {
-            gap: 10px !important;
-          }
-
-          .ciq-nav-hide-mobile {
-            display: none !important;
-          }
-
-          .ciq-hero-grid,
-          .ciq-stats-grid,
-          .ciq-cards-grid,
-          .ciq-bottom-grid {
-            grid-template-columns: 1fr !important;
-          }
-
-          .ciq-section-head {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-
-          .ciq-header-inner {
-            height: auto !important;
-            padding-top: 16px !important;
-            padding-bottom: 16px !important;
-            gap: 14px !important;
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-
-          .ciq-nav {
-            width: 100%;
-            flex-wrap: wrap;
-          }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Serif+Display&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        .account-card{transition:transform 0.2s cubic-bezier(.22,.68,0,1.2),box-shadow 0.2s ease,border-color 0.2s}
+        .account-card:hover{transform:translateY(-3px)}
+        .btn-hover{transition:opacity 0.15s,transform 0.15s}
+        .btn-hover:hover{opacity:0.85;transform:translateY(-1px)}
+        .nav-link{transition:color 0.15s,opacity 0.15s}
+        .nav-link:hover{opacity:0.7}
+        .connect-btn{transition:all 0.15s}
+        .connect-btn:hover{filter:brightness(1.1)}
+        ::-webkit-scrollbar{width:4px}
+        ::-webkit-scrollbar-thumb{background:${border};border-radius:4px}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .fade-up{animation:fadeUp 0.4s ease forwards}
       `}</style>
 
-      {/* ================= TOP BAR ================= */}
-      <header
-        style={{
-          ...s.header,
-          borderBottom: `1px solid ${css.border}`,
-          background: `${css.bg}e6`,
-        }}
-      >
-        <div className="ciq-header-inner" style={s.headerInner}>
-          <Link href="/dashboard" style={s.logoGroup}>
-            <span
-              style={{
-                ...s.logoMark,
-                background: dark ? "#fff" : "#0f172a",
-                color: dark ? "#0f172a" : "#fff",
-              }}
-            >
-              IQ
-            </span>
-
+      {/* ── TOPBAR ── */}
+      <header style={{ borderBottom: `1px solid ${border}`, background: d ? "rgba(7,17,30,0.9)" : "rgba(240,244,248,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 1360, margin: "0 auto", padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", letterSpacing: "-0.03em" }}>IQ</div>
             <div>
-              <div
-                style={{
-                  ...s.logoName,
-                  fontFamily: "'DM Serif Display', serif",
-                  color: css.text,
-                }}
-              >
-                ANM ContentIQ
-              </div>
-
-              <div style={{ ...s.logoSub, color: css.muted }}>
-                Panel użytkownika
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'DM Serif Display', serif", color: text, letterSpacing: "-0.02em" }}>ANM ContentIQ</div>
+              <div style={{ fontSize: 10, color: muted, letterSpacing: "0.05em", textTransform: "uppercase" }}>Analytics Dashboard</div>
             </div>
-          </Link>
+          </div>
 
-          <nav className="ciq-nav" style={s.nav}>
-            <Link
-              href="/"
-              className="ciq-link ciq-nav-hide-mobile"
-              style={{ ...s.navItem, color: css.muted, textDecoration: "none" }}
-            >
-              Landing
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: muted }}>{userEmail}</span>
+            <Link href="/app/anm-collective/settings?tab=integrations" className="btn-hover"
+              style={{ padding: "7px 14px", borderRadius: 9, border: `1px solid ${border}`, background: surfaceUp, color: muted, fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+              ⊕ Integracje API
             </Link>
-
-            <span
-              className="ciq-link ciq-nav-hide-mobile"
-              style={{ ...s.navItem, color: css.muted }}
-            >
-              Dokumentacja
-            </span>
-
-            <span
-              className="ciq-link ciq-nav-hide-mobile"
-              style={{ ...s.navItem, color: css.muted }}
-            >
-              Wsparcie
-            </span>
-
-            <button
-              onClick={toggleTheme}
-              style={{
-                ...s.themeBtn,
-                background: css.surface,
-                border: `1px solid ${css.border}`,
-                color: css.text,
-              }}
-            >
-              {dark ? "☀ Jasny" : "☾ Ciemny"}
+            <button onClick={toggleTheme} className="btn-hover"
+              style={{ padding: "7px 14px", borderRadius: 9, border: `1px solid ${border}`, background: surfaceUp, color: muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+              {d ? "☀" : "☾"}
             </button>
-
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
-              style={{
-                ...s.signOutBtn,
-                background: "#ef444414",
-                border: "1px solid #ef444438",
-                color: "#ef4444",
-              }}
-            >
+            <button onClick={handleSignOut} disabled={signingOut} className="btn-hover"
+              style={{ padding: "7px 14px", borderRadius: 9, background: "#ef444415", border: "1px solid #ef444430", color: "#ef4444", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
               {signingOut ? "..." : "Wyloguj"}
             </button>
-
-            <div
-              style={{
-                ...s.avatar,
-                background: dark ? "#1e293b" : "#f1f5f9",
-                border: `1.5px solid ${css.border}`,
-              }}
-              title={userEmail ?? undefined}
-            >
-              <span style={{ fontSize: 11, fontWeight: 800, color: css.text }}>
-                {getInitials(userEmail)}
-              </span>
-            </div>
-          </nav>
+          </div>
         </div>
       </header>
 
-      <main className="ciq-main" style={s.main}>
-        {/* ================= HERO ================= */}
-        <section className="ciq-hero-grid" style={s.heroGrid}>
-          <div>
-            <div style={{ ...s.greeting, color: css.accent }}>
-              Witaj w panelu
-            </div>
+      <main style={{ maxWidth: 1360, margin: "0 auto", padding: "32px 28px 80px" }}>
 
-            <h1
-              style={{
-                ...s.heroTitle,
-                fontFamily: "'DM Serif Display', serif",
-                color: css.text,
-              }}
-            >
-              Twoje centrum contentu AI
-            </h1>
-
-            <p style={{ ...s.heroSub, color: css.muted }}>
-              Zalogowano jako{" "}
-              <span style={{ color: css.text, fontWeight: 700 }}>
-                {userEmail}
-              </span>
-              . Wybierz projekt, aby przejść do analizy kont, publikacji,
-              Content Studio i planowania.
-            </p>
+        {/* ── HERO ── */}
+        <div style={{ marginBottom: 32 }} className="fade-up">
+          <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 10 }}>
+            ✦ Live Analytics
           </div>
+          <h1 style={{ fontSize: 40, fontWeight: 400, fontFamily: "'DM Serif Display', serif", color: text, letterSpacing: "-0.03em", lineHeight: 1.05, marginBottom: 10 }}>
+            Centrum analityki contentu
+          </h1>
+          <p style={{ fontSize: 14, color: muted, maxWidth: 560, lineHeight: 1.7 }}>
+            Wszystkie platformy w jednym miejscu — wyniki live, porównanie kanałów i rekomendacje AI.
+          </p>
+        </div>
 
-          <div
-            style={{
-              ...s.heroPanel,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-            }}
-          >
-            <p style={{ ...s.panelLabel, color: css.accent }}>
-              AI Global Summary
-            </p>
+        {/* ── STATS ROW ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+          {[
+            { label: "Podłączone konta", value: `${connectedCount}/${ACCOUNTS.length}`, sub: "platform aktywnych", color: "#22c55e" },
+            { label: "Avg AI Score", value: String(avgScore), sub: "średnia wszystkich kanałów", color: accent },
+            { label: "Publikacje", value: String(totalPosts), sub: "wszystkich platform", color: "#f59e0b" },
+            { label: "Najlepsza platforma", value: "LinkedIn", sub: "score 91 · trend +18%", color: "#0A66C2" },
+          ].map((stat, i) => (
+            <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: "16px 18px" }} className="fade-up">
+              <div style={{ fontSize: 11, color: muted, marginBottom: 6, fontWeight: 500 }}>{stat.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display', serif", color: stat.color, lineHeight: 1 }}>{stat.value}</div>
+              <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>{stat.sub}</div>
+            </div>
+          ))}
+        </div>
 
-            <div style={s.aiList}>
-              {aiSummary.map((item, index) => (
-                <div
-                  key={item}
-                  style={{
-                    ...s.aiItem,
-                    borderLeft: `2px solid ${
-                      index === 0
-                        ? "#22c55e"
-                        : index === 1
-                          ? "#f59e0b"
-                          : css.accent
-                    }`,
-                  }}
-                >
-                  <p style={{ color: css.muted }}>{item}</p>
+        {/* ── AI INSIGHTS ── */}
+        <div style={{ background: d ? "#0a1929" : "#eef6ff", border: `1px solid ${d ? "#1a3a5c" : "#c8dcf0"}`, borderRadius: 16, padding: "16px 20px", marginBottom: 28 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: expandedInsights ? 14 : 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              ✦ AI Cross-Platform Insights
+            </div>
+            <button onClick={() => setExpandedInsights(!expandedInsights)}
+              style={{ background: "none", border: "none", color: muted, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+              {expandedInsights ? "Zwiń ▲" : "Rozwiń ▼"}
+            </button>
+          </div>
+          {expandedInsights && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              {GLOBAL_INSIGHTS.map((ins, i) => (
+                <div key={i} style={{ borderLeft: `2px solid ${ins.col}`, paddingLeft: 12, fontSize: 12, color: d ? "#a8c4e0" : "#334e66", lineHeight: 1.65 }}>
+                  {ins.text}
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* ================= STATS ================= */}
-        <section className="ciq-stats-grid" style={s.statsGrid}>
-          {baseStats.map((stat) => (
-            <div
-              key={stat.label}
-              className="ciq-stat"
-              style={{
-                ...s.statCard,
-                background: css.surface,
-                border: `1px solid ${css.border}`,
-              }}
-            >
-              <div
-                style={{
-                  ...s.statValue,
-                  color: css.text,
-                  fontFamily: "'DM Serif Display', serif",
-                }}
-              >
-                {stat.value}
-              </div>
-
-              <div style={{ ...s.statLabel, color: css.text }}>
-                {stat.label}
-              </div>
-
-              <div style={{ ...s.statSub, color: css.muted }}>{stat.sub}</div>
-            </div>
-          ))}
-        </section>
-
-        {/* ================= QUICK OVERVIEW ================= */}
-        <section className="ciq-bottom-grid" style={s.quickGrid}>
-          <div
-            style={{
-              ...s.quickCard,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-            }}
-          >
-            <p style={{ ...s.panelLabel, color: css.accent }}>
-              Najmocniejszy projekt
-            </p>
-
-            <h2
-              style={{
-                ...s.quickTitle,
-                color: css.text,
-                fontFamily: "'DM Serif Display', serif",
-              }}
-            >
-              {bestWorkspace.name}
-            </h2>
-
-            <p style={{ ...s.quickText, color: css.muted }}>
-              {bestWorkspace.insight}
-            </p>
-          </div>
-
-          <div
-            style={{
-              ...s.quickCard,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-            }}
-          >
-            <p style={{ ...s.panelLabel, color: css.accent }}>Do poprawy</p>
-
-            <h2
-              style={{
-                ...s.quickTitle,
-                color: css.text,
-                fontFamily: "'DM Serif Display', serif",
-              }}
-            >
-              {weakestWorkspace.name}
-            </h2>
-
-            <p style={{ ...s.quickText, color: css.muted }}>
-              {weakestWorkspace.insight}
-            </p>
-          </div>
-        </section>
-
-        {/* ================= SECTION HEAD ================= */}
-        <div className="ciq-section-head" style={s.sectionHead}>
-          <div>
-            <span style={{ ...s.sectionLabel, color: css.muted }}>
-              Workspace’y
-            </span>
-
-            <h2
-              style={{
-                ...s.sectionTitle,
-                color: css.text,
-                fontFamily: "'DM Serif Display', serif",
-              }}
-            >
-              Projekty contentowe
-            </h2>
-          </div>
-
-          <button
-            style={{
-              ...s.addBtn,
-              background: dark ? "#fff" : "#0f172a",
-              color: dark ? "#0f172a" : "#fff",
-            }}
-          >
-            + Nowy projekt
-          </button>
+          )}
         </div>
 
-        {/* ================= WORKSPACE CARDS ================= */}
-        <section className="ciq-cards-grid" style={s.cardsGrid}>
-          {workspaces.map((workspace) => {
-            const statusColor = getStatusColor(workspace.status, dark);
+        {/* ── ACCOUNT TILES ── */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 16 }}>
+          Wszystkie konta — kliknij aby wejść w szczegóły
+        </div>
 
-            return (
-              <Link
-                key={workspace.id}
-                href={`/app/${workspace.id}`}
-                style={{ textDecoration: "none" }}
-              >
-                <div
-                  className="ciq-card"
-                  style={{
-                    ...s.wsCard,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                  }}
-                >
-                  {/* ===== TOP ROW ===== */}
-                  <div style={s.wsTop}>
-                    <span
-                      style={{
-                        ...s.wsStatus,
-                        background: statusColor.background,
-                        color: statusColor.color,
-                      }}
-                    >
-                      {workspace.status}
-                    </span>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {ACCOUNTS.map((acc, idx) => (
+            <div key={acc.id} className="account-card fade-up" style={{ animationDelay: `${idx * 0.05}s`, background: cardBg, border: `1px solid ${acc.connected ? acc.color + "35" : cardBorder}`, borderRadius: 18, overflow: "hidden", cursor: "pointer" }}
+              onClick={() => router.push(`/app/anm-collective?platform=${acc.id}`)}>
 
-                    <span
-                      className="arrow-hint"
-                      style={{
-                        ...s.arrowHint,
-                        color: css.muted,
-                        opacity: 0,
-                        transform: "translateX(-6px)",
-                      }}
-                    >
-                      Otwórz →
-                    </span>
+              {/* Color strip */}
+              <div style={{ height: 3, background: acc.gradient }} />
+
+              <div style={{ padding: "16px 18px 18px" }}>
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: text }}>{acc.name}</div>
+                    <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{acc.handle}</div>
                   </div>
-
-                  {/* ===== TITLE ===== */}
-                  <div style={{ marginTop: 22 }}>
-                    <h3
-                      style={{
-                        ...s.wsName,
-                        fontFamily: "'DM Serif Display', serif",
-                        color: css.text,
-                      }}
-                    >
-                      {workspace.name}
-                    </h3>
-
-                    <p style={{ ...s.wsType, color: css.muted }}>
-                      {workspace.type}
-                    </p>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                    {acc.connected ? (
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "#22c55e18", color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        ● Aktywne
+                      </span>
+                    ) : (
+                      <Link href="/app/anm-collective/settings?tab=integrations"
+                        onClick={e => e.stopPropagation()}
+                        className="connect-btn"
+                        style={{ fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: acc.color + "25", color: acc.color, textTransform: "uppercase", letterSpacing: "0.06em", textDecoration: "none" }}>
+                        + Połącz
+                      </Link>
+                    )}
                   </div>
+                </div>
 
-                  {/* ===== SCORE ===== */}
-                  <div
-                    style={{
-                      ...s.wsMiddle,
-                      borderTop: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <ScoreRing score={workspace.score} />
-
+                {/* Score + sparkline */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <ScoreRing score={acc.score} color={acc.color} />
                     <div>
-                      <div
-                        style={{
-                          ...s.wsTrend,
-                          color: workspace.trend > 0 ? "#22c55e" : "#ef4444",
-                        }}
-                      >
-                        {workspace.trend > 0 ? "↑" : "↓"}{" "}
-                        {Math.abs(workspace.trend)}% vs ostatni mies.
-                      </div>
-
-                      <div style={s.wsPlatforms}>
-                        {workspace.platforms.map((platform) => (
-                          <span
-                            key={platform}
-                            style={{
-                              ...s.platformPill,
-                              background: `${PLATFORM_COLORS[platform]}${
-                                dark ? "25" : "18"
-                              }`,
-                              color: PLATFORM_COLORS[platform],
-                            }}
-                          >
-                            {PLATFORM_ICONS[platform]}
-                          </span>
-                        ))}
+                      <div style={{ fontSize: 22, fontWeight: 700, color: acc.color, fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{acc.score}</div>
+                      <div style={{ fontSize: 10, color: muted }}>AI Score</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: acc.trend > 0 ? "#22c55e" : "#ef4444", marginTop: 2 }}>
+                        {acc.trend > 0 ? "↑" : "↓"} {Math.abs(acc.trend)}%
                       </div>
                     </div>
                   </div>
-
-                  {/* ===== AI INSIGHT ===== */}
-                  <div
-                    style={{
-                      ...s.wsInsight,
-                      background: dark ? "#ffffff08" : "#f8fafc",
-                      color: css.muted,
-                    }}
-                  >
-                    ✦ {workspace.insight}
-                  </div>
-
-                  {/* ===== FOOTER ===== */}
-                  <div
-                    style={{
-                      ...s.wsFooter,
-                      borderTop: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <span style={{ color: css.muted, fontSize: 12 }}>
-                      {workspace.posts} publikacji · Najlepszy kanał:{" "}
-                      <strong style={{ color: css.text }}>
-                        {workspace.topPlatform}
-                      </strong>
-                    </span>
-                  </div>
+                  <Sparkline data={acc.sparkline} color={acc.color} width={110} height={38} />
                 </div>
-              </Link>
-            );
-          })}
-        </section>
 
-        {/* ================= ACTIVITY / NEXT STEPS ================= */}
-        <section className="ciq-bottom-grid" style={s.bottomGrid}>
-          <div
-            style={{
-              ...s.activityPanel,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-            }}
-          >
-            <p style={{ ...s.panelLabel, color: css.accent }}>
-              Ostatnie sygnały AI
-            </p>
-
-            <div style={s.activityList}>
-              {activities.map((activity) => (
-                <div
-                  key={activity.title}
-                  style={{
-                    ...s.activityItem,
-                    borderLeft: `2px solid ${getActivityAccent(activity.type)}`,
-                  }}
-                >
-                  <p style={{ ...s.activityTitle, color: css.text }}>
-                    {activity.title}
-                  </p>
-
-                  <p style={{ ...s.activityMeta, color: css.muted }}>
-                    {activity.meta}
-                  </p>
+                {/* Stats row */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "10px 0", borderTop: `1px solid ${d ? "#1a2e42" : "#e8f0f8"}`, borderBottom: `1px solid ${d ? "#1a2e42" : "#e8f0f8"}`, marginBottom: 12 }}>
+                  {[
+                    { label: "Posty", val: acc.posts },
+                    { label: "Zasięg avg", val: acc.reach },
+                    { label: "Followers", val: acc.followers },
+                  ].map(({ label, val }) => (
+                    <div key={label} style={{ textAlign: "center" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{val}</div>
+                      <div style={{ fontSize: 10, color: muted }}>{label}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                {/* Mini bar chart */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, color: muted, marginBottom: 6 }}>Zasięg — ostatnie 7 dni</div>
+                  <MiniBarChart data={acc.weeklyReach} color={acc.color} />
+                </div>
+
+                {/* Best format */}
+                <div style={{ fontSize: 10, color: muted, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>Najlepszy format</div>
+                <div style={{ display: "inline-flex", padding: "4px 10px", borderRadius: 8, background: acc.color + "18", color: acc.color, fontSize: 11, fontWeight: 600, marginBottom: 10 }}>
+                  {acc.bestFormat}
+                </div>
+
+                {/* AI tag */}
+                <div style={{ background: d ? "#0a1929" : "#eef6ff", border: `1px solid ${d ? "#1a3a5c" : "#c8dcf0"}`, borderRadius: 10, padding: "8px 10px" }}>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>✦ AI</div>
+                  <div style={{ fontSize: 11, color: d ? "#a8c4e0" : "#334e66", lineHeight: 1.55 }}>{acc.aiTag}</div>
+                </div>
+
+                {/* Footer links */}
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <Link href={`/app/anm-collective?platform=${acc.id}`} onClick={e => e.stopPropagation()}
+                    style={{ flex: 1, textAlign: "center", padding: "7px", borderRadius: 9, background: acc.color, color: "#fff", fontSize: 11, fontWeight: 600, textDecoration: "none" }}>
+                    Szczegóły →
+                  </Link>
+                  <Link href="/app/anm-collective/settings?tab=integrations" onClick={e => e.stopPropagation()}
+                    style={{ padding: "7px 12px", borderRadius: 9, border: `1px solid ${cardBorder}`, color: muted, fontSize: 11, textDecoration: "none" }}>
+                    ⊕ API
+                  </Link>
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div
-            style={{
-              ...s.activityPanel,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-            }}
-          >
-            <p style={{ ...s.panelLabel, color: css.accent }}>
-              Następny krok techniczny
-            </p>
-
-            <h2
-              style={{
-                ...s.nextTitle,
-                color: css.text,
-                fontFamily: "'DM Serif Display', serif",
-              }}
-            >
-              Podpiąć workspace’y pod Supabase
-            </h2>
-
-            <p style={{ ...s.quickText, color: css.muted }}>
-              Ten widok jest już gotowy pod prawdziwą bazę. Następnie
-              przeniesiemy projekty z constów do tabeli{" "}
-              <strong style={{ color: css.text }}>workspaces</strong>, żeby każdy
-              użytkownik widział swoje własne projekty.
-            </p>
-
-            <div style={s.nextSteps}>
-              {["profiles", "workspaces", "workspace_members"].map((item) => (
-                <span
-                  key={item}
-                  style={{
-                    ...s.nextPill,
-                    background: css.bg,
-                    border: `1px solid ${css.border}`,
-                    color: css.muted,
-                  }}
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* ── QUICK LINKS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 28 }}>
+          {[
+            { label: "Content Studio AI", desc: "Generuj, analizuj i adaptuj treści pod każdą platformę", icon: "✦", href: "/app/anm-collective?tab=studio", color: accent },
+            { label: "Porównanie platform", desc: "Sprawdź gdzie jaki format i temat działa najlepiej", icon: "⊞", href: "/app/anm-collective?tab=compare", color: "#f59e0b" },
+            { label: "Ustawienia integracji", desc: "Podłącz konta przez OAuth — Instagram, LinkedIn, TikTok i więcej", icon: "⊕", href: "/app/anm-collective/settings?tab=integrations", color: "#22c55e" },
+          ].map((link, i) => (
+            <Link key={i} href={link.href} className="btn-hover"
+              style={{ display: "block", background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: "16px 18px", textDecoration: "none" }}>
+              <div style={{ fontSize: 18, marginBottom: 8, color: link.color }}>{link.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: text, marginBottom: 4 }}>{link.label}</div>
+              <div style={{ fontSize: 12, color: muted, lineHeight: 1.6 }}>{link.desc}</div>
+            </Link>
+          ))}
+        </div>
       </main>
     </div>
   );
 }
-
-// ─── THEME ───────────────────────────────────────────────────────────────────
-
-const theme = {
-  dark: {
-    bg: "#080c14",
-    surface: "#0f1520",
-    text: "#f0f4ff",
-    muted: "#8390a8",
-    border: "#1a2234",
-    accent: "#818cf8",
-    accentBorder: "#818cf8",
-  },
-  light: {
-    bg: "#f8f7f4",
-    surface: "#ffffff",
-    text: "#0f172a",
-    muted: "#64748b",
-    border: "#e8e8e4",
-    accent: "#6366f1",
-    accentBorder: "#6366f1",
-  },
-};
-
-// ─── STYLES ──────────────────────────────────────────────────────────────────
-
-const s: Record<string, CSSProperties> = {
-  root: {
-    minHeight: "100vh",
-    transition: "background 0.3s, color 0.3s",
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-  },
-  header: {
-    position: "sticky",
-    top: 0,
-    zIndex: 50,
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-  },
-  headerInner: {
-    maxWidth: 1220,
-    margin: "0 auto",
-    padding: "0 32px",
-    minHeight: 68,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  logoGroup: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    textDecoration: "none",
-  },
-  logoMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 13,
-    fontWeight: 900,
-    letterSpacing: "-0.02em",
-    flexShrink: 0,
-  },
-  logoName: {
-    fontSize: 18,
-    lineHeight: 1.1,
-    letterSpacing: "-0.02em",
-  },
-  logoSub: {
-    fontSize: 10,
-    marginTop: 2,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-  },
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-  },
-  navItem: {
-    fontSize: 13,
-    cursor: "pointer",
-  },
-  themeBtn: {
-    fontSize: 12,
-    padding: "7px 14px",
-    borderRadius: 999,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  },
-  signOutBtn: {
-    fontSize: 12,
-    padding: "7px 14px",
-    borderRadius: 999,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "default",
-  },
-  main: {
-    maxWidth: 1220,
-    margin: "0 auto",
-    padding: "48px 32px 80px",
-  },
-  heroGrid: {
-    display: "grid",
-    gridTemplateColumns: "1.1fr 0.9fr",
-    gap: 22,
-    alignItems: "stretch",
-    marginBottom: 28,
-  },
-  greeting: {
-    fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-  heroTitle: {
-    fontSize: 58,
-    fontWeight: 400,
-    letterSpacing: "-0.04em",
-    lineHeight: 1.02,
-    margin: "0 0 14px",
-  },
-  heroSub: {
-    fontSize: 14,
-    lineHeight: 1.7,
-    maxWidth: 660,
-    margin: 0,
-  },
-  heroPanel: {
-    borderRadius: 22,
-    padding: 22,
-  },
-  panelLabel: {
-    fontSize: 10,
-    fontWeight: 900,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase",
-    margin: "0 0 14px",
-  },
-  aiList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  aiItem: {
-    paddingLeft: 12,
-  },
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: 12,
-    marginBottom: 22,
-  },
-  statCard: {
-    padding: "20px 22px",
-    borderRadius: 16,
-  },
-  statValue: {
-    fontSize: 36,
-    fontWeight: 400,
-    letterSpacing: "-0.03em",
-  },
-  statLabel: {
-    fontSize: 13,
-    fontWeight: 700,
-    marginTop: 4,
-  },
-  statSub: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-  quickGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 14,
-    marginBottom: 34,
-  },
-  quickCard: {
-    borderRadius: 18,
-    padding: 20,
-  },
-  quickTitle: {
-    fontSize: 28,
-    fontWeight: 400,
-    margin: "0 0 8px",
-  },
-  quickText: {
-    fontSize: 13,
-    lineHeight: 1.7,
-    margin: 0,
-  },
-  sectionHead: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    gap: 16,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: 800,
-    textTransform: "uppercase",
-    letterSpacing: "0.12em",
-  },
-  sectionTitle: {
-    fontSize: 32,
-    fontWeight: 400,
-    margin: "6px 0 0",
-  },
-  addBtn: {
-    fontSize: 12,
-    fontWeight: 800,
-    padding: "10px 18px",
-    borderRadius: 999,
-    border: "none",
-    cursor: "pointer",
-    fontFamily: "inherit",
-  },
-  cardsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 16,
-    marginBottom: 28,
-  },
-  wsCard: {
-    borderRadius: 22,
-    padding: "22px 24px",
-    cursor: "pointer",
-    minHeight: 310,
-    display: "flex",
-    flexDirection: "column",
-  },
-  wsTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  wsStatus: {
-    fontSize: 11,
-    fontWeight: 800,
-    padding: "5px 11px",
-    borderRadius: 999,
-  },
-  arrowHint: {
-    fontSize: 12,
-    transition: "opacity 0.2s, transform 0.2s",
-  },
-  wsName: {
-    fontSize: 28,
-    letterSpacing: "-0.02em",
-    lineHeight: 1.12,
-    margin: 0,
-  },
-  wsType: {
-    fontSize: 12,
-    marginTop: 6,
-  },
-  wsMiddle: {
-    display: "flex",
-    alignItems: "center",
-    gap: 16,
-    paddingTop: 18,
-    marginTop: 22,
-  },
-  wsTrend: {
-    fontSize: 12,
-    fontWeight: 800,
-    marginBottom: 9,
-  },
-  wsPlatforms: {
-    display: "flex",
-    gap: 5,
-    flexWrap: "wrap",
-  },
-  platformPill: {
-    fontSize: 9,
-    fontWeight: 900,
-    padding: "3px 7px",
-    borderRadius: 7,
-    letterSpacing: "0.04em",
-  },
-  wsInsight: {
-    marginTop: 18,
-    borderRadius: 14,
-    padding: 12,
-    fontSize: 12,
-    lineHeight: 1.55,
-  },
-  wsFooter: {
-    paddingTop: 14,
-    marginTop: "auto",
-  },
-  bottomGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 16,
-  },
-  activityPanel: {
-    borderRadius: 22,
-    padding: 22,
-  },
-  activityList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 14,
-  },
-  activityItem: {
-    paddingLeft: 12,
-  },
-  activityTitle: {
-    fontSize: 13,
-    fontWeight: 800,
-    margin: 0,
-  },
-  activityMeta: {
-    fontSize: 12,
-    lineHeight: 1.55,
-    margin: "5px 0 0",
-  },
-  nextTitle: {
-    fontSize: 30,
-    fontWeight: 400,
-    margin: "0 0 10px",
-  },
-  nextSteps: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    marginTop: 18,
-  },
-  nextPill: {
-    borderRadius: 999,
-    padding: "7px 11px",
-    fontSize: 11,
-    fontWeight: 800,
-  },
-};
