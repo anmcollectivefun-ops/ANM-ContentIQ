@@ -93,6 +93,23 @@ async function exchangeGoogle(code: string, redirectUri: string): Promise<TokenR
   if (data.error) throw new Error(`Google token error: ${data.error_description}`);
   return data;
 }
+
+async function exchangeSpotify(code: string, redirectUri: string): Promise<TokenResult> {
+  const res = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: redirectUri,
+      client_id: env("SPOTIFY_CLIENT_ID"),
+      client_secret: env("SPOTIFY_CLIENT_SECRET"),
+    }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Spotify token error: ${data.error_description || data.error}`);
+  return data;
+}
  
 async function fetchAccountInfo(
   platform: string,
@@ -159,6 +176,17 @@ async function fetchAccountInfo(
       return {
         account_id: channel?.id || "unknown",
         account_name: channel?.snippet?.title || "YouTube Channel",
+      };
+    }
+
+    if (platform === "spotify") {
+      const res = await fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      return {
+        account_id: data.id || data.email || "unknown",
+        account_name: data.display_name || data.email || "Spotify",
       };
     }
   } catch (err) {
@@ -261,6 +289,8 @@ export async function GET(
       tokenData = await exchangeTikTok(code, redirectUri);
     } else if (platform === "youtube") {
       tokenData = await exchangeGoogle(code, redirectUri);
+    } else if (platform === "spotify") {
+      tokenData = await exchangeSpotify(code, redirectUri);
     } else {
       throw new Error(`Nieobsługiwana platforma: ${platform}`);
     }

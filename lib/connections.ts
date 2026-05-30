@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
  
-export type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog";
+export type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog" | "spotify";
  
 export interface PlatformConnection {
   id: string;

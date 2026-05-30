@@ -34,6 +34,11 @@ const PLATFORM_CONFIG: Record<string, {
     scope: "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
     extraParams: { access_type: "offline", prompt: "consent" },
   },
+  spotify: {
+    authUrl: "https://accounts.spotify.com/authorize",
+    clientIdEnv: "SPOTIFY_CLIENT_ID",
+    scope: "user-read-email user-read-private",
+  },
 };
 
 function getRedirectUri(req: NextRequest, platform: string) {

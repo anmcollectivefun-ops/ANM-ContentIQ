@@ -8,6 +8,7 @@ const SYNCABLE_PLATFORMS = new Set([
   "tiktok",
   "youtube",
   "blog",
+  "spotify",
 ]);
 
 export async function POST(req: NextRequest) {

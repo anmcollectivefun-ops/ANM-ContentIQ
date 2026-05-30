@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 
 // ─── TYPY ────────────────────────────────────────────────────────────────────
 
-type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog";
+type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog" | "spotify";
 
 interface Connection {
   id: string;
@@ -70,6 +70,14 @@ const PLATFORMS: PlatformInfo[] = [
     color: "#FF0000",
     icon: "ti-brand-youtube",
     description: "Kanał, filmy, Shorts, Analytics",
+    type: "oauth",
+  },
+  {
+    id: "spotify",
+    label: "Spotify",
+    color: "#1DB954",
+    icon: "ti-brand-spotify",
+    description: "Podcasty, odcinki, statystyki i wyniki",
     type: "oauth",
   },
   {
