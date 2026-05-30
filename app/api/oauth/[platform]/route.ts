@@ -11,7 +11,7 @@ const PLATFORM_CONFIG: Record<string, {
   instagram: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list",
+    scope: "pages_read_engagement,pages_show_list",
   },
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
