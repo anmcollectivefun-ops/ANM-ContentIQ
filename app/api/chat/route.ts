@@ -1,79 +1,82 @@
-// app/api/ai/route.ts
+// app/api/chat/route.ts
 // DeepSeek R1 — silnik AI dla ANM ContentIQ
-// Obsługuje: generowanie contentu, analizę, scoring, dopasowanie platform
+// Obsługuje: generowanie contentu, analizę, scoring, adaptację na platformy i rekomendacje
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: "https://api.deepseek.com",
-  apiKey: process.env.DEEPSEEK_API_KEY,
-});
+// ─── TYPES ───────────────────────────────────────────────────────────────────
 
-// ─── SYSTEM PROMPTS dla każdego trybu ───────────────────────────────────────
+type AiMode = "generate" | "analyze" | "adapt" | "recommend" | "chat";
 
-const SYSTEM_PROMPTS: Record<string, string> = {
+type RequestBody = {
+  mode?: AiMode;
+  prompt?: string;
+  platform?: string;
+  platforms?: string[];
+  contentType?: string;
+  historicalData?: unknown;
+};
 
-  // Generowanie treści pod konkretną platformę
-  generate: `Jesteś ekspertem content marketingu specjalizującym się w tworzeniu treści dla marek B2B i twórców.
-Tworzysz content dopasowany do konkretnej platformy, grupy odbiorców i celu komunikacji.
+// ─── SYSTEM PROMPTS ──────────────────────────────────────────────────────────
+
+const SYSTEM_PROMPTS: Record<AiMode, string> = {
+  generate: `Jesteś ekspertem content marketingu specjalizującym się w tworzeniu treści dla marek B2B, firm, twórców i influencerów.
+Tworzysz content dopasowany do konkretnej platformy, grupy odbiorców, celu komunikacji i formatu.
 Zawsze odpowiadasz w języku polskim, chyba że użytkownik poprosi inaczej.
-Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem który otrzymasz.`,
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
-  // Analiza istniejącego posta i wynik AI
   analyze: `Jesteś analitykiem content marketingu. Analizujesz treści pod kątem:
-- Siły hooka (pierwsze zdanie/sekunda)
-- Jakości CTA (call to action)
-- Dopasowania do platformy
-- Potencjału zaangażowania
-- Stylu i tonu komunikacji
+- siły hooka,
+- jakości CTA,
+- dopasowania do platformy,
+- potencjału zaangażowania,
+- stylu i tonu komunikacji,
+- czytelności,
+- potencjału sprzedażowego.
 Oceniasz w skali 0-100 i dajesz konkretne wskazówki poprawy.
-Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem który otrzymasz.`,
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
-  // Dopasowanie treści do różnych platform
   adapt: `Jesteś specjalistą od multi-platform content strategy.
-Wiesz dokładnie jak ta sama treść powinna być zmodyfikowana dla:
-- LinkedIn: ekspercki ton, dłuższe posty, statystyki, case studies, B2B
-- Instagram: wizualność, emocje, krótsze opisy, hashtagi, CTA do Stories
-- TikTok: hook w 1-2 sekundy, dynamika, trend-aware, krótki opis, dźwięk
-- YouTube: SEO w tytule, retencja, wartość edukacyjna, thumbnail idea
-- Facebook: społeczność, storytelling, grupy, zasięg organiczny spada
-- Blog: SEO, długa forma, nagłówki H2/H3, meta description, linkowanie
-Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem który otrzymasz.`,
+Dopasowujesz jedną treść do różnych platform:
+- LinkedIn: ekspercki ton, case studies, statystyki, B2B, konkretne wnioski.
+- Instagram: wizualność, emocje, krótsze opisy, Reels, karuzele, hashtagi.
+- TikTok: hook w 1-2 sekundy, dynamika, krótka forma, prosty komunikat.
+- YouTube: SEO w tytule, retencja, wartość edukacyjna, pomysł na miniaturę.
+- Facebook: społeczność, storytelling, grupy, rozmowa z odbiorcą.
+- Blog: SEO, długa forma, nagłówki H2/H3, meta description, FAQ.
+- Spotify: outline odcinka, tytuł, opis, segmenty, CTA.
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
-  // Rekomendacje na podstawie danych historycznych
-  recommend: `Jesteś strategiem content marketingu który analizuje dane z wielu platform.
-Na podstawie historycznych wyników postów identyfikujesz wzorce:
-- Co działa, a co nie działa na danej platformie
-- Jakie formaty, tematy i style przynoszą najlepsze wyniki
-- Gdzie dana treść ma największy potencjał
-- Jak poprawić przyszłe publikacje
-Dajesz konkretne, actionable rekomendacje oparte na danych.
-Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem który otrzymasz.`,
+  recommend: `Jesteś strategiem content marketingu, który analizuje dane z wielu platform.
+Na podstawie historycznych wyników postów identyfikujesz:
+- co działa, a co nie działa na danej platformie,
+- jakie formaty, tematy i style przynoszą najlepsze wyniki,
+- gdzie dana treść ma największy potencjał,
+- jak poprawić przyszłe publikacje.
+Dajesz konkretne, praktyczne rekomendacje oparte na danych.
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
-  // Ogólny czat AI
   chat: `Jesteś asystentem ANM ContentIQ — platformy do zarządzania contentem.
-Pomagasz użytkownikom z: strategią contentową, analizą wyników, tworzeniem treści,
-planowaniem publikacji i optymalizacją pod platformy social media.
+Pomagasz użytkownikom z tworzeniem treści, strategią contentową, analizą wyników, planowaniem publikacji i optymalizacją pod platformy social media.
 Odpowiadaj po polsku, konkretnie i pomocnie.`,
 };
 
-// ─── SCHEMATY JSON dla każdego trybu ────────────────────────────────────────
+// ─── JSON SCHEMAS ────────────────────────────────────────────────────────────
 
-const JSON_SCHEMAS: Record<string, string> = {
-
-  generate: `Zwróć dokładnie taki JSON (bez markdown, bez komentarzy):
+const JSON_SCHEMAS: Record<Exclude<AiMode, "chat">, string> = {
+  generate: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
 {
   "title": "tytuł lub temat treści",
   "hook": "pierwsze zdanie — musi zatrzymać uwagę",
   "body": "główna treść posta",
   "cta": "call to action",
-  "hashtags": ["hashtag1", "hashtag2"],
+  "hashtags": ["#hashtag1", "#hashtag2"],
   "estimated_score": 85,
   "platform_notes": "krótka uwaga o dopasowaniu do platformy"
 }`,
 
-  analyze: `Zwróć dokładnie taki JSON (bez markdown, bez komentarzy):
+  analyze: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
 {
   "score": 78,
   "hook_quality": 65,
@@ -86,31 +89,55 @@ const JSON_SCHEMAS: Record<string, string> = {
   "rewritten_hook": "poprawiona wersja hooka"
 }`,
 
-  adapt: `Zwróć dokładnie taki JSON (bez markdown, bez komentarzy):
+  adapt: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
 {
   "platforms": {
     "linkedin": {
       "body": "wersja na LinkedIn",
-      "hashtags": ["hashtag"],
+      "hashtags": ["#hashtag"],
       "score": 88,
       "notes": "dlaczego ta wersja działa na LinkedIn"
     },
     "instagram": {
       "body": "wersja na Instagram",
-      "hashtags": ["hashtag"],
+      "hashtags": ["#hashtag"],
       "score": 74,
       "notes": "dlaczego ta wersja działa na Instagram"
     },
     "tiktok": {
       "body": "hook i opis na TikTok",
-      "hashtags": ["hashtag"],
+      "hashtags": ["#hashtag"],
       "score": 61,
       "notes": "dlaczego ta wersja działa na TikTok"
+    },
+    "youtube": {
+      "body": "tytuł, opis i pomysł na Shorts lub film",
+      "hashtags": ["#hashtag"],
+      "score": 80,
+      "notes": "dlaczego ta wersja działa na YouTube"
+    },
+    "facebook": {
+      "body": "wersja na Facebook",
+      "hashtags": ["#hashtag"],
+      "score": 70,
+      "notes": "dlaczego ta wersja działa na Facebook"
+    },
+    "blog": {
+      "body": "struktura artykułu blogowego z nagłówkami",
+      "hashtags": [],
+      "score": 84,
+      "notes": "dlaczego ta wersja działa jako blog"
+    },
+    "spotify": {
+      "body": "outline odcinka podcastu",
+      "hashtags": [],
+      "score": 76,
+      "notes": "dlaczego ta wersja działa jako podcast"
     }
   }
 }`,
 
-  recommend: `Zwróć dokładnie taki JSON (bez markdown, bez komentarzy):
+  recommend: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
 {
   "top_platform": "linkedin",
   "top_platform_reason": "dlaczego ta platforma jest najlepsza dla tej treści",
@@ -123,73 +150,146 @@ const JSON_SCHEMAS: Record<string, string> = {
       "expected_impact": "oczekiwany efekt"
     }
   ],
-  "content_patterns": "wzorce które działają na podstawie danych"
+  "content_patterns": "wzorce, które działają na podstawie danych"
 }`,
 };
 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+function cleanJsonAnswer(answer: string) {
+  return answer
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
 
-    // Tryby: generate | analyze | adapt | recommend | chat
-    const mode: string = body.mode || "chat";
-    const prompt: string = body.prompt || "";
-
-    // Dodatkowy kontekst (opcjonalny)
-    const platform: string = body.platform || "";
-    const contentType: string = body.contentType || "";
-    const historicalData: unknown = body.historicalData || null;
-
-    // Buduj pełny prompt użytkownika
-    let fullPrompt = prompt;
-
-    if (mode === "generate") {
-      fullPrompt = `
+function buildPrompt({
+  mode,
+  prompt,
+  platform,
+  platforms,
+  contentType,
+  historicalData,
+}: {
+  mode: AiMode;
+  prompt: string;
+  platform: string;
+  platforms: string[];
+  contentType: string;
+  historicalData: unknown;
+}) {
+  if (mode === "generate") {
+    return `
 Platforma: ${platform || "ogólna"}
 Typ contentu: ${contentType || "post"}
-Temat/wytyczne: ${prompt}
+Temat / wytyczne:
+${prompt}
 
-${historicalData ? `Dane historyczne (co działało wcześniej): ${JSON.stringify(historicalData)}` : ""}
+${
+  historicalData
+    ? `Dane historyczne — co działało wcześniej:
+${JSON.stringify(historicalData)}`
+    : ""
+}
 
 ${JSON_SCHEMAS.generate}
-      `.trim();
-    }
+    `.trim();
+  }
 
-    if (mode === "analyze") {
-      fullPrompt = `
+  if (mode === "analyze") {
+    return `
 Platforma: ${platform || "ogólna"}
 Treść do analizy:
 ${prompt}
 
 ${JSON_SCHEMAS.analyze}
-      `.trim();
-    }
+    `.trim();
+  }
 
-    if (mode === "adapt") {
-      fullPrompt = `
+  if (mode === "adapt") {
+    return `
+Platformy docelowe: ${platforms.length > 0 ? platforms.join(", ") : "linkedin, instagram, tiktok"}
 Oryginalna treść do adaptacji:
 ${prompt}
 
-${historicalData ? `Dane o skuteczności platform: ${JSON.stringify(historicalData)}` : ""}
+${
+  historicalData
+    ? `Dane o skuteczności platform:
+${JSON.stringify(historicalData)}`
+    : ""
+}
+
+Wynik JSON powinien zawierać tylko platformy docelowe wskazane powyżej.
 
 ${JSON_SCHEMAS.adapt}
-      `.trim();
-    }
+    `.trim();
+  }
 
-    if (mode === "recommend") {
-      fullPrompt = `
-Temat treści: ${prompt}
-${historicalData ? `Dane historyczne z platform: ${JSON.stringify(historicalData)}` : ""}
+  if (mode === "recommend") {
+    return `
+Temat treści:
+${prompt}
+
+${
+  historicalData
+    ? `Dane historyczne z platform:
+${JSON.stringify(historicalData)}`
+    : ""
+}
 
 ${JSON_SCHEMAS.recommend}
-      `.trim();
+    `.trim();
+  }
+
+  return prompt;
+}
+
+// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
+
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as RequestBody;
+
+    const mode: AiMode = body.mode || "chat";
+    const prompt = body.prompt || "";
+    const platform = body.platform || "";
+    const platforms = Array.isArray(body.platforms) ? body.platforms : [];
+    const contentType = body.contentType || "";
+    const historicalData = body.historicalData || null;
+
+    if (!prompt.trim()) {
+      return NextResponse.json(
+        { error: "Brakuje treści promptu." },
+        { status: 400 }
+      );
     }
+
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Brakuje zmiennej środowiskowej DEEPSEEK_API_KEY." },
+        { status: 500 }
+      );
+    }
+
+    const openai = new OpenAI({
+      baseURL: "https://api.deepseek.com",
+      apiKey,
+    });
+
+    const fullPrompt = buildPrompt({
+      mode,
+      prompt,
+      platform,
+      platforms,
+      contentType,
+      historicalData,
+    });
 
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
 
-    // ── Wywołanie DeepSeek R1 ─────────────────────────────────────────────
     const response = await openai.chat.completions.create({
       model: "deepseek-reasoner",
       messages: [
@@ -198,43 +298,41 @@ ${JSON_SCHEMAS.recommend}
       ],
     });
 
-    const rawAnswer = response.choices[0].message.content || "";
-    const thinking = (response.choices[0].message as Record<string, unknown>).reasoning_content as string | null;
+    const message = response.choices[0]?.message;
+    const rawAnswer = message?.content || "";
 
-    // ── Parsowanie JSON dla trybów strukturalnych ─────────────────────────
     let parsedData: unknown = null;
     let parseError: string | null = null;
 
     if (["generate", "analyze", "adapt", "recommend"].includes(mode)) {
       try {
-        // Usuń ewentualne markdown backticks które model mógł dodać
-        const cleaned = rawAnswer
-          .replace(/^```json\s*/i, "")
-          .replace(/^```\s*/i, "")
-          .replace(/\s*```$/i, "")
-          .trim();
+        const cleaned = cleanJsonAnswer(rawAnswer);
         parsedData = JSON.parse(cleaned);
       } catch {
-        parseError = "Nie udało się sparsować JSON — surowa odpowiedź w polu 'answer'";
+        parseError =
+          "Nie udało się sparsować JSON — surowa odpowiedź jest w polu answer.";
       }
     }
 
     return NextResponse.json({
       mode,
-      answer: rawAnswer,          // surowa odpowiedź tekstowa
-      data: parsedData,           // sparsowany JSON (dla trybów strukturalnych)
-      thinking,                   // proces myślowy R1 (opcjonalnie pokazać w UI)
-      parseError,                 // błąd parsowania jeśli wystąpił
+      answer: rawAnswer,
+      data: parsedData,
+      parseError,
       usage: {
-        prompt_tokens: response.usage?.prompt_tokens,
-        completion_tokens: response.usage?.completion_tokens,
+        prompt_tokens: response.usage?.prompt_tokens ?? null,
+        completion_tokens: response.usage?.completion_tokens ?? null,
+        total_tokens: response.usage?.total_tokens ?? null,
       },
     });
-
   } catch (error) {
     console.error("Błąd DeepSeek:", error);
+
     return NextResponse.json(
-      { error: "Błąd podczas generowania odpowiedzi", details: String(error) },
+      {
+        error: "Błąd podczas generowania odpowiedzi AI.",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
