@@ -21,7 +21,7 @@ const PLATFORM_CONFIG: Record<string, {
   linkedin: {
     authUrl: "https://www.linkedin.com/oauth/v2/authorization",
     clientIdEnv: "LINKEDIN_CLIENT_ID",
-    scope: "openid profile email w_member_social r_organization_social",
+    scope: "openid profile email w_member_social",
   },
   tiktok: {
     authUrl: "https://www.tiktok.com/v2/auth/authorize/",
@@ -39,6 +39,10 @@ const PLATFORM_CONFIG: Record<string, {
 function getRedirectUri(req: NextRequest, platform: string) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
   return new URL(`/api/oauth/${platform}/callback`, origin).toString();
+}
+
+function env(name: string) {
+  return process.env[name]?.trim() || "";
 }
 
 export async function GET(
@@ -70,9 +74,9 @@ export async function GET(
   const url = new URL(config.authUrl);
 
   if (platform === "tiktok") {
-    url.searchParams.set("client_key", process.env[config.clientIdEnv] || "");
+    url.searchParams.set("client_key", env(config.clientIdEnv));
   } else {
-    url.searchParams.set("client_id", process.env[config.clientIdEnv] || "");
+    url.searchParams.set("client_id", env(config.clientIdEnv));
   }
 
   url.searchParams.set("redirect_uri", getRedirectUri(req, platform));

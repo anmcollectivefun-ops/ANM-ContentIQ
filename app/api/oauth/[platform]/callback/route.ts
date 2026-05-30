@@ -14,12 +14,16 @@ interface StateData {
   workspace_id: string;
   nonce: string;
 }
+
+function env(name: string) {
+  return process.env[name]?.trim() || "";
+}
  
 async function exchangeMeta(code: string, redirectUri: string): Promise<TokenResult> {
   const shortRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
-    `client_id=${process.env.META_APP_ID}&` +
-    `client_secret=${process.env.META_APP_SECRET}&` +
+    `client_id=${env("META_APP_ID")}&` +
+    `client_secret=${env("META_APP_SECRET")}&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `code=${code}`
   );
@@ -29,8 +33,8 @@ async function exchangeMeta(code: string, redirectUri: string): Promise<TokenRes
   const longRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
     `grant_type=fb_exchange_token&` +
-    `client_id=${process.env.META_APP_ID}&` +
-    `client_secret=${process.env.META_APP_SECRET}&` +
+    `client_id=${env("META_APP_ID")}&` +
+    `client_secret=${env("META_APP_SECRET")}&` +
     `fb_exchange_token=${short.access_token}`
   );
   const long = await longRes.json();
@@ -47,8 +51,8 @@ async function exchangeLinkedIn(code: string, redirectUri: string): Promise<Toke
       grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
-      client_id: process.env.LINKEDIN_CLIENT_ID || "",
-      client_secret: process.env.LINKEDIN_CLIENT_SECRET || "",
+      client_id: env("LINKEDIN_CLIENT_ID"),
+      client_secret: env("LINKEDIN_CLIENT_SECRET"),
     }),
   });
   const data = await res.json();
@@ -61,8 +65,8 @@ async function exchangeTikTok(code: string, redirectUri: string): Promise<TokenR
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_key: process.env.TIKTOK_CLIENT_KEY || "",
-      client_secret: process.env.TIKTOK_CLIENT_SECRET || "",
+      client_key: env("TIKTOK_CLIENT_KEY"),
+      client_secret: env("TIKTOK_CLIENT_SECRET"),
       code,
       grant_type: "authorization_code",
       redirect_uri: redirectUri,
@@ -78,8 +82,8 @@ async function exchangeGoogle(code: string, redirectUri: string): Promise<TokenR
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+      client_id: env("GOOGLE_CLIENT_ID"),
+      client_secret: env("GOOGLE_CLIENT_SECRET"),
       redirect_uri: redirectUri,
       grant_type: "authorization_code",
       code,
@@ -258,9 +262,10 @@ export async function GET(
     return NextResponse.redirect(new URL(redirectTo, req.url));
   } catch (err) {
     console.error(`OAuth callback error [${platform}]:`, err);
+    const detail = encodeURIComponent(err instanceof Error ? err.message : String(err));
     const redirectTo = state.workspace_id
-      ? `/app/${state.workspace_id}/settings?error=token_exchange&platform=${platform}`
-      : `/app/settings?error=token_exchange&platform=${platform}`;
+      ? `/app/${state.workspace_id}/settings?error=token_exchange&platform=${platform}&detail=${detail}`
+      : `/app/settings?error=token_exchange&platform=${platform}&detail=${detail}`;
     return NextResponse.redirect(
       new URL(redirectTo, req.url)
     );

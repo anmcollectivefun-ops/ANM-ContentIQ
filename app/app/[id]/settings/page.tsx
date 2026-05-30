@@ -190,6 +190,7 @@ export default function IntegrationsPage() {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
     const account = searchParams.get("account");
+    const detail = searchParams.get("detail");
 
     if (connected) {
       showToast(`✓ ${account || connected} podłączono pomyślnie`, "ok");
@@ -200,7 +201,7 @@ export default function IntegrationsPage() {
         token_exchange: "Błąd wymiany tokenu — spróbuj ponownie",
         invalid_state: "Błąd bezpieczeństwa — spróbuj ponownie",
       };
-      showToast(msgs[error] || `Błąd: ${error}`, "err");
+      showToast(detail || msgs[error] || "Blad: " + error, "err");
     }
   }, [searchParams]);
 
