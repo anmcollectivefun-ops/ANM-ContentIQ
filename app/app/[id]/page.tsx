@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ContentStudio from "@/app/components/ContentStudio";
@@ -79,7 +79,7 @@ interface NavTab {
   icon: string;
 }
 
-// ─── CONSTS / START DATA ─────────────────────────────────────────────────────
+// ─── DATA STARTOWE / PÓŹNIEJ SUPABASE ────────────────────────────────────────
 
 const ACCOUNTS: Account[] = [
   {
@@ -92,7 +92,8 @@ const ACCOUNTS: Account[] = [
     engRate: "4.2%",
     reach: "12.4k",
     bestFormat: "Reels edukacyjne",
-    aiTag: "Reels edukacyjne mają 2× wyższy zasięg niż karuzele. Warto zwiększyć liczbę krótkich materiałów video.",
+    aiTag:
+      "Reels edukacyjne mają 2× wyższy zasięg niż karuzele. Warto zwiększyć liczbę krótkich materiałów video.",
     color: "#E1306C",
     connected: true,
     lastSync: "12 min temu",
@@ -107,7 +108,8 @@ const ACCOUNTS: Account[] = [
     engRate: "6.8%",
     reach: "28.1k",
     bestFormat: "Case studies",
-    aiTag: "Najlepszy kanał na leady B2B i content ekspercki. Tematy z LinkedIna warto rozwijać później na blogu.",
+    aiTag:
+      "Najlepszy kanał na leady B2B i content ekspercki. Tematy z LinkedIna warto rozwijać później na blogu.",
     color: "#0A66C2",
     connected: true,
     lastSync: "8 min temu",
@@ -122,8 +124,9 @@ const ACCOUNTS: Account[] = [
     engRate: "2.1%",
     reach: "6.8k",
     bestFormat: "Krótkie listy błędów",
-    aiTag: "Długie opisy nie działają. TikTok wymaga krótszego hooka i mocniejszego wejścia w pierwszych sekundach.",
-    color: "#111827",
+    aiTag:
+      "Długie opisy nie działają. TikTok wymaga krótszego hooka i mocniejszego wejścia w pierwszych sekundach.",
+    color: "#FFFFFF",
     connected: true,
     lastSync: "28 min temu",
   },
@@ -137,8 +140,9 @@ const ACCOUNTS: Account[] = [
     engRate: "54% ret.",
     reach: "3.2k",
     bestFormat: "Shorts + tutoriale",
-    aiTag: "Shorts mają wyższy CTR niż długie filmy. Warto zwiększyć częstotliwość krótkich formatów edukacyjnych.",
-    color: "#FF0000",
+    aiTag:
+      "Shorts mają wyższy CTR niż długie filmy. Warto zwiększyć częstotliwość krótkich formatów edukacyjnych.",
+    color: "#FF0033",
     connected: true,
     lastSync: "1 godz. temu",
   },
@@ -152,7 +156,8 @@ const ACCOUNTS: Account[] = [
     engRate: "1.4%",
     reach: "5.1k",
     bestFormat: "Video + grupy",
-    aiTag: "Organiczny zasięg spada. Facebook warto traktować jako kanał społecznościowy i dystrybucję do grup.",
+    aiTag:
+      "Organiczny zasięg spada. Facebook warto traktować jako kanał społecznościowy i dystrybucję do grup.",
     color: "#1877F2",
     connected: false,
     lastSync: "Niepodłączone",
@@ -167,7 +172,8 @@ const ACCOUNTS: Account[] = [
     engRate: "3:42 avg",
     reach: "8.9k",
     bestFormat: "Poradniki SEO",
-    aiTag: "Artykuły poradnikowe mają najwyższy czas na stronie. Blog powinien być bazą do recyklingu treści na social media.",
+    aiTag:
+      "Artykuły poradnikowe mają najwyższy czas na stronie. Blog powinien być bazą do recyklingu treści na social media.",
     color: "#22C55E",
     connected: true,
     lastSync: "2 godz. temu",
@@ -182,7 +188,8 @@ const ACCOUNTS: Account[] = [
     engRate: "41% completion",
     reach: "2.7k",
     bestFormat: "Odcinki poradnikowe",
-    aiTag: "Najlepiej działają krótkie odcinki z konkretną obietnicą w tytule. Warto tworzyć podcasty z tematów blogowych.",
+    aiTag:
+      "Najlepiej działają krótkie odcinki z konkretną obietnicą w tytule. Warto tworzyć podcasty z tematów blogowych.",
     color: "#1DB954",
     connected: false,
     lastSync: "Niepodłączone",
@@ -553,6 +560,16 @@ const INTEGRATIONS = [
   },
 ];
 
+const SOCIAL_ICONS: Record<Platform, string> = {
+  instagram: "◎",
+  linkedin: "in",
+  tiktok: "♪",
+  youtube: "▶",
+  facebook: "f",
+  blog: "✎",
+  spotify: "◉",
+};
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function getPlatformName(platform: Platform) {
@@ -560,7 +577,7 @@ function getPlatformName(platform: Platform) {
 }
 
 function getPlatformColor(platform: Platform) {
-  return ACCOUNTS.find((account) => account.id === platform)?.color ?? "#4E79A7";
+  return ACCOUNTS.find((account) => account.id === platform)?.color ?? "#ffffff";
 }
 
 function getScoreColor(score: number) {
@@ -577,7 +594,7 @@ function getWeakestAccount() {
   return [...ACCOUNTS].sort((a, b) => a.score - b.score)[0];
 }
 
-// ─── SCORE BAR ───────────────────────────────────────────────────────────────
+// ─── SMALL COMPONENTS ────────────────────────────────────────────────────────
 
 function ScoreBar({ score }: { score: number }) {
   const color = getScoreColor(score);
@@ -614,11 +631,8 @@ function ScoreBar({ score }: { score: number }) {
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export default function AppWorkspacePage() {
-  const params = useParams();
   const router = useRouter();
   const supabase = createClient();
-
-  const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -688,6 +702,7 @@ export default function AppWorkspacePage() {
 
         body {
           margin: 0;
+          background: ${css.bg};
         }
 
         .ciq-nav-tab,
@@ -708,7 +723,7 @@ export default function AppWorkspacePage() {
           border-color: ${css.accentBorder} !important;
           box-shadow: ${
             dark
-              ? "0 14px 34px rgba(0,0,0,0.18)"
+              ? "0 18px 44px rgba(0,0,0,0.34)"
               : "0 14px 34px rgba(15,23,42,0.08)"
           };
         }
@@ -798,12 +813,12 @@ export default function AppWorkspacePage() {
             borderRight: `1px solid ${css.border}`,
           }}
         >
-          <Link href="/dashboard" style={st.sidebarLogo}>
+          <Link href="/app/contentiq" style={st.sidebarLogo}>
             <div
               style={{
                 ...st.logoMark,
-                background: dark ? "#E8F1FF" : "#0F2747",
-                color: dark ? "#0F2747" : "#E8F1FF",
+                background: css.logoBg,
+                color: css.logoText,
               }}
             >
               IQ
@@ -812,7 +827,7 @@ export default function AppWorkspacePage() {
             <div>
               <div
                 style={{
-                  ...st.logoText,
+                  ...st.logoName,
                   fontFamily: "'DM Serif Display', serif",
                   color: css.text,
                 }}
@@ -820,8 +835,8 @@ export default function AppWorkspacePage() {
                 ANM ContentIQ
               </div>
 
-              <div style={{ ...st.logoWs, color: css.muted }}>
-                {String(workspaceId).replaceAll("-", " ")}
+              <div style={{ ...st.logoSub, color: css.muted }}>
+                Centrum contentu
               </div>
             </div>
           </Link>
@@ -867,8 +882,8 @@ export default function AppWorkspacePage() {
               style={{
                 ...st.signoutBtn,
                 color: "#ef4444",
-                background: "#ef444410",
-                border: "1px solid #ef444430",
+                background: "#ef444414",
+                border: "1px solid #ef444440",
               }}
             >
               {signingOut ? "Wylogowywanie..." : "Wyloguj"}
@@ -904,13 +919,13 @@ export default function AppWorkspacePage() {
               </h1>
 
               <p style={{ ...st.pageSubtitle, color: css.muted }}>
-                Wszystkie konta, wyniki live i analiza AI w jednym miejscu.
+                Wszystkie konta, wyniki live i rekomendacje AI w jednym miejscu.
               </p>
             </div>
 
             <div className="ciq-top-actions" style={st.topActions}>
               <Link
-                href="/dashboard"
+                href="/"
                 style={{
                   ...st.topBtn,
                   background: css.surface,
@@ -919,7 +934,7 @@ export default function AppWorkspacePage() {
                   textDecoration: "none",
                 }}
               >
-                ← Dashboard
+                Strona główna
               </Link>
 
               <button
@@ -927,7 +942,7 @@ export default function AppWorkspacePage() {
                 style={{
                   ...st.topBtn,
                   background: css.accent,
-                  color: "#ffffff",
+                  color: "#050505",
                   border: "none",
                 }}
               >
@@ -976,7 +991,7 @@ export default function AppWorkspacePage() {
                     </p>
 
                     <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      Najmocniejsza platforma: {bestAccount.name}
+                      Najmocniejszy kanał: {bestAccount.name}
                     </h3>
 
                     <p style={{ ...st.summaryNote, color: css.muted }}>
@@ -1043,7 +1058,7 @@ export default function AppWorkspacePage() {
 
                 <div style={{ ...st.tilesLabel, color: css.muted }}>
                   Podsumowanie kont — kliknij kafelek, aby zobaczyć szczegóły i
-                  posty
+                  publikacje
                 </div>
 
                 <div className="ciq-tiles-grid" style={st.tilesGrid}>
@@ -1058,6 +1073,15 @@ export default function AppWorkspacePage() {
                         border: `1px solid ${css.border}`,
                       }}
                     >
+                      <span
+                        style={{
+                          ...st.socialWatermark,
+                          color: account.color,
+                        }}
+                      >
+                        {SOCIAL_ICONS[account.id]}
+                      </span>
+
                       <div
                         style={{
                           ...st.tileTopLine,
@@ -1208,6 +1232,15 @@ export default function AppWorkspacePage() {
                     border: `1px solid ${css.border}`,
                   }}
                 >
+                  <span
+                    style={{
+                      ...st.accountWatermark,
+                      color: activeAccount.color,
+                    }}
+                  >
+                    {SOCIAL_ICONS[activeAccount.id]}
+                  </span>
+
                   <div
                     style={{
                       height: 4,
@@ -1224,7 +1257,7 @@ export default function AppWorkspacePage() {
                     <div>
                       <div
                         style={{
-                          fontSize: 30,
+                          fontSize: 32,
                           fontFamily: "'DM Serif Display', serif",
                           color: css.text,
                         }}
@@ -1326,7 +1359,7 @@ export default function AppWorkspacePage() {
                             <span
                               style={{
                                 ...st.badge,
-                                background: `${activeAccount.color}15`,
+                                background: `${activeAccount.color}18`,
                                 color: activeAccount.color,
                               }}
                             >
@@ -1429,6 +1462,15 @@ export default function AppWorkspacePage() {
                         border: `1px solid ${css.border}`,
                       }}
                     >
+                      <span
+                        style={{
+                          ...st.contentWatermark,
+                          color: account.color,
+                        }}
+                      >
+                        {SOCIAL_ICONS[account.id]}
+                      </span>
+
                       <div style={st.contentCardHeader}>
                         <div>
                           <div style={{ ...st.tileName, color: css.text }}>
@@ -1677,7 +1719,7 @@ export default function AppWorkspacePage() {
                         <span
                           style={{
                             ...st.badge,
-                            background: `${getPlatformColor(item.platform)}15`,
+                            background: `${getPlatformColor(item.platform)}18`,
                             color: getPlatformColor(item.platform),
                           }}
                         >
@@ -1872,39 +1914,43 @@ export default function AppWorkspacePage() {
 // ─── THEME VARS ───────────────────────────────────────────────────────────────
 
 const darkVars = {
-  bg: "#09111C",
-  sidebar: "#07101A",
-  surface: "#0E1826",
-  text: "#ECF3FF",
-  muted: "#8CA0BD",
-  border: "#1C2A3D",
-  accent: "#4E79A7",
-  activeBg: "#132236",
-  hoverBg: "#112031",
-  accentBorder: "#5A88BA",
-  aiBg: "#0F1D30",
-  aiBgSoft: "#102238",
-  aiBorder: "#24486F",
-  aiText: "#7EC2FF",
-  liveSoft: "#0B1420",
+  bg: "#050505",
+  sidebar: "#080808",
+  surface: "#111111",
+  text: "#F5F5F5",
+  muted: "#9CA3AF",
+  border: "#27272A",
+  accent: "#E5E7EB",
+  activeBg: "#18181B",
+  hoverBg: "#1F1F22",
+  accentBorder: "#52525B",
+  aiBg: "#0C1117",
+  aiBgSoft: "#101820",
+  aiBorder: "#1E3A4C",
+  aiText: "#7DD3FC",
+  liveSoft: "#0B0B0C",
+  logoBg: "#F5F5F5",
+  logoText: "#050505",
 };
 
 const lightVars = {
-  bg: "#F6F8FC",
+  bg: "#F6F6F6",
   sidebar: "#FFFFFF",
   surface: "#FFFFFF",
-  text: "#102033",
-  muted: "#60748A",
-  border: "#DCE5F0",
-  accent: "#456D9A",
-  activeBg: "#EAF2FB",
-  hoverBg: "#F2F7FD",
-  accentBorder: "#5A88BA",
-  aiBg: "#EEF6FF",
-  aiBgSoft: "#F5F9FF",
-  aiBorder: "#C9DDF4",
-  aiText: "#2D6BA3",
-  liveSoft: "#F9FBFE",
+  text: "#111111",
+  muted: "#71717A",
+  border: "#E4E4E7",
+  accent: "#111111",
+  activeBg: "#F4F4F5",
+  hoverBg: "#F4F4F5",
+  accentBorder: "#A1A1AA",
+  aiBg: "#F0F9FF",
+  aiBgSoft: "#F8FCFF",
+  aiBorder: "#BAE6FD",
+  aiText: "#0284C7",
+  liveSoft: "#FAFAFA",
+  logoBg: "#111111",
+  logoText: "#FFFFFF",
 };
 
 // ─── STATIC STYLES ────────────────────────────────────────────────────────────
@@ -1937,25 +1983,25 @@ const st: Record<string, CSSProperties> = {
     textDecoration: "none",
   },
   logoMark: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 12,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 900,
     flexShrink: 0,
   },
-  logoText: {
-    fontSize: 17,
+  logoName: {
+    fontSize: 18,
     letterSpacing: "-0.02em",
   },
-  logoWs: {
+  logoSub: {
     fontSize: 10,
-    textTransform: "capitalize",
-    letterSpacing: "0.02em",
-    marginTop: 1,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    marginTop: 2,
   },
   nav: {
     flex: 1,
@@ -2021,9 +2067,9 @@ const st: Record<string, CSSProperties> = {
     marginBottom: 4,
   },
   pageTitle: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: 400,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     margin: 0,
   },
   pageSubtitle: {
@@ -2038,7 +2084,7 @@ const st: Record<string, CSSProperties> = {
     padding: "10px 16px",
     borderRadius: 12,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
     fontFamily: "inherit",
   },
@@ -2054,14 +2100,14 @@ const st: Record<string, CSSProperties> = {
     marginBottom: 18,
   },
   summaryCard: {
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 20,
+    padding: 20,
   },
   summaryValue: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 400,
     margin: "8px 0",
-    lineHeight: 1.2,
+    lineHeight: 1.15,
   },
   summaryNote: {
     fontSize: 12,
@@ -2069,7 +2115,7 @@ const st: Record<string, CSSProperties> = {
     margin: 0,
   },
   panel: {
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 22,
   },
   aiStack: {
@@ -2088,20 +2134,20 @@ const st: Record<string, CSSProperties> = {
   },
   smallLabel: {
     fontSize: 10,
-    fontWeight: 800,
+    fontWeight: 900,
     textTransform: "uppercase",
     letterSpacing: "0.12em",
     margin: 0,
   },
   smallMiniLabel: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
   tilesLabel: {
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     marginBottom: 14,
@@ -2112,12 +2158,43 @@ const st: Record<string, CSSProperties> = {
     gap: 14,
   },
   tile: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 18,
     cursor: "pointer",
     textAlign: "left",
     fontFamily: "inherit",
     position: "relative",
+    overflow: "hidden",
+  },
+  socialWatermark: {
+    position: "absolute",
+    right: 16,
+    top: 8,
+    fontSize: 88,
+    fontWeight: 900,
+    opacity: 0.07,
+    lineHeight: 1,
+    pointerEvents: "none",
+  },
+  accountWatermark: {
+    position: "absolute",
+    right: 24,
+    top: 14,
+    fontSize: 110,
+    fontWeight: 900,
+    opacity: 0.06,
+    lineHeight: 1,
+    pointerEvents: "none",
+  },
+  contentWatermark: {
+    position: "absolute",
+    right: 16,
+    top: 8,
+    fontSize: 76,
+    fontWeight: 900,
+    opacity: 0.06,
+    lineHeight: 1,
+    pointerEvents: "none",
   },
   tileTopLine: {
     height: 4,
@@ -2129,10 +2206,12 @@ const st: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 10,
+    position: "relative",
+    zIndex: 1,
   },
   tileName: {
-    fontSize: 15,
-    fontWeight: 800,
+    fontSize: 16,
+    fontWeight: 900,
   },
   tileHandle: {
     fontSize: 11,
@@ -2148,6 +2227,8 @@ const st: Record<string, CSSProperties> = {
     justifyContent: "space-between",
     gap: 10,
     marginBottom: 14,
+    position: "relative",
+    zIndex: 1,
   },
   connectionPill: {
     display: "inline-flex",
@@ -2159,37 +2240,43 @@ const st: Record<string, CSSProperties> = {
   },
   liveLabel: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     marginBottom: 8,
+    position: "relative",
+    zIndex: 1,
   },
   scoreTrack: {
     flex: 1,
     height: 5,
     borderRadius: 999,
-    background: "#d7deea33",
+    background: "#71717A33",
   },
   tileStats: {
     display: "flex",
     gap: 20,
     paddingTop: 12,
     marginTop: 12,
+    position: "relative",
+    zIndex: 1,
   },
   tileStatValue: {
     fontSize: 13,
-    fontWeight: 800,
+    fontWeight: 900,
   },
   tileStatLabel: {
     fontSize: 10,
   },
   tileBestFormat: {
     marginTop: 12,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: "10px 12px",
     display: "flex",
     flexDirection: "column",
     gap: 4,
+    position: "relative",
+    zIndex: 1,
   },
   tileAI: {
     display: "flex",
@@ -2197,21 +2284,25 @@ const st: Record<string, CSSProperties> = {
     gap: 6,
     alignItems: "flex-start",
     padding: "10px 12px",
-    borderRadius: 12,
+    borderRadius: 14,
     marginTop: 12,
     fontSize: 11,
     lineHeight: 1.5,
+    position: "relative",
+    zIndex: 1,
   },
   aiBoxLabel: {
     fontSize: 10,
-    fontWeight: 800,
+    fontWeight: 900,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
   tileTrend: {
     fontSize: 11,
     marginTop: 9,
-    fontWeight: 700,
+    fontWeight: 800,
+    position: "relative",
+    zIndex: 1,
   },
   backBtn: {
     padding: "8px 14px",
@@ -2222,15 +2313,19 @@ const st: Record<string, CSSProperties> = {
     marginBottom: 18,
   },
   accountSummary: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 20,
     marginBottom: 20,
+    position: "relative",
+    overflow: "hidden",
   },
   accountSummaryRow: {
     display: "flex",
     gap: 34,
     alignItems: "center",
     justifyContent: "space-between",
+    position: "relative",
+    zIndex: 1,
   },
   accountMetrics: {
     display: "flex",
@@ -2238,7 +2333,7 @@ const st: Record<string, CSSProperties> = {
   },
   metricValue: {
     fontSize: 18,
-    fontWeight: 800,
+    fontWeight: 900,
   },
   metricLabel: {
     fontSize: 11,
@@ -2246,7 +2341,7 @@ const st: Record<string, CSSProperties> = {
   },
   postsLabel: {
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
     marginBottom: 12,
@@ -2257,7 +2352,7 @@ const st: Record<string, CSSProperties> = {
     gap: 10,
   },
   postRow: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: "16px 16px",
     display: "flex",
     gap: 16,
@@ -2269,7 +2364,7 @@ const st: Record<string, CSSProperties> = {
   },
   postTitle: {
     fontSize: 15,
-    fontWeight: 800,
+    fontWeight: 900,
     lineHeight: 1.45,
     margin: 0,
   },
@@ -2293,14 +2388,14 @@ const st: Record<string, CSSProperties> = {
     padding: "5px 9px",
     borderRadius: 999,
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 800,
   },
   postAI: {
     display: "inline-flex",
     gap: 8,
     alignItems: "center",
     padding: "7px 10px",
-    borderRadius: 10,
+    borderRadius: 12,
     marginTop: 10,
     fontSize: 11,
     lineHeight: 1.45,
@@ -2327,14 +2422,18 @@ const st: Record<string, CSSProperties> = {
     gap: 16,
   },
   contentCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 18,
+    position: "relative",
+    overflow: "hidden",
   },
   contentCardHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
+    position: "relative",
+    zIndex: 1,
   },
   platformDot: {
     width: 12,
@@ -2345,14 +2444,16 @@ const st: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
+    position: "relative",
+    zIndex: 1,
   },
   miniPost: {
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 12,
   },
   miniPostTitle: {
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 800,
     lineHeight: 1.45,
   },
   miniPostMeta: {
@@ -2364,7 +2465,7 @@ const st: Record<string, CSSProperties> = {
     flexDirection: "column",
     gap: 6,
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: "9px 10px",
   },
   compareTable: {
@@ -2373,7 +2474,7 @@ const st: Record<string, CSSProperties> = {
     gap: 10,
   },
   compareRow: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 15,
     display: "grid",
     gridTemplateColumns: "180px 180px 1fr 1.3fr",
@@ -2381,14 +2482,14 @@ const st: Record<string, CSSProperties> = {
     alignItems: "center",
   },
   compareAIBox: {
-    borderRadius: 12,
+    borderRadius: 14,
     padding: "10px 12px",
     display: "flex",
     flexDirection: "column",
     gap: 6,
   },
   calendarRow: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 15,
     display: "grid",
     gridTemplateColumns: "1.2fr 120px 120px 130px 1fr",
@@ -2396,7 +2497,7 @@ const st: Record<string, CSSProperties> = {
     alignItems: "center",
   },
   scheduleAI: {
-    borderRadius: 12,
+    borderRadius: 14,
     padding: "10px 12px",
   },
   aiSmall: {
@@ -2423,7 +2524,7 @@ const st: Record<string, CSSProperties> = {
     marginTop: 18,
     borderRadius: 12,
     padding: "10px 14px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
     fontFamily: "inherit",
   },
