@@ -1,11 +1,12 @@
+// app/login/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const supabase = getSupabase(); // null jeśli brak kluczy
 
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -19,6 +20,10 @@ export default function LoginPage() {
     (typeof window !== "undefined" ? window.location.origin : "");
 
   async function handleGoogleLogin() {
+    if (!supabase) {
+      setMessage("Brak konfiguracji Supabase.");
+      return;
+    }
     setLoading(true);
     setMessage("");
 
@@ -37,6 +42,10 @@ export default function LoginPage() {
 
   async function handleEmailAuth(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!supabase) {
+      setMessage("Brak konfiguracji Supabase.");
+      return;
+    }
 
     setLoading(true);
     setMessage("");
@@ -57,6 +66,7 @@ export default function LoginPage() {
       return;
     }
 
+    // Rejestracja
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -127,7 +137,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          disabled={loading}
+          disabled={loading || !supabase}
           className="mb-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 font-bold text-[#070816] transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#070816] text-sm font-black text-white">
@@ -171,7 +181,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !supabase}
             className="block w-full rounded-2xl bg-cyan-400 px-5 py-4 text-center font-bold text-[#070816] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading
