@@ -86,16 +86,13 @@ const PLATFORMS: PlatformInfo[] = [
 
 function BlogForm({
   workspaceId,
-  existing,
   onSaved,
   css,
 }: {
   workspaceId: string;
-  existing?: Connection;
   onSaved: () => void;
   css: Record<string, string>;
 }) {
-  const supabase = createClient();
   const [url, setUrl] = useState("");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
@@ -109,11 +106,15 @@ function BlogForm({
 
     // Test połączenia — sprawdź czy REST API odpowiada
     try {
-      const testUrl = `${url.replace(/\/$/, "")}/wp-json/wp/v2/posts?per_page=1`;
-      const testRes = await fetch(testUrl, {
-        headers: user && pass
-          ? { Authorization: `Basic ${btoa(`${user}:${pass.replace(/\s/g, "")}`)}` }
-          : {},
+      const testRes = await fetch("/api/connections/blog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+          url,
+          username: user,
+          password: pass,
+        }),
       });
       if (!testRes.ok) throw new Error(`Status ${testRes.status}`);
     } catch (e) {
@@ -121,20 +122,6 @@ function BlogForm({
       setSaving(false);
       return;
     }
-
-    const { error: dbErr } = await supabase
-      .from("platform_connections")
-      .upsert({
-        workspace_id: workspaceId,
-        platform: "blog",
-        account_name: url.replace(/^https?:\/\//, ""),
-        account_id: url,
-        access_token: pass ? btoa(`${user}:${pass.replace(/\s/g, "")}`) : null,
-        connected: true,
-        last_synced_at: new Date().toISOString(),
-      }, { onConflict: "workspace_id,platform,account_id" });
-
-    if (dbErr) { setError(dbErr.message); setSaving(false); return; }
 
     onSaved();
     setSaving(false);
@@ -421,7 +408,6 @@ export default function IntegrationsPage() {
                   {platform.type === "manual" && (
                     <BlogForm
                       workspaceId={workspaceId}
-                      existing={platformConnections[0]}
                       onSaved={() => { loadConnections(); showToast("Blog podłączony", "ok"); }}
                       css={css}
                     />

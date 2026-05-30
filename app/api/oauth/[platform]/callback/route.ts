@@ -164,13 +164,10 @@ async function fetchAccountInfo(
   return { account_id: "unknown", account_name: platform };
 }
  
-const REDIRECT_URIS: Record<string, string> = {
-  instagram: process.env.META_REDIRECT_URI || "",
-  facebook: process.env.META_REDIRECT_URI || "",
-  linkedin: process.env.LINKEDIN_REDIRECT_URI || "",
-  tiktok: process.env.TIKTOK_REDIRECT_URI || "",
-  youtube: process.env.GOOGLE_REDIRECT_URI || "",
-};
+function getRedirectUri(req: NextRequest, platform: string) {
+  const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
+  return new URL(`/api/oauth/${platform}/callback`, origin).toString();
+}
  
 export async function GET(
   req: NextRequest,
@@ -211,7 +208,7 @@ export async function GET(
   }
  
   try {
-    const redirectUri = REDIRECT_URIS[platform];
+    const redirectUri = getRedirectUri(req, platform);
     let tokenData: TokenResult;
  
     if (platform === "instagram" || platform === "facebook") {
