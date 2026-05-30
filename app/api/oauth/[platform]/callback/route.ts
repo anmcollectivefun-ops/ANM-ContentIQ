@@ -261,8 +261,11 @@ export async function GET(
     return NextResponse.redirect(new URL(redirectTo, req.url));
   } catch (err) {
     console.error(`OAuth callback error [${platform}]:`, err);
+    const redirectTo = state.workspace_id
+      ? `/app/${state.workspace_id}/settings?error=token_exchange&platform=${platform}`
+      : `/app/settings?error=token_exchange&platform=${platform}`;
     return NextResponse.redirect(
-      new URL(`/app/settings?error=token_exchange&platform=${platform}`, req.url)
+      new URL(redirectTo, req.url)
     );
   }
 }

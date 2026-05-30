@@ -234,7 +234,11 @@ export default function IntegrationsPage() {
     setLoading(false);
   }
 
-  useEffect(() => { loadConnections(); }, [workspaceId]);
+  useEffect(() => {
+    queueMicrotask(() => {
+      loadConnections();
+    });
+  }, [workspaceId]);
 
   // Usuń połączenie
   async function disconnect(connection: Connection) {
@@ -252,14 +256,18 @@ export default function IntegrationsPage() {
   async function syncNow(connection: Connection) {
     setSyncing(connection.id);
     try {
-      await fetch("/api/sync", {
+      const res = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connection_id: connection.id, platform: connection.platform }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Błąd synchronizacji");
+      }
       showToast(`Synchronizacja ${connection.platform} zakończona`, "ok");
       await loadConnections();
-    } catch {
+    } catch (err) {
       showToast("Błąd synchronizacji", "err");
     } finally {
       setSyncing(null);

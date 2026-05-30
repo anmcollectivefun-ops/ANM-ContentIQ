@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ContentStudio from "@/app/components/ContentStudio";
@@ -40,6 +40,14 @@ interface Account {
   color: string;
   connected: boolean;
   lastSync: string;
+}
+
+interface PlatformConnection {
+  id: string;
+  platform: Platform;
+  account_name: string;
+  last_synced_at: string | null;
+  connected: boolean;
 }
 
 interface Post {
@@ -572,6 +580,44 @@ const SOCIAL_ICONS: Record<Platform, string> = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+function formatLastSync(value: string | null) {
+  if (!value) return "Nie zsynchronizowano";
+
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMin = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMin < 1) return "teraz";
+  if (diffMin < 60) return `${diffMin} min temu`;
+
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} godz. temu`;
+
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} dni temu`;
+}
+
+function mergeConnections(accounts: Account[], connections: PlatformConnection[]) {
+  return accounts.map((account) => {
+    const connection = connections.find((item) => item.platform === account.id);
+
+    if (!connection) {
+      return {
+        ...account,
+        connected: false,
+        handle: "Niepodłączone",
+        lastSync: "Niepodłączone",
+      };
+    }
+
+    return {
+      ...account,
+      connected: true,
+      handle: connection.account_name,
+      lastSync: formatLastSync(connection.last_synced_at),
+    };
+  });
+}
+
 function getPlatformName(platform: Platform) {
   return ACCOUNTS.find((account) => account.id === platform)?.name ?? platform;
 }
@@ -632,34 +678,53 @@ function ScoreBar({ score }: { score: number }) {
 
 export default function AppWorkspacePage() {
   const router = useRouter();
+  const params = useParams();
   const supabase = createClient();
+  const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
 
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("accounts");
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>(ACCOUNTS);
 
   const css = dark ? darkVars : lightVars;
 
-  const bestAccount = useMemo(() => getBestAccount(), []);
-  const weakestAccount = useMemo(() => getWeakestAccount(), []);
+  const bestAccount = useMemo(() => [...accounts].sort((a, b) => b.score - a.score)[0], [accounts]);
+  const weakestAccount = useMemo(() => [...accounts].sort((a, b) => a.score - b.score)[0], [accounts]);
 
   const latestContentGroups = useMemo(() => {
-    return ACCOUNTS.map((account) => ({
+    return accounts.map((account) => ({
       account,
       posts: (POSTS[account.id] ?? []).slice(0, 3),
     }));
-  }, []);
+  }, [accounts]);
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => {
+      setMounted(true);
 
-    const saved = localStorage.getItem("ciq-theme");
-    if (saved) {
-      setDark(saved === "dark");
-    }
-  }, []);
+      const saved = localStorage.getItem("ciq-theme");
+      if (saved) {
+        setDark(saved === "dark");
+      }
+    });
+
+    supabase
+      .from("platform_connections")
+      .select("id, platform, account_name, last_synced_at, connected")
+      .eq("workspace_id", workspaceId)
+      .eq("connected", true)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Connections load error:", error.message);
+          return;
+        }
+
+        setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+      });
+  }, [workspaceId]);
 
   function toggleTheme() {
     const next = !dark;
@@ -1062,7 +1127,7 @@ export default function AppWorkspacePage() {
                 </div>
 
                 <div className="ciq-tiles-grid" style={st.tilesGrid}>
-                  {ACCOUNTS.map((account) => (
+                  {accounts.map((account) => (
                     <button
                       key={account.id}
                       className="ciq-account-tile"
@@ -1594,7 +1659,7 @@ export default function AppWorkspacePage() {
                 </div>
 
                 <div style={st.compareTable}>
-                  {ACCOUNTS.map((account) => (
+                  {accounts.map((account) => (
                     <div
                       key={account.id}
                       className="ciq-compare-row ciq-post-row"

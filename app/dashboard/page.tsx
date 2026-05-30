@@ -39,6 +39,14 @@ interface AccountData {
   weeklyReach: number[];
 }
 
+interface PlatformConnection {
+  id: string;
+  platform: Platform;
+  account_name: string;
+  last_synced_at: string | null;
+  connected: boolean;
+}
+
 // ─── DANE ────────────────────────────────────────────────────────────────────
 
 const ACCOUNTS: AccountData[] = [
@@ -178,6 +186,44 @@ const GLOBAL_INSIGHTS = [
 
 // ─── MINI SPARKLINE SVG ───────────────────────────────────────────────────────
 
+function formatLastSync(value: string | null) {
+  if (!value) return "Nie zsynchronizowano";
+
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMin = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMin < 1) return "teraz";
+  if (diffMin < 60) return `${diffMin} min temu`;
+
+  const diffHours = Math.round(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} godz. temu`;
+
+  const diffDays = Math.round(diffHours / 24);
+  return `${diffDays} dni temu`;
+}
+
+function mergeConnections(accounts: AccountData[], connections: PlatformConnection[]) {
+  return accounts.map((account) => {
+    const connection = connections.find((item) => item.platform === account.id);
+
+    if (!connection) {
+      return {
+        ...account,
+        connected: false,
+        handle: "Niepodłączone",
+        lastSync: "Niepodłączone",
+      };
+    }
+
+    return {
+      ...account,
+      connected: true,
+      handle: connection.account_name,
+      lastSync: formatLastSync(connection.last_synced_at),
+    };
+  });
+}
+
 function Sparkline({ data, color, width = 120, height = 40 }: { data: number[]; color: string; width?: number; height?: number }) {
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -247,15 +293,33 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState(true);
+  const [accounts, setAccounts] = useState<AccountData[]>(ACCOUNTS);
 
   useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("ciq-theme");
-    if (saved) setDark(saved === "dark");
+    queueMicrotask(() => {
+      setMounted(true);
+      const saved = localStorage.getItem("ciq-theme");
+      if (saved) setDark(saved === "dark");
+    });
+
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.push("/login");
       else setUserEmail(data.user.email || "");
     });
+
+    supabase
+      .from("platform_connections")
+      .select("id, platform, account_name, last_synced_at, connected")
+      .eq("workspace_id", "anm-collective")
+      .eq("connected", true)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Connections load error:", error.message);
+          return;
+        }
+
+        setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+      });
   }, []);
 
   const toggleTheme = () => {
@@ -283,9 +347,9 @@ export default function DashboardPage() {
   const cardBg = d ? "#0f1f30" : "#ffffff";
   const cardBorder = d ? "#1e3248" : "#dde8f2";
 
-  const connectedCount = ACCOUNTS.filter(a => a.connected).length;
-  const avgScore = Math.round(ACCOUNTS.reduce((s, a) => s + a.score, 0) / ACCOUNTS.length);
-  const totalPosts = ACCOUNTS.reduce((s, a) => s + a.posts, 0);
+  const connectedCount = accounts.filter(a => a.connected).length;
+  const avgScore = Math.round(accounts.reduce((s, a) => s + a.score, 0) / accounts.length);
+  const totalPosts = accounts.reduce((s, a) => s + a.posts, 0);
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", transition: "background 0.3s" }}>
@@ -353,7 +417,7 @@ export default function DashboardPage() {
         {/* ── STATS ROW ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
           {[
-            { label: "Podłączone konta", value: `${connectedCount}/${ACCOUNTS.length}`, sub: "platform aktywnych", color: "#22c55e" },
+            { label: "Podłączone konta", value: `${connectedCount}/${accounts.length}`, sub: "platform aktywnych", color: "#22c55e" },
             { label: "Avg AI Score", value: String(avgScore), sub: "średnia wszystkich kanałów", color: accent },
             { label: "Publikacje", value: String(totalPosts), sub: "wszystkich platform", color: "#f59e0b" },
             { label: "Najlepsza platforma", value: "LinkedIn", sub: "score 91 · trend +18%", color: "#0A66C2" },
@@ -394,7 +458,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-          {ACCOUNTS.map((acc, idx) => (
+          {accounts.map((acc, idx) => (
             <div key={acc.id} className="account-card fade-up" style={{ animationDelay: `${idx * 0.05}s`, background: cardBg, border: `1px solid ${acc.connected ? acc.color + "35" : cardBorder}`, borderRadius: 18, overflow: "hidden", cursor: "pointer" }}
               onClick={() => router.push(`/app/anm-collective?platform=${acc.id}`)}>
 
