@@ -1,13 +1,13 @@
 // app/api/chat/route.ts
 // DeepSeek R1 — silnik AI dla ANM ContentIQ
-// Obsługuje: generowanie contentu, analizę, scoring, adaptację na platformy i rekomendacje
+// Obsługuje: generowanie contentu, analizę, adaptację, rekomendacje i kreator hooków
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
-type AiMode = "generate" | "analyze" | "adapt" | "recommend" | "chat";
+type AiMode = "generate" | "analyze" | "adapt" | "recommend" | "hooks" | "chat";
 
 type RequestBody = {
   mode?: AiMode;
@@ -55,6 +55,13 @@ Na podstawie historycznych wyników postów identyfikujesz:
 - gdzie dana treść ma największy potencjał,
 - jak poprawić przyszłe publikacje.
 Dajesz konkretne, praktyczne rekomendacje oparte na danych.
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
+
+  hooks: `Jesteś ekspertem od hooków do content marketingu.
+Tworzysz mocne pierwsze zdania, otwarcia video, nagłówki i intro dopasowane do platformy.
+Każdy hook ma zatrzymać uwagę odbiorcy w pierwszych sekundach.
+Uwzględniasz różnice między LinkedIn, Instagramem, TikTokiem, YouTube, Facebookiem, blogiem i Spotify.
+Tworzysz różne typy hooków: problemowy, liczbowy, pytanie, kontrowersyjny, case study, błąd, obietnica, storytelling.
 Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
   chat: `Jesteś asystentem ANM ContentIQ — platformy do zarządzania contentem.
@@ -152,6 +159,20 @@ const JSON_SCHEMAS: Record<Exclude<AiMode, "chat">, string> = {
   ],
   "content_patterns": "wzorce, które działają na podstawie danych"
 }`,
+
+  hooks: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
+{
+  "hooks": [
+    {
+      "text": "treść hooka",
+      "type": "problemowy",
+      "score": 91,
+      "best_for": "linkedin",
+      "note": "dlaczego ten hook może zadziałać"
+    }
+  ],
+  "ai_summary": "krótkie podsumowanie, jaki kierunek hooków będzie najlepszy"
+}`,
 };
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
@@ -209,7 +230,12 @@ ${JSON_SCHEMAS.analyze}
 
   if (mode === "adapt") {
     return `
-Platformy docelowe: ${platforms.length > 0 ? platforms.join(", ") : "linkedin, instagram, tiktok"}
+Platformy docelowe: ${
+      platforms.length > 0
+        ? platforms.join(", ")
+        : "linkedin, instagram, tiktok"
+    }
+
 Oryginalna treść do adaptacji:
 ${prompt}
 
@@ -239,6 +265,34 @@ ${JSON.stringify(historicalData)}`
 }
 
 ${JSON_SCHEMAS.recommend}
+    `.trim();
+  }
+
+  if (mode === "hooks") {
+    return `
+Platforma docelowa: ${platform || "ogólna"}
+Typ contentu: ${contentType || "post"}
+Temat / wytyczne:
+${prompt}
+
+Wygeneruj 10 różnych hooków.
+Uwzględnij różne typy:
+- problemowy,
+- liczbowy,
+- pytanie,
+- kontrowersyjny,
+- case study,
+- błąd,
+- obietnica,
+- storytelling.
+
+Każdy hook oceń w skali 0-100.
+Dopasuj hooki do platformy i wyjaśnij krótko, dlaczego mogą zadziałać.
+
+${historicalData ? `Dane historyczne:
+${JSON.stringify(historicalData)}` : ""}
+
+${JSON_SCHEMAS.hooks}
     `.trim();
   }
 
@@ -304,7 +358,7 @@ export async function POST(req: Request) {
     let parsedData: unknown = null;
     let parseError: string | null = null;
 
-    if (["generate", "analyze", "adapt", "recommend"].includes(mode)) {
+    if (["generate", "analyze", "adapt", "recommend", "hooks"].includes(mode)) {
       try {
         const cleaned = cleanJsonAnswer(rawAnswer);
         parsedData = JSON.parse(cleaned);

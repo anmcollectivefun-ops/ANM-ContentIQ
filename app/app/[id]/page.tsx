@@ -18,12 +18,11 @@ type Platform =
   | "spotify";
 
 type TabId =
-  | "dashboard"
-  | "studio"
-  | "calendar"
-  | "analytics"
+  | "accounts"
+  | "content"
   | "compare"
-  | "publishing"
+  | "calendar"
+  | "studio"
   | "integrations"
   | "settings";
 
@@ -39,6 +38,8 @@ interface Account {
   bestFormat: string;
   aiTag: string;
   color: string;
+  connected: boolean;
+  lastSync: string;
 }
 
 interface Post {
@@ -91,8 +92,10 @@ const ACCOUNTS: Account[] = [
     engRate: "4.2%",
     reach: "12.4k",
     bestFormat: "Reels edukacyjne",
-    aiTag: "Reels edukacyjne mają 2× wyższy zasięg niż karuzele.",
+    aiTag: "Reels edukacyjne mają 2× wyższy zasięg niż karuzele. Warto zwiększyć liczbę krótkich materiałów video.",
     color: "#E1306C",
+    connected: true,
+    lastSync: "12 min temu",
   },
   {
     id: "linkedin",
@@ -104,8 +107,10 @@ const ACCOUNTS: Account[] = [
     engRate: "6.8%",
     reach: "28.1k",
     bestFormat: "Case studies",
-    aiTag: "Najlepszy kanał na leady B2B i content ekspercki.",
+    aiTag: "Najlepszy kanał na leady B2B i content ekspercki. Tematy z LinkedIna warto rozwijać później na blogu.",
     color: "#0A66C2",
+    connected: true,
+    lastSync: "8 min temu",
   },
   {
     id: "tiktok",
@@ -117,8 +122,10 @@ const ACCOUNTS: Account[] = [
     engRate: "2.1%",
     reach: "6.8k",
     bestFormat: "Krótkie listy błędów",
-    aiTag: "Długie opisy nie działają. Potrzebujesz mocniejszego hooka.",
+    aiTag: "Długie opisy nie działają. TikTok wymaga krótszego hooka i mocniejszego wejścia w pierwszych sekundach.",
     color: "#111827",
+    connected: true,
+    lastSync: "28 min temu",
   },
   {
     id: "youtube",
@@ -130,8 +137,10 @@ const ACCOUNTS: Account[] = [
     engRate: "54% ret.",
     reach: "3.2k",
     bestFormat: "Shorts + tutoriale",
-    aiTag: "Shorts mają 3× wyższy CTR. Zwiększ ich częstotliwość.",
+    aiTag: "Shorts mają wyższy CTR niż długie filmy. Warto zwiększyć częstotliwość krótkich formatów edukacyjnych.",
     color: "#FF0000",
+    connected: true,
+    lastSync: "1 godz. temu",
   },
   {
     id: "facebook",
@@ -143,8 +152,10 @@ const ACCOUNTS: Account[] = [
     engRate: "1.4%",
     reach: "5.1k",
     bestFormat: "Video + grupy",
-    aiTag: "Organiczny zasięg spada. Rekomendacja: skupić się na grupach.",
+    aiTag: "Organiczny zasięg spada. Facebook warto traktować jako kanał społecznościowy i dystrybucję do grup.",
     color: "#1877F2",
+    connected: false,
+    lastSync: "Niepodłączone",
   },
   {
     id: "blog",
@@ -156,8 +167,10 @@ const ACCOUNTS: Account[] = [
     engRate: "3:42 avg",
     reach: "8.9k",
     bestFormat: "Poradniki SEO",
-    aiTag: "Artykuły poradnikowe mają najwyższy czas na stronie.",
+    aiTag: "Artykuły poradnikowe mają najwyższy czas na stronie. Blog powinien być bazą do recyklingu treści na social media.",
     color: "#22C55E",
+    connected: true,
+    lastSync: "2 godz. temu",
   },
   {
     id: "spotify",
@@ -169,8 +182,10 @@ const ACCOUNTS: Account[] = [
     engRate: "41% completion",
     reach: "2.7k",
     bestFormat: "Odcinki poradnikowe",
-    aiTag: "Najlepiej działają krótkie odcinki z konkretną obietnicą w tytule.",
+    aiTag: "Najlepiej działają krótkie odcinki z konkretną obietnicą w tytule. Warto tworzyć podcasty z tematów blogowych.",
     color: "#1DB954",
+    connected: false,
+    lastSync: "Niepodłączone",
   },
 ];
 
@@ -204,7 +219,7 @@ const POSTS: Record<Platform, Post[]> = {
       shares: 41,
       status: "opublikowany",
       source: "created_in_app",
-      ai: "Dobre zapisy, ale niski zasięg. Popraw okładkę i skróć pierwszy slajd.",
+      ai: "Dobre zapisy, ale niższy zasięg. Popraw okładkę i skróć pierwszy slajd.",
     },
     {
       id: "ig-3",
@@ -336,7 +351,7 @@ const POSTS: Record<Platform, Post[]> = {
       shares: 44,
       status: "opublikowany",
       source: "scheduled_in_app",
-      ai: "Shorts ma 3× wyższy CTR niż długie filmy. Zwiększ do 3 Shorts tygodniowo.",
+      ai: "Shorts ma wyższy CTR niż długie filmy. Zwiększ liczbę Shorts tygodniowo.",
     },
   ],
   facebook: [
@@ -476,12 +491,11 @@ const PLANNED_CONTENT: PlannedContent[] = [
 ];
 
 const NAV_TABS: NavTab[] = [
-  { id: "dashboard", label: "Dashboard", icon: "◈" },
+  { id: "accounts", label: "Podsumowanie kont", icon: "◈" },
+  { id: "content", label: "Podsumowanie contentu", icon: "▤" },
+  { id: "compare", label: "Porównanie contentu", icon: "⊞" },
+  { id: "calendar", label: "Harmonogram", icon: "◷" },
   { id: "studio", label: "Content Studio", icon: "✦" },
-  { id: "calendar", label: "Kalendarz", icon: "◻" },
-  { id: "analytics", label: "AI Analiza", icon: "◉" },
-  { id: "compare", label: "Porównanie", icon: "⊞" },
-  { id: "publishing", label: "Publikacja", icon: "▣" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
   { id: "settings", label: "Ustawienia", icon: "◎" },
 ];
@@ -546,7 +560,7 @@ function getPlatformName(platform: Platform) {
 }
 
 function getPlatformColor(platform: Platform) {
-  return ACCOUNTS.find((account) => account.id === platform)?.color ?? "#818cf8";
+  return ACCOUNTS.find((account) => account.id === platform)?.color ?? "#4E79A7";
 }
 
 function getScoreColor(score: number) {
@@ -575,7 +589,7 @@ function ScoreBar({ score }: { score: number }) {
           style={{
             width: `${score}%`,
             height: "100%",
-            borderRadius: 2,
+            borderRadius: 999,
             background: color,
             transition: "width 0.6s ease",
           }}
@@ -585,9 +599,9 @@ function ScoreBar({ score }: { score: number }) {
       <span
         style={{
           fontSize: 13,
-          fontWeight: 700,
+          fontWeight: 800,
           color,
-          minWidth: 30,
+          minWidth: 32,
           textAlign: "right",
         }}
       >
@@ -608,7 +622,7 @@ export default function AppWorkspacePage() {
 
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>("dashboard");
+  const [activeTab, setActiveTab] = useState<TabId>("accounts");
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -616,6 +630,13 @@ export default function AppWorkspacePage() {
 
   const bestAccount = useMemo(() => getBestAccount(), []);
   const weakestAccount = useMemo(() => getWeakestAccount(), []);
+
+  const latestContentGroups = useMemo(() => {
+    return ACCOUNTS.map((account) => ({
+      account,
+      posts: (POSTS[account.id] ?? []).slice(0, 3),
+    }));
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -669,30 +690,27 @@ export default function AppWorkspacePage() {
           margin: 0;
         }
 
-        .ciq-nav-tab {
-          transition: background 0.15s, color 0.15s, border-color 0.15s;
+        .ciq-nav-tab,
+        .ciq-account-tile,
+        .ciq-post-row,
+        .ciq-mini-card {
+          transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
         }
 
         .ciq-nav-tab:hover {
           background: ${css.hoverBg} !important;
         }
 
-        .ciq-account-tile {
-          transition: transform 0.2s cubic-bezier(.22,.68,0,1.2), border-color 0.2s, background 0.2s;
-        }
-
-        .ciq-account-tile:hover {
-          transform: translateY(-3px);
+        .ciq-account-tile:hover,
+        .ciq-post-row:hover,
+        .ciq-mini-card:hover {
+          transform: translateY(-2px);
           border-color: ${css.accentBorder} !important;
-        }
-
-        .ciq-post-row {
-          transition: background 0.15s, border-color 0.15s;
-        }
-
-        .ciq-post-row:hover {
-          background: ${css.hoverBg} !important;
-          border-color: ${css.accentBorder} !important;
+          box-shadow: ${
+            dark
+              ? "0 14px 34px rgba(0,0,0,0.18)"
+              : "0 14px 34px rgba(15,23,42,0.08)"
+          };
         }
 
         .ciq-input::placeholder {
@@ -700,8 +718,8 @@ export default function AppWorkspacePage() {
         }
 
         ::-webkit-scrollbar {
-          width: 4px;
-          height: 4px;
+          width: 6px;
+          height: 6px;
         }
 
         ::-webkit-scrollbar-track {
@@ -710,10 +728,10 @@ export default function AppWorkspacePage() {
 
         ::-webkit-scrollbar-thumb {
           background: ${css.border};
-          border-radius: 4px;
+          border-radius: 999px;
         }
 
-        @media (max-width: 980px) {
+        @media (max-width: 1080px) {
           .ciq-shell {
             grid-template-columns: 1fr !important;
           }
@@ -722,18 +740,21 @@ export default function AppWorkspacePage() {
             position: relative !important;
             height: auto !important;
             border-right: none !important;
+            border-bottom: 1px solid ${css.border} !important;
           }
 
           .ciq-nav {
             display: grid !important;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
+            padding: 10px 16px 0 16px !important;
           }
 
           .ciq-topbar {
             position: relative !important;
             flex-direction: column;
             align-items: flex-start !important;
+            gap: 14px;
           }
 
           .ciq-top-actions {
@@ -741,11 +762,12 @@ export default function AppWorkspacePage() {
             flex-wrap: wrap;
           }
 
+          .ciq-summary-grid,
           .ciq-tiles-grid,
-          .ciq-insights-grid,
+          .ciq-content-grid,
           .ciq-compare-grid,
-          .ciq-studio-grid,
-          .ciq-integrations-grid {
+          .ciq-integrations-grid,
+          .ciq-settings-grid {
             grid-template-columns: 1fr !important;
           }
 
@@ -757,6 +779,11 @@ export default function AppWorkspacePage() {
           .ciq-account-metrics {
             flex-wrap: wrap;
             gap: 18px !important;
+          }
+
+          .ciq-calendar-row,
+          .ciq-compare-row {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
@@ -771,13 +798,12 @@ export default function AppWorkspacePage() {
             borderRight: `1px solid ${css.border}`,
           }}
         >
-          {/* ================= LOGO ================= */}
           <Link href="/dashboard" style={st.sidebarLogo}>
             <div
               style={{
                 ...st.logoMark,
-                background: dark ? "#fff" : "#0f172a",
-                color: dark ? "#0f172a" : "#fff",
+                background: dark ? "#E8F1FF" : "#0F2747",
+                color: dark ? "#0F2747" : "#E8F1FF",
               }}
             >
               IQ
@@ -800,7 +826,6 @@ export default function AppWorkspacePage() {
             </div>
           </Link>
 
-          {/* ================= NAVIGATION ================= */}
           <nav className="ciq-nav" style={st.nav}>
             {NAV_TABS.map((tab) => (
               <button
@@ -813,8 +838,8 @@ export default function AppWorkspacePage() {
                   color: activeTab === tab.id ? css.text : css.muted,
                   borderLeft:
                     activeTab === tab.id
-                      ? `2px solid ${css.accent}`
-                      : "2px solid transparent",
+                      ? `3px solid ${css.accent}`
+                      : "3px solid transparent",
                 }}
               >
                 <span style={st.navIcon}>{tab.icon}</span>
@@ -823,7 +848,6 @@ export default function AppWorkspacePage() {
             ))}
           </nav>
 
-          {/* ================= SIDEBAR BOTTOM ================= */}
           <div style={st.sidebarBottom}>
             <button
               onClick={toggleTheme}
@@ -854,7 +878,6 @@ export default function AppWorkspacePage() {
 
         {/* ───────────────── MAIN ───────────────── */}
         <div style={{ ...st.mainArea, background: css.bg }}>
-          {/* ================= TOP BAR ================= */}
           <header
             className="ciq-topbar"
             style={{
@@ -875,11 +898,13 @@ export default function AppWorkspacePage() {
                   color: css.text,
                 }}
               >
-                {activeAccount ? activeAccount.name : "Wszystkie konta"}
+                {activeAccount
+                  ? activeAccount.name
+                  : "Centrum analityki contentu"}
               </h1>
 
               <p style={{ ...st.pageSubtitle, color: css.muted }}>
-                Analiza kont, treści, publikacji i wyników w jednym dashboardzie.
+                Wszystkie konta, wyniki live i analiza AI w jednym miejscu.
               </p>
             </div>
 
@@ -901,8 +926,8 @@ export default function AppWorkspacePage() {
                 onClick={() => openTab("studio")}
                 style={{
                   ...st.topBtn,
-                  background: dark ? "#fff" : "#0f172a",
-                  color: dark ? "#0f172a" : "#fff",
+                  background: css.accent,
+                  color: "#ffffff",
                   border: "none",
                 }}
               >
@@ -911,39 +936,104 @@ export default function AppWorkspacePage() {
             </div>
           </header>
 
-          {/* ================= CONTENT AREA ================= */}
           <div style={st.content}>
-            {/* ================= DASHBOARD TAB ================= */}
-            {activeTab === "dashboard" && !activeAccount && (
+            {/* ================= PODSUMOWANIE KONT ================= */}
+            {activeTab === "accounts" && !activeAccount && (
               <div>
-                {/* ===== AI INSIGHTS STRIP ===== */}
-                <div
-                  style={{
-                    ...st.insightStrip,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                  }}
-                >
-                  <div style={{ ...st.insightTitle, color: css.accent }}>
-                    ✦ AI Cross-Platform Insights
+                <div className="ciq-summary-grid" style={st.summaryGrid}>
+                  <div
+                    className="ciq-mini-card"
+                    style={{
+                      ...st.summaryCard,
+                      background: css.surface,
+                      border: `1px solid ${css.border}`,
+                    }}
+                  >
+                    <p style={{ ...st.smallLabel, color: css.muted }}>
+                      Analiza live
+                    </p>
+
+                    <h3 style={{ ...st.summaryValue, color: css.text }}>
+                      7 kanałów w jednym widoku
+                    </h3>
+
+                    <p style={{ ...st.summaryNote, color: css.muted }}>
+                      Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify i
+                      Blog zebrane w jednym centrum analitycznym.
+                    </p>
                   </div>
 
-                  <div className="ciq-insights-grid" style={st.insightsGrid}>
+                  <div
+                    className="ciq-mini-card"
+                    style={{
+                      ...st.summaryCard,
+                      background: css.aiBg,
+                      border: `1px solid ${css.aiBorder}`,
+                    }}
+                  >
+                    <p style={{ ...st.smallLabel, color: css.aiText }}>
+                      ✦ AI rekomendacja
+                    </p>
+
+                    <h3 style={{ ...st.summaryValue, color: css.text }}>
+                      Najmocniejsza platforma: {bestAccount.name}
+                    </h3>
+
+                    <p style={{ ...st.summaryNote, color: css.muted }}>
+                      {bestAccount.aiTag}
+                    </p>
+                  </div>
+
+                  <div
+                    className="ciq-mini-card"
+                    style={{
+                      ...st.summaryCard,
+                      background: css.aiBgSoft,
+                      border: `1px solid ${css.aiBorder}`,
+                    }}
+                  >
+                    <p style={{ ...st.smallLabel, color: css.aiText }}>
+                      ✦ AI alert
+                    </p>
+
+                    <h3 style={{ ...st.summaryValue, color: css.text }}>
+                      Do poprawy: {weakestAccount.name}
+                    </h3>
+
+                    <p style={{ ...st.summaryNote, color: css.muted }}>
+                      {weakestAccount.aiTag}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.aiBg,
+                    border: `1px solid ${css.aiBorder}`,
+                    marginBottom: 22,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.aiText }}>
+                    ✦ AI analiza cross-platform
+                  </p>
+
+                  <div style={st.aiStack}>
                     {INSIGHTS.map((insight, index) => (
                       <div
                         key={index}
                         style={{
-                          ...st.insightItem,
-                          borderLeft: `2px solid ${
+                          ...st.aiInsightRow,
+                          borderLeft: `3px solid ${
                             insight.type === "up"
                               ? "#22c55e"
                               : insight.type === "warn"
                                 ? "#f59e0b"
-                                : css.accent
+                                : css.aiText
                           }`,
                         }}
                       >
-                        <p style={{ ...st.insightText, color: css.muted }}>
+                        <p style={{ ...st.insightText, color: css.text }}>
                           {insight.text}
                         </p>
                       </div>
@@ -951,67 +1041,9 @@ export default function AppWorkspacePage() {
                   </div>
                 </div>
 
-                {/* ===== GLOBAL SUMMARY ===== */}
-                <div className="ciq-compare-grid" style={st.summaryGrid}>
-                  <div
-                    style={{
-                      ...st.summaryCard,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.muted }}>
-                      Najmocniejsza platforma
-                    </p>
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      {bestAccount.name}
-                    </h3>
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      {bestAccount.aiTag}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      ...st.summaryCard,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.muted }}>
-                      Do poprawy
-                    </p>
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      {weakestAccount.name}
-                    </h3>
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      {weakestAccount.aiTag}
-                    </p>
-                  </div>
-
-                  <div
-                    style={{
-                      ...st.summaryCard,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.muted }}>
-                      Mechanizm AI
-                    </p>
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      Content → wynik → rekomendacja
-                    </h3>
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      AI zna treść przed publikacją i porównuje ją z wynikiem po
-                      publikacji.
-                    </p>
-                  </div>
-                </div>
-
-                {/* ===== ACCOUNT TILES ===== */}
                 <div style={{ ...st.tilesLabel, color: css.muted }}>
-                  Podłączone konta — kliknij kafelek, aby zobaczyć posty
+                  Podsumowanie kont — kliknij kafelek, aby zobaczyć szczegóły i
+                  posty
                 </div>
 
                 <div className="ciq-tiles-grid" style={st.tilesGrid}>
@@ -1028,10 +1060,8 @@ export default function AppWorkspacePage() {
                     >
                       <div
                         style={{
-                          height: 3,
+                          ...st.tileTopLine,
                           background: account.color,
-                          borderRadius: "12px 12px 0 0",
-                          margin: "-18px -18px 14px",
                         }}
                       />
 
@@ -1040,6 +1070,7 @@ export default function AppWorkspacePage() {
                           <div style={{ ...st.tileName, color: css.text }}>
                             {account.name}
                           </div>
+
                           <div style={{ ...st.tileHandle, color: css.muted }}>
                             {account.handle}
                           </div>
@@ -1048,6 +1079,28 @@ export default function AppWorkspacePage() {
                         <span style={{ ...st.tileArrow, color: css.muted }}>
                           →
                         </span>
+                      </div>
+
+                      <div style={st.connectionRow}>
+                        <span
+                          style={{
+                            ...st.connectionPill,
+                            background: account.connected
+                              ? "#22c55e18"
+                              : "#f59e0b18",
+                            color: account.connected ? "#22c55e" : "#f59e0b",
+                          }}
+                        >
+                          {account.connected ? "API podłączone" : "Do podłączenia"}
+                        </span>
+
+                        <span style={{ color: css.muted, fontSize: 11 }}>
+                          Sync: {account.lastSync}
+                        </span>
+                      </div>
+
+                      <div style={{ ...st.liveLabel, color: css.muted }}>
+                        Analiza live
                       </div>
 
                       <ScoreBar score={account.score} />
@@ -1072,7 +1125,7 @@ export default function AppWorkspacePage() {
                             {account.engRate}
                           </div>
                           <div style={{ ...st.tileStatLabel, color: css.muted }}>
-                            eng. rate
+                            engagement
                           </div>
                         </div>
 
@@ -1081,20 +1134,39 @@ export default function AppWorkspacePage() {
                             {account.reach}
                           </div>
                           <div style={{ ...st.tileStatLabel, color: css.muted }}>
-                            zasięg avg
+                            średni zasięg
                           </div>
                         </div>
                       </div>
 
                       <div
                         style={{
-                          ...st.tileAI,
-                          background: `${account.color}15`,
-                          color: account.color,
+                          ...st.tileBestFormat,
+                          background: css.liveSoft,
+                          border: `1px solid ${css.border}`,
                         }}
                       >
-                        <span style={{ fontSize: 10 }}>✦</span>
-                        <span style={{ fontSize: 11, lineHeight: 1.45 }}>
+                        <span style={{ ...st.smallMiniLabel, color: css.muted }}>
+                          Najlepszy format
+                        </span>
+                        <span style={{ color: css.text, fontWeight: 700 }}>
+                          {account.bestFormat}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          ...st.tileAI,
+                          background: css.aiBgSoft,
+                          border: `1px solid ${css.aiBorder}`,
+                          color: css.text,
+                        }}
+                      >
+                        <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
+                          ✦ AI wniosek
+                        </div>
+
+                        <span style={{ fontSize: 11, lineHeight: 1.55 }}>
                           {account.aiTag}
                         </span>
                       </div>
@@ -1114,8 +1186,8 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= ACCOUNT DETAIL ================= */}
-            {activeTab === "dashboard" && activeAccount && (
+            {/* ================= SZCZEGÓŁY KONTA ================= */}
+            {activeTab === "accounts" && activeAccount && (
               <div>
                 <button
                   onClick={() => setActiveAccount(null)}
@@ -1145,7 +1217,10 @@ export default function AppWorkspacePage() {
                     }}
                   />
 
-                  <div className="ciq-account-summary-row" style={st.accountSummaryRow}>
+                  <div
+                    className="ciq-account-summary-row"
+                    style={st.accountSummaryRow}
+                  >
                     <div>
                       <div
                         style={{
@@ -1166,14 +1241,15 @@ export default function AppWorkspacePage() {
                       {[
                         ["AI Score", `${activeAccount.score}/100`],
                         ["Posty", String(activeAccount.posts)],
-                        ["Eng. Rate", activeAccount.engRate],
-                        ["Zasięg avg", activeAccount.reach],
+                        ["Engagement", activeAccount.engRate],
+                        ["Średni zasięg", activeAccount.reach],
                         ["Najlepszy format", activeAccount.bestFormat],
                       ].map(([label, value]) => (
                         <div key={label}>
                           <div style={{ ...st.metricValue, color: css.text }}>
                             {value}
                           </div>
+
                           <div style={{ ...st.metricLabel, color: css.muted }}>
                             {label}
                           </div>
@@ -1185,18 +1261,22 @@ export default function AppWorkspacePage() {
                   <div
                     style={{
                       ...st.tileAI,
-                      background: `${activeAccount.color}15`,
-                      color: activeAccount.color,
+                      background: css.aiBg,
+                      border: `1px solid ${css.aiBorder}`,
+                      color: css.text,
                       marginTop: 16,
                     }}
                   >
-                    <span>✦</span>
+                    <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
+                      ✦ AI analiza tej platformy
+                    </div>
+
                     <span>{activeAccount.aiTag}</span>
                   </div>
                 </div>
 
                 <div style={{ ...st.postsLabel, color: css.muted }}>
-                  Posty i publikacje — {POSTS[activeAccount.id]?.length ?? 0}
+                  Ostatnie publikacje — {POSTS[activeAccount.id]?.length ?? 0}
                 </div>
 
                 <div style={st.postsList}>
@@ -1205,7 +1285,10 @@ export default function AppWorkspacePage() {
 
                     const metrics = [
                       ["Zasięg", post.reach],
-                      ["Polubienia", post.likes > 0 ? post.likes.toLocaleString() : "—"],
+                      [
+                        "Polubienia",
+                        post.likes > 0 ? post.likes.toLocaleString() : "—",
+                      ],
                       ["Komentarze", String(post.comments)],
                       ["Udostępnienia", post.shares ? String(post.shares) : "—"],
                       ["Zapisy", post.saves ? String(post.saves) : "—"],
@@ -1268,11 +1351,15 @@ export default function AppWorkspacePage() {
                           <div
                             style={{
                               ...st.postAI,
-                              background: `${activeAccount.color}12`,
-                              color: activeAccount.color,
+                              background: css.aiBgSoft,
+                              border: `1px solid ${css.aiBorder}`,
+                              color: css.text,
                             }}
                           >
-                            ✦ {post.ai}
+                            <span style={{ color: css.aiText, fontWeight: 800 }}>
+                              ✦ AI
+                            </span>
+                            <span>{post.ai}</span>
                           </div>
                         </div>
 
@@ -1299,44 +1386,250 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            
-           {/* ================= CONTENT STUDIO ================= */}
-{activeTab === "studio" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        marginBottom: 18,
-      }}
-    >
-      <p style={{ ...st.smallLabel, color: css.accent }}>
-        Content Studio AI
-      </p>
+            {/* ================= PODSUMOWANIE CONTENTU ================= */}
+            {activeTab === "content" && (
+              <div>
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.aiBg,
+                    border: `1px solid ${css.aiBorder}`,
+                    marginBottom: 18,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.aiText }}>
+                    ✦ AI podsumowanie contentu
+                  </p>
 
-      <h2
-        style={{
-          ...st.sectionTitle,
-          color: css.text,
-          fontFamily: "'DM Serif Display', serif",
-        }}
-      >
-        Twórz, analizuj i adaptuj content na platformy
-      </h2>
+                  <h2
+                    style={{
+                      ...st.sectionTitle,
+                      color: css.text,
+                      fontFamily: "'DM Serif Display', serif",
+                    }}
+                  >
+                    Ostatnie treści ze wszystkich kanałów
+                  </h2>
 
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Ten moduł zna treść przed publikacją. Dzięki temu po opublikowaniu
-        posta system będzie mógł połączyć treść z realnymi wynikami i uczyć AI,
-        jaki styl działa na konkretnej platformie.
-      </p>
-    </div>
+                  <p style={{ ...st.sectionText, color: css.muted }}>
+                    Tutaj widzisz najnowszy content ze wszystkich platform bez
+                    skakania między kanałami. AI od razu pokazuje, co zadziałało
+                    najlepiej i gdzie warto przerabiać treść na inny format.
+                  </p>
+                </div>
 
-    <ContentStudio dark={dark} />
-  </div>
-)}
+                <div className="ciq-content-grid" style={st.contentGrid}>
+                  {latestContentGroups.map(({ account, posts }) => (
+                    <div
+                      key={account.id}
+                      className="ciq-mini-card"
+                      style={{
+                        ...st.contentCard,
+                        background: css.surface,
+                        border: `1px solid ${css.border}`,
+                      }}
+                    >
+                      <div style={st.contentCardHeader}>
+                        <div>
+                          <div style={{ ...st.tileName, color: css.text }}>
+                            {account.name}
+                          </div>
+                          <div style={{ ...st.tileHandle, color: css.muted }}>
+                            {account.handle}
+                          </div>
+                        </div>
 
-            {/* ================= CALENDAR ================= */}
+                        <span
+                          style={{
+                            ...st.platformDot,
+                            background: account.color,
+                          }}
+                        />
+                      </div>
+
+                      <div style={st.miniPostsStack}>
+                        {posts.map((post) => (
+                          <div
+                            key={post.id}
+                            style={{
+                              ...st.miniPost,
+                              border: `1px solid ${css.border}`,
+                              background: css.liveSoft,
+                            }}
+                          >
+                            <div
+                              style={{ ...st.miniPostTitle, color: css.text }}
+                            >
+                              {post.title}
+                            </div>
+
+                            <div
+                              style={{ ...st.miniPostMeta, color: css.muted }}
+                            >
+                              {post.type} • {post.date} • zasięg {post.reach}
+                            </div>
+
+                            <div
+                              style={{
+                                ...st.miniAI,
+                                background: css.aiBgSoft,
+                                border: `1px solid ${css.aiBorder}`,
+                              }}
+                            >
+                              <span
+                                style={{ ...st.aiBoxLabel, color: css.aiText }}
+                              >
+                                ✦ AI
+                              </span>
+
+                              <span
+                                style={{
+                                  color: css.text,
+                                  fontSize: 11,
+                                  lineHeight: 1.5,
+                                }}
+                              >
+                                {post.ai}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================= PORÓWNANIE CONTENTU ================= */}
+            {activeTab === "compare" && (
+              <div>
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    marginBottom: 18,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.accent }}>
+                    Porównanie platform
+                  </p>
+
+                  <h2
+                    style={{
+                      ...st.sectionTitle,
+                      color: css.text,
+                      fontFamily: "'DM Serif Display', serif",
+                    }}
+                  >
+                    Gdzie jaki content ma przewagę?
+                  </h2>
+
+                  <p style={{ ...st.sectionText, color: css.muted }}>
+                    Porównuj platformy obok siebie i sprawdzaj, gdzie dany styl,
+                    format albo temat działa najlepiej.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.aiBg,
+                    border: `1px solid ${css.aiBorder}`,
+                    marginBottom: 18,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.aiText }}>
+                    ✦ AI wniosek globalny
+                  </p>
+
+                  <p style={{ ...st.sectionText, color: css.text }}>
+                    Content ekspercki i case studies mają najwyższy potencjał na
+                    LinkedIn i Blogu. TikTok i Instagram wymagają skrócenia
+                    przekazu oraz dużo mocniejszego hooka na wejściu.
+                  </p>
+                </div>
+
+                <div style={st.compareTable}>
+                  {ACCOUNTS.map((account) => (
+                    <div
+                      key={account.id}
+                      className="ciq-compare-row ciq-post-row"
+                      style={{
+                        ...st.compareRow,
+                        background: css.surface,
+                        border: `1px solid ${css.border}`,
+                      }}
+                    >
+                      <div>
+                        <strong style={{ color: css.text }}>
+                          {account.name}
+                        </strong>
+
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: css.muted,
+                            margin: "4px 0 0",
+                          }}
+                        >
+                          {account.handle}
+                        </p>
+                      </div>
+
+                      <div>
+                        <div
+                          style={{
+                            ...st.smallMiniLabel,
+                            color: css.muted,
+                            marginBottom: 6,
+                          }}
+                        >
+                          AI Score
+                        </div>
+
+                        <ScoreBar score={account.score} />
+                      </div>
+
+                      <div style={{ fontSize: 12, color: css.muted }}>
+                        <span style={{ color: css.text, fontWeight: 700 }}>
+                          Najlepszy format:
+                        </span>
+                        <br />
+                        <span style={{ color: account.color }}>
+                          {account.bestFormat}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          ...st.compareAIBox,
+                          background: css.aiBgSoft,
+                          border: `1px solid ${css.aiBorder}`,
+                        }}
+                      >
+                        <span style={{ ...st.aiBoxLabel, color: css.aiText }}>
+                          ✦ AI
+                        </span>
+
+                        <span
+                          style={{
+                            color: css.text,
+                            fontSize: 11,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {account.aiTag}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================= HARMONOGRAM ================= */}
             {activeTab === "calendar" && (
               <div
                 style={{
@@ -1346,7 +1639,7 @@ export default function AppWorkspacePage() {
                 }}
               >
                 <p style={{ ...st.smallLabel, color: css.accent }}>
-                  Kalendarz i plan publikacji
+                  Harmonogram contentu
                 </p>
 
                 <h2
@@ -1363,9 +1656,10 @@ export default function AppWorkspacePage() {
                   {PLANNED_CONTENT.map((item) => (
                     <div
                       key={item.id}
+                      className="ciq-calendar-row ciq-post-row"
                       style={{
                         ...st.calendarRow,
-                        background: css.bg,
+                        background: css.liveSoft,
                         border: `1px solid ${css.border}`,
                       }}
                     >
@@ -1373,6 +1667,7 @@ export default function AppWorkspacePage() {
                         <p style={{ ...st.postTitle, color: css.text }}>
                           {item.title}
                         </p>
+
                         <p style={{ ...st.sectionText, color: css.muted }}>
                           {item.originalIdea}
                         </p>
@@ -1406,60 +1701,29 @@ export default function AppWorkspacePage() {
                         </span>
                       </div>
 
-                      <p style={{ ...st.aiSmall, color: css.accent }}>
-                        ✦ {item.aiPrediction}
-                      </p>
+                      <div
+                        style={{
+                          ...st.scheduleAI,
+                          background: css.aiBgSoft,
+                          border: `1px solid ${css.aiBorder}`,
+                        }}
+                      >
+                        <span style={{ ...st.aiBoxLabel, color: css.aiText }}>
+                          ✦ AI przewidywanie
+                        </span>
+
+                        <p style={{ ...st.aiSmall, color: css.text }}>
+                          {item.aiPrediction}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* ================= AI ANALYTICS ================= */}
-            {activeTab === "analytics" && (
-              <div className="ciq-compare-grid" style={st.compareGrid}>
-                {[
-                  [
-                    "Learning Loop",
-                    "AI zna treść przed publikacją, a potem łączy ją z wynikiem z API.",
-                  ],
-                  [
-                    "Content Score",
-                    "Ocena hooka, CTA, stylu, formatu, platformy i realnego wyniku.",
-                  ],
-                  [
-                    "Rekomendacje",
-                    "System sugeruje, co poprawić i gdzie dany typ treści ma największy sens.",
-                  ],
-                ].map(([title, text]) => (
-                  <div
-                    key={title}
-                    style={{
-                      ...st.panel,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.accent }}>
-                      AI Engine
-                    </p>
-                    <h2
-                      style={{
-                        ...st.sectionTitle,
-                        color: css.text,
-                        fontFamily: "'DM Serif Display', serif",
-                      }}
-                    >
-                      {title}
-                    </h2>
-                    <p style={{ ...st.sectionText, color: css.muted }}>{text}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ================= COMPARE ================= */}
-            {activeTab === "compare" && (
+            {/* ================= CONTENT STUDIO ================= */}
+            {activeTab === "studio" && (
               <div>
                 <div
                   style={{
@@ -1470,7 +1734,7 @@ export default function AppWorkspacePage() {
                   }}
                 >
                   <p style={{ ...st.smallLabel, color: css.accent }}>
-                    Porównanie platform
+                    Content Studio AI
                   </p>
 
                   <h2
@@ -1480,112 +1744,27 @@ export default function AppWorkspacePage() {
                       fontFamily: "'DM Serif Display', serif",
                     }}
                   >
-                    Gdzie jaki content ma przewagę?
+                    Twórz, analizuj, adaptuj i testuj hooki
                   </h2>
 
                   <p style={{ ...st.sectionText, color: css.muted }}>
-                    Ten widok pokazuje, czy temat lepiej działa jako LinkedIn
-                    post, TikTok, Reels, blog, YouTube albo podcast.
+                    Ten moduł zna treść przed publikacją. Dzięki temu po
+                    opublikowaniu system porównuje treść z realnym wynikiem i
+                    uczy AI, jaki styl działa najlepiej na danej platformie.
                   </p>
                 </div>
 
-                <div style={st.compareTable}>
-                  {ACCOUNTS.map((account) => (
-                    <div
-                      key={account.id}
-                      style={{
-                        ...st.compareRow,
-                        background: css.surface,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <div>
-                        <strong style={{ color: css.text }}>{account.name}</strong>
-                        <p style={{ fontSize: 12, color: css.muted }}>
-                          {account.handle}
-                        </p>
-                      </div>
-
-                      <div>
-                        <ScoreBar score={account.score} />
-                      </div>
-
-                      <div style={{ fontSize: 12, color: css.muted }}>
-                        Najlepszy format:{" "}
-                        <span style={{ color: account.color }}>
-                          {account.bestFormat}
-                        </span>
-                      </div>
-
-                      <div style={{ fontSize: 12, color: css.muted }}>
-                        {account.aiTag}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <ContentStudio dark={dark} />
               </div>
             )}
 
-            {/* ================= PUBLISHING ================= */}
-            {activeTab === "publishing" && (
-              <div
-                style={{
-                  ...st.panel,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                }}
-              >
-                <p style={{ ...st.smallLabel, color: css.accent }}>
-                  Scheduler / Publishing
-                </p>
-
-                <h2
-                  style={{
-                    ...st.sectionTitle,
-                    color: css.text,
-                    fontFamily: "'DM Serif Display', serif",
-                  }}
-                >
-                  Planowanie i publikacja z aplikacji
-                </h2>
-
-                <p style={{ ...st.sectionText, color: css.muted }}>
-                  Docelowo użytkownik tworzy content w aplikacji, wybiera
-                  platformy, planuje publikację, a system po publikacji pobiera
-                  wyniki i łączy je z zaplanowaną treścią.
-                </p>
-
-                <div className="ciq-compare-grid" style={st.compareGrid}>
-                  {[
-                    ["1", "Treść utworzona w Content Studio"],
-                    ["2", "Warianty dopasowane do platform"],
-                    ["3", "Publikacja / zaplanowanie"],
-                    ["4", "Pobranie wyników po publikacji"],
-                    ["5", "AI porównuje treść z wynikiem"],
-                    ["6", "AI rekomenduje lepszą wersję"],
-                  ].map(([step, text]) => (
-                    <div
-                      key={step}
-                      style={{
-                        ...st.suggestionCard,
-                        background: css.bg,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <strong style={{ color: css.accent }}>Krok {step}</strong>
-                      <p style={{ color: css.muted }}>{text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* ================= INTEGRATIONS ================= */}
+            {/* ================= INTEGRACJE ================= */}
             {activeTab === "integrations" && (
               <div className="ciq-integrations-grid" style={st.integrationsGrid}>
                 {INTEGRATIONS.map((integration) => (
                   <div
                     key={integration.name}
+                    className="ciq-mini-card"
                     style={{
                       ...st.panel,
                       background: css.surface,
@@ -1615,7 +1794,7 @@ export default function AppWorkspacePage() {
                         ...st.secondaryButton,
                         border: `1px solid ${css.border}`,
                         color: css.muted,
-                        background: css.bg,
+                        background: css.liveSoft,
                       }}
                     >
                       Skonfiguruj
@@ -1625,9 +1804,9 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= SETTINGS ================= */}
+            {/* ================= USTAWIENIA ================= */}
             {activeTab === "settings" && (
-              <div className="ciq-studio-grid" style={st.studioGrid}>
+              <div className="ciq-settings-grid" style={st.settingsGrid}>
                 <div
                   style={{
                     ...st.panel,
@@ -1650,8 +1829,8 @@ export default function AppWorkspacePage() {
                   </h2>
 
                   <p style={{ ...st.sectionText, color: css.muted }}>
-                    Ton komunikacji, słowa preferowane, słowa zakazane, persony,
-                    oferta, CTA i przykłady najlepszych postów.
+                    Ton komunikacji, słowa preferowane, CTA, przykłady
+                    najlepszych postów, persony i styl publikacji.
                   </p>
                 </div>
 
@@ -1663,7 +1842,7 @@ export default function AppWorkspacePage() {
                   }}
                 >
                   <p style={{ ...st.smallLabel, color: css.accent }}>
-                    Workspace
+                    Ustawienia aplikacji
                   </p>
 
                   <h2
@@ -1673,12 +1852,12 @@ export default function AppWorkspacePage() {
                       fontFamily: "'DM Serif Display', serif",
                     }}
                   >
-                    Ustawienia projektu
+                    Konta, integracje i preferencje
                   </h2>
 
                   <p style={{ ...st.sectionText, color: css.muted }}>
-                    Zespół, role, integracje, połączone konta, dashboard i
-                    domyślne cele contentowe.
+                    Tutaj później podepniemy ustawienia zespołu, połączonych
+                    kont, API, domyślne platformy i logikę publikacji.
                   </p>
                 </div>
               </div>
@@ -1693,29 +1872,39 @@ export default function AppWorkspacePage() {
 // ─── THEME VARS ───────────────────────────────────────────────────────────────
 
 const darkVars = {
-  bg: "#080c14",
-  sidebar: "#070a11",
-  surface: "#0f1520",
-  text: "#eef2ff",
-  muted: "#8190ad",
-  border: "#151e30",
-  accent: "#818cf8",
-  activeBg: "#131b2e",
-  hoverBg: "#131b2e",
-  accentBorder: "#818cf8",
+  bg: "#09111C",
+  sidebar: "#07101A",
+  surface: "#0E1826",
+  text: "#ECF3FF",
+  muted: "#8CA0BD",
+  border: "#1C2A3D",
+  accent: "#4E79A7",
+  activeBg: "#132236",
+  hoverBg: "#112031",
+  accentBorder: "#5A88BA",
+  aiBg: "#0F1D30",
+  aiBgSoft: "#102238",
+  aiBorder: "#24486F",
+  aiText: "#7EC2FF",
+  liveSoft: "#0B1420",
 };
 
 const lightVars = {
-  bg: "#f8f7f4",
-  sidebar: "#ffffff",
-  surface: "#ffffff",
-  text: "#0f172a",
-  muted: "#64748b",
-  border: "#e8e8e4",
-  accent: "#6366f1",
-  activeBg: "#f0f0fe",
-  hoverBg: "#f8f8ff",
-  accentBorder: "#6366f1",
+  bg: "#F6F8FC",
+  sidebar: "#FFFFFF",
+  surface: "#FFFFFF",
+  text: "#102033",
+  muted: "#60748A",
+  border: "#DCE5F0",
+  accent: "#456D9A",
+  activeBg: "#EAF2FB",
+  hoverBg: "#F2F7FD",
+  accentBorder: "#5A88BA",
+  aiBg: "#EEF6FF",
+  aiBgSoft: "#F5F9FF",
+  aiBorder: "#C9DDF4",
+  aiText: "#2D6BA3",
+  liveSoft: "#F9FBFE",
 };
 
 // ─── STATIC STYLES ────────────────────────────────────────────────────────────
@@ -1728,7 +1917,7 @@ const st: Record<string, CSSProperties> = {
   },
   shell: {
     display: "grid",
-    gridTemplateColumns: "250px 1fr",
+    gridTemplateColumns: "270px 1fr",
     minHeight: "100vh",
   },
   sidebar: {
@@ -1744,13 +1933,13 @@ const st: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    padding: "20px 18px",
+    padding: "22px 18px",
     textDecoration: "none",
   },
   logoMark: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1759,7 +1948,7 @@ const st: Record<string, CSSProperties> = {
     flexShrink: 0,
   },
   logoText: {
-    fontSize: 16,
+    fontSize: 17,
     letterSpacing: "-0.02em",
   },
   logoWs: {
@@ -1777,7 +1966,7 @@ const st: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 10,
     width: "100%",
-    padding: "10px 18px",
+    padding: "11px 18px",
     fontSize: 13,
     border: "none",
     cursor: "pointer",
@@ -1796,15 +1985,15 @@ const st: Record<string, CSSProperties> = {
     gap: 8,
   },
   themeToggle: {
-    padding: "8px 12px",
-    borderRadius: 10,
+    padding: "9px 12px",
+    borderRadius: 12,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
   },
   signoutBtn: {
-    padding: "8px 12px",
-    borderRadius: 10,
+    padding: "9px 12px",
+    borderRadius: 12,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
@@ -1816,7 +2005,7 @@ const st: Record<string, CSSProperties> = {
     transition: "background 0.3s",
   },
   topbar: {
-    padding: "16px 28px",
+    padding: "18px 28px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1826,19 +2015,19 @@ const st: Record<string, CSSProperties> = {
   },
   tabLabel: {
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.12em",
     marginBottom: 4,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: 400,
     letterSpacing: "-0.02em",
     margin: 0,
   },
   pageSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     marginTop: 4,
   },
   topActions: {
@@ -1846,61 +2035,55 @@ const st: Record<string, CSSProperties> = {
     gap: 10,
   },
   topBtn: {
-    padding: "9px 16px",
-    borderRadius: 10,
+    padding: "10px 16px",
+    borderRadius: 12,
     fontSize: 12,
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: "pointer",
     fontFamily: "inherit",
   },
   content: {
-    padding: "24px 28px",
+    padding: "24px 28px 34px",
     flex: 1,
     overflowY: "auto",
-  },
-  insightStrip: {
-    borderRadius: 16,
-    padding: "18px 20px",
-    marginBottom: 20,
-  },
-  insightTitle: {
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: "0.1em",
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-  insightsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 12,
-  },
-  insightItem: {
-    paddingLeft: 12,
-  },
-  insightText: {
-    fontSize: 12,
-    lineHeight: 1.6,
-    margin: 0,
   },
   summaryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: 14,
-    marginBottom: 24,
+    marginBottom: 18,
   },
   summaryCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
   },
   summaryValue: {
     fontSize: 22,
     fontWeight: 400,
-    margin: "6px 0",
+    margin: "8px 0",
+    lineHeight: 1.2,
   },
   summaryNote: {
     fontSize: 12,
-    lineHeight: 1.6,
+    lineHeight: 1.65,
+    margin: 0,
+  },
+  panel: {
+    borderRadius: 18,
+    padding: 22,
+  },
+  aiStack: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    marginTop: 14,
+  },
+  aiInsightRow: {
+    paddingLeft: 12,
+  },
+  insightText: {
+    fontSize: 13,
+    lineHeight: 1.7,
     margin: 0,
   },
   smallLabel: {
@@ -1909,6 +2092,12 @@ const st: Record<string, CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: "0.12em",
     margin: 0,
+  },
+  smallMiniLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
   },
   tilesLabel: {
     fontSize: 11,
@@ -1923,17 +2112,23 @@ const st: Record<string, CSSProperties> = {
     gap: 14,
   },
   tile: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 18,
     cursor: "pointer",
     textAlign: "left",
     fontFamily: "inherit",
+    position: "relative",
+  },
+  tileTopLine: {
+    height: 4,
+    borderRadius: "14px 14px 0 0",
+    margin: "-18px -18px 14px",
   },
   tileTop: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   tileName: {
     fontSize: 15,
@@ -1947,11 +2142,33 @@ const st: Record<string, CSSProperties> = {
     fontSize: 12,
     marginTop: 2,
   },
+  connectionRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 14,
+  },
+  connectionPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    borderRadius: 999,
+    padding: "5px 8px",
+    fontSize: 10,
+    fontWeight: 800,
+  },
+  liveLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    marginBottom: 8,
+  },
   scoreTrack: {
     flex: 1,
-    height: 3,
-    borderRadius: 2,
-    background: "#ffffff18",
+    height: 5,
+    borderRadius: 999,
+    background: "#d7deea33",
   },
   tileStats: {
     display: "flex",
@@ -1966,31 +2183,46 @@ const st: Record<string, CSSProperties> = {
   tileStatLabel: {
     fontSize: 10,
   },
+  tileBestFormat: {
+    marginTop: 12,
+    borderRadius: 12,
+    padding: "10px 12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
   tileAI: {
     display: "flex",
+    flexDirection: "column",
     gap: 6,
     alignItems: "flex-start",
-    padding: "8px 10px",
-    borderRadius: 9,
+    padding: "10px 12px",
+    borderRadius: 12,
     marginTop: 12,
     fontSize: 11,
-    lineHeight: 1.45,
+    lineHeight: 1.5,
+  },
+  aiBoxLabel: {
+    fontSize: 10,
+    fontWeight: 800,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
   },
   tileTrend: {
     fontSize: 11,
-    marginTop: 8,
+    marginTop: 9,
     fontWeight: 700,
   },
   backBtn: {
-    padding: "7px 14px",
-    borderRadius: 10,
+    padding: "8px 14px",
+    borderRadius: 12,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
     marginBottom: 18,
   },
   accountSummary: {
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 20,
     marginBottom: 20,
   },
@@ -2022,11 +2254,11 @@ const st: Record<string, CSSProperties> = {
   postsList: {
     display: "flex",
     flexDirection: "column",
-    gap: 9,
+    gap: 10,
   },
   postRow: {
-    borderRadius: 14,
-    padding: "15px 16px",
+    borderRadius: 16,
+    padding: "16px 16px",
     display: "flex",
     gap: 16,
     alignItems: "flex-start",
@@ -2038,13 +2270,13 @@ const st: Record<string, CSSProperties> = {
   postTitle: {
     fontSize: 15,
     fontWeight: 800,
-    lineHeight: 1.4,
+    lineHeight: 1.45,
     margin: 0,
   },
   postMeta: {
     display: "flex",
     gap: 14,
-    marginTop: 7,
+    marginTop: 8,
     flexWrap: "wrap",
   },
   metaItem: {
@@ -2065,22 +2297,18 @@ const st: Record<string, CSSProperties> = {
   },
   postAI: {
     display: "inline-flex",
-    gap: 6,
+    gap: 8,
     alignItems: "center",
-    padding: "6px 10px",
-    borderRadius: 8,
-    marginTop: 9,
+    padding: "7px 10px",
+    borderRadius: 10,
+    marginTop: 10,
     fontSize: 11,
-    lineHeight: 1.4,
+    lineHeight: 1.45,
   },
   postScoreBox: {
     textAlign: "center",
     flexShrink: 0,
     minWidth: 54,
-  },
-  panel: {
-    borderRadius: 18,
-    padding: 22,
   },
   sectionTitle: {
     fontSize: 28,
@@ -2093,42 +2321,103 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1.7,
     margin: 0,
   },
-  studioGrid: {
+  contentGrid: {
     display: "grid",
-    gridTemplateColumns: "0.9fr 1.1fr",
-    gap: 18,
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 16,
   },
-  formStack: {
+  contentCard: {
+    borderRadius: 18,
+    padding: 18,
+  },
+  contentCardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  platformDot: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+  },
+  miniPostsStack: {
     display: "flex",
     flexDirection: "column",
+    gap: 10,
+  },
+  miniPost: {
+    borderRadius: 14,
+    padding: 12,
+  },
+  miniPostTitle: {
+    fontSize: 13,
+    fontWeight: 700,
+    lineHeight: 1.45,
+  },
+  miniPostMeta: {
+    fontSize: 11,
+    marginTop: 6,
+  },
+  miniAI: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    marginTop: 10,
+    borderRadius: 10,
+    padding: "9px 10px",
+  },
+  compareTable: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
+  compareRow: {
+    borderRadius: 16,
+    padding: 15,
+    display: "grid",
+    gridTemplateColumns: "180px 180px 1fr 1.3fr",
+    gap: 16,
+    alignItems: "center",
+  },
+  compareAIBox: {
+    borderRadius: 12,
+    padding: "10px 12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+  calendarRow: {
+    borderRadius: 16,
+    padding: 15,
+    display: "grid",
+    gridTemplateColumns: "1.2fr 120px 120px 130px 1fr",
     gap: 12,
-    marginTop: 18,
+    alignItems: "center",
   },
-  input: {
-    width: "100%",
+  scheduleAI: {
     borderRadius: 12,
-    padding: "12px 14px",
-    outline: "none",
-    fontFamily: "inherit",
-    fontSize: 13,
+    padding: "10px 12px",
   },
-  textarea: {
-    width: "100%",
-    minHeight: 130,
-    borderRadius: 12,
-    padding: "12px 14px",
-    outline: "none",
-    fontFamily: "inherit",
-    fontSize: 13,
-    resize: "vertical",
+  aiSmall: {
+    fontSize: 12,
+    lineHeight: 1.55,
+    margin: "6px 0 0",
   },
-  primaryButton: {
-    border: "none",
-    borderRadius: 12,
-    padding: "12px 16px",
-    fontWeight: 800,
-    cursor: "pointer",
-    fontFamily: "inherit",
+  integrationsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 16,
+  },
+  settingsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, 1fr)",
+    gap: 16,
+  },
+  integrationTitle: {
+    fontSize: 25,
+    fontWeight: 400,
+    margin: "10px 0",
   },
   secondaryButton: {
     marginTop: 18,
@@ -2137,56 +2426,5 @@ const st: Record<string, CSSProperties> = {
     fontWeight: 700,
     cursor: "pointer",
     fontFamily: "inherit",
-  },
-  platformSuggestions: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-    marginTop: 16,
-  },
-  suggestionCard: {
-    borderRadius: 14,
-    padding: 14,
-  },
-  calendarRow: {
-    borderRadius: 14,
-    padding: 15,
-    display: "grid",
-    gridTemplateColumns: "1.2fr 120px 120px 120px 1fr",
-    gap: 12,
-    alignItems: "center",
-  },
-  aiSmall: {
-    fontSize: 12,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-  compareGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 16,
-  },
-  compareTable: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  compareRow: {
-    borderRadius: 14,
-    padding: 15,
-    display: "grid",
-    gridTemplateColumns: "180px 160px 1fr 1.4fr",
-    gap: 16,
-    alignItems: "center",
-  },
-  integrationsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 16,
-  },
-  integrationTitle: {
-    fontSize: 25,
-    fontWeight: 400,
-    margin: "10px 0",
   },
 };
