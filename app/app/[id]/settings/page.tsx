@@ -477,6 +477,34 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function syncAll() {
+    if (!workspaceDbId) {
+      showToast("Najpierw wczytaj workspace", "err");
+      return;
+    }
+
+    setSyncing("__all__");
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: workspaceDbId, all: true }),
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Błąd synchronizacji");
+      }
+
+      showToast(data?.message || "Synchronizacja zakończona", data?.failed ? "err" : "ok");
+      await loadConnections();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Błąd synchronizacji", "err");
+    } finally {
+      setSyncing(null);
+    }
+  }
+
   // Sprawdź czy token wygasa wkrótce
   function isExpiringSoon(expiresAt: string | null): boolean {
     if (!expiresAt) return false;
@@ -540,6 +568,26 @@ export default function IntegrationsPage() {
         <p style={{ fontSize: 13, color: css.muted, lineHeight: 1.6 }}>
           Połącz swoje konta — aplikacja zacznie automatycznie pobierać wyniki i analizować content.
         </p>
+        <button
+          className="conn-btn"
+          onClick={syncAll}
+          disabled={syncing === "__all__" || loading || connections.length === 0}
+          style={{
+            marginTop: 14,
+            padding: "9px 16px",
+            borderRadius: 8,
+            background: "#818cf8",
+            color: "#fff",
+            border: "none",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: connections.length === 0 ? "not-allowed" : "pointer",
+            fontFamily: "inherit",
+            opacity: syncing === "__all__" || loading || connections.length === 0 ? 0.6 : 1,
+          }}
+        >
+          {syncing === "__all__" ? "Odświeżam wszystkie..." : "Odśwież wszystkie dane"}
+        </button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

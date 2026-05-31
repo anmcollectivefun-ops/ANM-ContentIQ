@@ -253,106 +253,90 @@ async function fetchBlog(basicAuth: string, blogUrl: string) {
     published_at: post.date,
   }));
 }
- 
-// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
- 
-export async function POST(req: NextRequest) {
-  const supabase = await createClient();
- 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
- 
-  let body: { connection_id?: string; platform?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
- 
-  if (!body.connection_id || !body.platform) {
-    return NextResponse.json({ error: "Missing connection_id or platform" }, { status: 400 });
-  }
- 
-  if (!SYNCABLE_PLATFORMS.has(body.platform)) {
-    return NextResponse.json({ error: "Unsupported platform" }, { status: 400 });
-  }
- 
-  // Pobierz connection z tokenem
-  const { data: connection, error: fetchError } = await supabase
-    .schema("contentiq")
-    .from("platform_connections")
-    .select("id, platform, account_id, access_token, connected")
-    .eq("id", body.connection_id)
-    .eq("platform", body.platform)
-    .eq("connected", true)
-    .single();
- 
-  if (fetchError || !connection) {
-    return NextResponse.json({ error: "Connection not found" }, { status: 404 });
-  }
- 
-  const token = connection.access_token;
-  const accountId = connection.account_id;
-  let posts: Record<string, unknown>[] = [];
- 
-  try {
-    switch (body.platform) {
-      case "instagram":
-        ensureAccountId(body.platform, accountId);
-        {
-          const meta = await resolveMetaResource(token, "instagram", accountId);
-          posts = await fetchInstagram(meta.token, meta.accountId);
-        }
-        break;
-      case "facebook":
-        ensureAccountId(body.platform, accountId);
-        {
-          const meta = await resolveMetaResource(token, "facebook", accountId);
-          posts = await fetchFacebook(meta.token, meta.accountId);
-        }
-        break;
-      case "linkedin":
-        ensureAccountId(body.platform, accountId);
-        posts = await fetchLinkedIn(token, accountId);
-        break;
-      case "tiktok":
-        posts = await fetchTikTok(token);
-        break;
-      case "youtube":
-        posts = await fetchYouTube(token);
-        break;
-      case "spotify":
-        ensureAccountId(body.platform, accountId);
-        if (accountId.includes("@") || accountId.length < 12) {
-          throw new Error("Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz.");
-        }
-        posts = await fetchSpotify(token, accountId);
-        break;
-      case "blog":
-        ensureAccountId(body.platform, accountId);
-        // account_id to URL bloga, access_token to Basic auth
-        posts = await fetchBlog(token, accountId);
-        break;
-      default:
-        posts = [];
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type SyncConnection = {
+  id: string;
+  platform: string;
+  account_id: string | null;
+  access_token: string | null;
+  connected: boolean;
+};
+
+function summarizeSyncedPosts(posts: Record<string, unknown>[]) {
+  const totalReach = posts.reduce((sum, post) => sum + toNumber(post.reach ?? post.impressions), 0);
+  const totalEngagement = posts.reduce(
+    (sum, post) =>
+      sum +
+      toNumber(post.likes) +
+      toNumber(post.comments) +
+      toNumber(post.shares) +
+      toNumber(post.saves) +
+      toNumber(post.clicks),
+    0
+  );
+  const scores = posts.map(estimateScore).filter((score) => score > 0);
+
+  return {
+    total_posts: posts.length,
+    avg_reach: posts.length ? Math.round(totalReach / posts.length) : 0,
+    avg_engagement: totalReach > 0 ? Number(((totalEngagement / totalReach) * 100).toFixed(2)) : 0,
+    ai_score: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
+  };
+}
+
+async function fetchPlatformPosts(connection: SyncConnection): Promise<Record<string, unknown>[]> {
+  const token = connection.access_token || "";
+  const accountId = connection.account_id || "";
+
+  switch (connection.platform) {
+    case "instagram": {
+      ensureAccountId(connection.platform, accountId);
+      const meta = await resolveMetaResource(token, "instagram", accountId);
+      return fetchInstagram(meta.token, meta.accountId);
     }
-  } catch (err) {
-    console.error(`Sync error [${body.platform}]:`, err);
-    return NextResponse.json({ error: `Fetch failed: ${err}` }, { status: 500 });
+    case "facebook": {
+      ensureAccountId(connection.platform, accountId);
+      const meta = await resolveMetaResource(token, "facebook", accountId);
+      return fetchFacebook(meta.token, meta.accountId);
+    }
+    case "linkedin":
+      ensureAccountId(connection.platform, accountId);
+      return fetchLinkedIn(token, accountId);
+    case "tiktok":
+      return fetchTikTok(token);
+    case "youtube":
+      return fetchYouTube(token);
+    case "spotify":
+      ensureAccountId(connection.platform, accountId);
+      if (accountId.includes("@") || accountId.length < 12) {
+        throw new Error("Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz.");
+      }
+      return fetchSpotify(token, accountId);
+    case "blog":
+      ensureAccountId(connection.platform, accountId);
+      return fetchBlog(token, accountId);
+    default:
+      return [];
   }
- 
+}
+
+async function syncConnection(supabase: SupabaseClient, connection: SyncConnection) {
+  if (!SYNCABLE_PLATFORMS.has(connection.platform)) {
+    throw new Error(`Unsupported platform: ${connection.platform}`);
+  }
+
+  const posts = await fetchPlatformPosts(connection);
+
   const { error: deleteError } = await supabase
     .schema("contentiq")
     .from("posts")
     .delete()
     .eq("connection_id", connection.id);
 
-  if (deleteError) {
-    console.error("Delete old posts error:", deleteError);
-    return NextResponse.json({ error: deleteError.message }, { status: 500 });
-  }
+  if (deleteError) throw new Error(deleteError.message);
 
-  // Zapisz posty do Supabase
   if (posts.length > 0) {
     const rows = posts.map(post => ({
       ...post,
@@ -366,25 +350,124 @@ export async function POST(req: NextRequest) {
       .schema("contentiq")
       .from("posts")
       .insert(rows);
- 
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
-    }
+
+    if (insertError) throw new Error(insertError.message);
   }
- 
-  // Zaktualizuj last_synced_at
+
+  const stats = summarizeSyncedPosts(posts);
+  const { error: statsError } = await supabase
+    .schema("contentiq")
+    .from("account_stats")
+    .insert({
+      connection_id: connection.id,
+      followers: null,
+      following: null,
+      total_posts: stats.total_posts,
+      avg_reach: stats.avg_reach,
+      avg_engagement: stats.avg_engagement,
+      ai_score: stats.ai_score,
+      recorded_at: new Date().toISOString(),
+    });
+
+  if (statsError) throw new Error(statsError.message);
+
   await supabase
     .schema("contentiq")
     .from("platform_connections")
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", connection.id);
- 
-  return NextResponse.json({
-    ok: true,
+
+  return {
+    connection_id: connection.id,
+    platform: connection.platform,
     synced: posts.length,
     message: posts.length
       ? `Pobrano ${posts.length} publikacji`
       : "API odpowiedziało poprawnie, ale nie zwróciło żadnych publikacji.",
-  });
+  };
+}
+ 
+// ─── MAIN HANDLER ────────────────────────────────────────────────────────────
+ 
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+ 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+ 
+  let body: { connection_id?: string; platform?: string; workspace_id?: string; all?: boolean };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (body.all || body.workspace_id) {
+    if (!body.workspace_id) {
+      return NextResponse.json({ error: "Missing workspace_id" }, { status: 400 });
+    }
+
+    const { data: connections, error } = await supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .select("id, platform, account_id, access_token, connected")
+      .eq("workspace_id", body.workspace_id)
+      .eq("connected", true);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const results = [];
+    for (const connection of (connections || []) as SyncConnection[]) {
+      try {
+        results.push(await syncConnection(supabase, connection));
+      } catch (err) {
+        results.push({
+          connection_id: connection.id,
+          platform: connection.platform,
+          synced: 0,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const total = results.reduce((sum, result) => sum + (result.synced || 0), 0);
+    const failed = results.filter((result) => "error" in result).length;
+
+    return NextResponse.json({
+      ok: failed === 0,
+      synced: total,
+      failed,
+      results,
+      message: failed
+        ? `Pobrano ${total} publikacji, błędy: ${failed}`
+        : `Pobrano ${total} publikacji ze wszystkich połączeń`,
+    });
+  }
+
+  if (!body.connection_id || !body.platform) {
+    return NextResponse.json({ error: "Missing connection_id or platform" }, { status: 400 });
+  }
+
+  const { data: connection, error: fetchError } = await supabase
+    .schema("contentiq")
+    .from("platform_connections")
+    .select("id, platform, account_id, access_token, connected")
+    .eq("id", body.connection_id)
+    .eq("platform", body.platform)
+    .eq("connected", true)
+    .single();
+ 
+  if (fetchError || !connection) {
+    return NextResponse.json({ error: "Connection not found" }, { status: 404 });
+  }
+
+  try {
+    const result = await syncConnection(supabase, connection as SyncConnection);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (err) {
+    console.error(`Sync error [${body.platform}]:`, err);
+    return NextResponse.json({ error: `Fetch failed: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
+  }
 }
