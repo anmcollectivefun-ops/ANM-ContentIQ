@@ -130,24 +130,25 @@ async function resolveMetaResource(token: string, platform: "instagram" | "faceb
 async function fetchLinkedIn(token: string, authorId: string) {
   const authorUrn = authorId.startsWith("urn:li:") ? authorId : `urn:li:person:${authorId}`;
   const res = await fetch(
-    `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=20`,
-    { headers: { Authorization: `Bearer ${token}`, "X-Restli-Protocol-Version": "2.0.0" } }
+    `https://api.linkedin.com/rest/posts?q=author&author=${encodeURIComponent(authorUrn)}&count=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "LinkedIn-Version": "202504",
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+    }
   );
   const data = await res.json();
   if (data.message) throw new Error(data.message);
- 
-  return (data.elements || []).map((post: Record<string, unknown>) => {
-    const content = post.specificContent as {
-      "com.linkedin.ugc.ShareContent"?: {
-        shareCommentary?: { text?: string };
-      };
-    } | undefined;
 
+  return (data.elements || []).map((post: Record<string, unknown>) => {
+    const commentary = (post.commentary as string) || "";
     return {
       platform_post_id: post.id,
-      content: content?.["com.linkedin.ugc.ShareContent"]?.shareCommentary?.text || "",
+      content: commentary,
       post_type: "post",
-      published_at: new Date((post.firstPublishedAt as number) || Date.now()).toISOString(),
+      published_at: new Date((post.publishedAt as number) || Date.now()).toISOString(),
     };
   });
 }
