@@ -50,6 +50,8 @@ interface PlatformConnection {
 interface DbPost {
   connection_id: string;
   post_type: string | null;
+  published_at: string | null;
+  fetched_at: string | null;
   reach: number | null;
   impressions: number | null;
   likes: number | null;
@@ -115,12 +117,59 @@ function zeroAccount(account: AccountData, connected: boolean, handle: string, l
   };
 }
 
+function getPostReach(post: DbPost) {
+  return post.reach ?? post.impressions ?? 0;
+}
+
+function getPostEngagement(post: DbPost) {
+  return (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0) + (post.saves ?? 0);
+}
+
+function scorePost(post: DbPost) {
+  if (post.ai_score && post.ai_score > 0) return post.ai_score;
+
+  const reach = getPostReach(post);
+  const engagement = getPostEngagement(post);
+  if (reach <= 0) return engagement > 0 ? 50 : 0;
+
+  return Math.max(1, Math.min(100, Math.round((engagement / reach) * 1000)));
+}
+
+function buildWeeklyReach(posts: DbPost[]) {
+  const buckets = Array(7).fill(0);
+  const today = new Date();
+
+  posts.forEach((post) => {
+    const date = new Date(post.published_at || post.fetched_at || Date.now());
+    const diffDays = Math.floor((today.getTime() - date.getTime()) / 86400000);
+    if (diffDays >= 0 && diffDays < 7) {
+      buckets[6 - diffDays] += getPostReach(post);
+    }
+  });
+
+  if (buckets.every((value) => value === 0)) {
+    const total = posts.reduce((sum, post) => sum + getPostReach(post), 0);
+    buckets[6] = total;
+  }
+
+  return buckets;
+}
+
+function buildSparkline(posts: DbPost[]) {
+  const sorted = [...posts]
+    .sort((a, b) => new Date(a.published_at || a.fetched_at || 0).getTime() - new Date(b.published_at || b.fetched_at || 0).getTime())
+    .slice(-12)
+    .map(getPostReach);
+
+  return [...Array(Math.max(0, 12 - sorted.length)).fill(0), ...sorted];
+}
+
 function summarizeDbPosts(account: AccountData, posts: DbPost[], lastSync: string) {
   if (!posts.length) return zeroAccount(account, true, account.handle, lastSync);
 
-  const reachTotal = posts.reduce((sum, post) => sum + (post.reach ?? post.impressions ?? 0), 0);
-  const engagementTotal = posts.reduce((sum, post) => sum + (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0) + (post.saves ?? 0), 0);
-  const scores = posts.map((post) => post.ai_score ?? 0).filter((score) => score > 0);
+  const reachTotal = posts.reduce((sum, post) => sum + getPostReach(post), 0);
+  const engagementTotal = posts.reduce((sum, post) => sum + getPostEngagement(post), 0);
+  const scores = posts.map(scorePost).filter((score) => score > 0);
   const typeCounts = posts.reduce<Record<string, number>>((acc, post) => {
     const type = post.post_type || "Post";
     acc[type] = (acc[type] || 0) + 1;
@@ -138,8 +187,8 @@ function summarizeDbPosts(account: AccountData, posts: DbPost[], lastSync: strin
     followers: "0",
     bestFormat,
     aiTag: `Dane pochodzą z ostatniej synchronizacji API. Zaimportowano ${posts.length} publikacji dla ${account.name}.`,
-    sparkline: Array(12).fill(0),
-    weeklyReach: Array(7).fill(0),
+    sparkline: buildSparkline(posts),
+    weeklyReach: buildWeeklyReach(posts),
   };
 }
 
@@ -304,7 +353,7 @@ export default function DashboardPage() {
             supabase
               .schema("contentiq")
               .from("posts")
-              .select("connection_id, post_type, reach, impressions, likes, comments, shares, saves, ai_score")
+              .select("connection_id, post_type, published_at, fetched_at, reach, impressions, likes, comments, shares, saves, ai_score")
               .in("connection_id", connectionIds)
               .then(({ data: postRows, error: postsError }) => {
                 if (postsError) {

@@ -21,6 +21,24 @@ function ensureAccountId(platform: string, accountId: string | null) {
     throw new Error(`Brakuje ID konta dla ${platform}. Połącz konto ponownie albo uzupełnij wymagane ID w ustawieniach.`);
   }
 }
+
+function toNumber(value: unknown) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function estimateScore(post: Record<string, unknown>) {
+  const reach = toNumber(post.reach ?? post.impressions);
+  const engagement =
+    toNumber(post.likes) +
+    toNumber(post.comments) +
+    toNumber(post.shares) +
+    toNumber(post.saves) +
+    toNumber(post.clicks);
+
+  if (reach <= 0) return engagement > 0 ? 50 : 0;
+  return Math.max(1, Math.min(100, Math.round((engagement / reach) * 1000)));
+}
  
 // ─── FETCHERS ────────────────────────────────────────────────────────────────
  
@@ -339,6 +357,8 @@ export async function POST(req: NextRequest) {
     const rows = posts.map(post => ({
       ...post,
       connection_id: connection.id,
+      ai_score: estimateScore(post),
+      ai_summary: "Wynik liczony automatycznie z metryk pobranych przez API.",
       fetched_at: new Date().toISOString(),
     }));
 
