@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 // ─── TYPY ────────────────────────────────────────────────────────────────────
@@ -106,6 +107,7 @@ function BlogForm({
   const [pass, setPass] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showPasswordHelp, setShowPasswordHelp] = useState(false);
 
   async function save() {
     if (!url) { setError("Wpisz adres bloga"); return; }
@@ -159,8 +161,55 @@ function BlogForm({
           <label style={{ fontSize: 11, color: css.muted }}>Login WordPress (opcjonalnie)</label>
           <input style={inputStyle} placeholder="admin" value={user} onChange={e => setUser(e.target.value)} />
         </div>
-        <div>
-          <label style={{ fontSize: 11, color: css.muted }}>Application Password (opcjonalnie)</label>
+        <div style={{ position: "relative" }}>
+          <label style={{ fontSize: 11, color: css.muted, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            Application Password (opcjonalnie)
+            <button
+              type="button"
+              aria-label="Jak wygenerować hasło aplikacji WordPress"
+              onClick={() => setShowPasswordHelp((value) => !value)}
+              onMouseEnter={() => setShowPasswordHelp(true)}
+              onMouseLeave={() => setShowPasswordHelp(false)}
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                border: `1px solid ${css.border}`,
+                background: css.bg,
+                color: css.muted,
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: "14px",
+                cursor: "help",
+                padding: 0,
+              }}
+            >
+              i
+            </button>
+          </label>
+          {showPasswordHelp && (
+            <div
+              onMouseEnter={() => setShowPasswordHelp(true)}
+              onMouseLeave={() => setShowPasswordHelp(false)}
+              style={{
+                position: "absolute",
+                right: 0,
+                top: 24,
+                zIndex: 20,
+                width: 320,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: `1px solid ${css.border}`,
+                background: css.surface,
+                color: css.text,
+                boxShadow: "0 14px 36px rgba(0,0,0,0.32)",
+                fontSize: 11,
+                lineHeight: 1.55,
+              }}
+            >
+              Wejdź w WordPress Admin → Użytkownicy → kliknij swój profil → przewiń na sam dół → znajdź sekcję "Hasła aplikacji" → wpisz nazwę "ANM ContentIQ" → kliknij Dodaj nowe hasło aplikacji → skopiuj wygenerowane hasło.
+            </div>
+          )}
           <input style={inputStyle} type="password" placeholder="xxxx xxxx xxxx xxxx" value={pass} onChange={e => setPass(e.target.value)} />
         </div>
       </div>
@@ -352,6 +401,25 @@ export default function IntegrationsPage() {
       )}
 
       <div style={{ marginBottom: 24 }}>
+        <Link
+          href={`/app/${workspaceId}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 14,
+            padding: "7px 12px",
+            borderRadius: 8,
+            border: `1px solid ${css.border}`,
+            background: css.surface,
+            color: css.muted,
+            fontSize: 12,
+            fontWeight: 500,
+            textDecoration: "none",
+          }}
+        >
+          ← Wróć do dashboardu
+        </Link>
         <h2 style={{ fontSize: 22, fontWeight: 500, color: css.text, marginBottom: 6 }}>Podłączone platformy</h2>
         <p style={{ fontSize: 13, color: css.muted, lineHeight: 1.6 }}>
           Połącz swoje konta — aplikacja zacznie automatycznie pobierać wyniki i analizować content.
