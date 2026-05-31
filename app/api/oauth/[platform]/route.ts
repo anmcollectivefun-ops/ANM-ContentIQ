@@ -26,7 +26,7 @@ const PLATFORM_CONFIG: Record<string, {
   tiktok: {
     authUrl: "https://www.tiktok.com/v2/auth/authorize/",
     clientIdEnv: "TIKTOK_CLIENT_KEY",
-    scope: "user.info.basic,video.list,video.insights",
+    scope: "user.info.basic",
   },
   youtube: {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -48,6 +48,14 @@ function getRedirectUri(req: NextRequest, platform: string) {
 
 function env(name: string) {
   return process.env[name]?.trim() || "";
+}
+
+function getClientId(platform: string, envName: string) {
+  if (platform === "tiktok") {
+    return env("TIKTOK_CLIENT_KEY") || env("TIKTOK_CLIENT_ID");
+  }
+
+  return env(envName);
 }
 
 export async function GET(
@@ -77,11 +85,16 @@ export async function GET(
   })).toString("base64url");
 
   const url = new URL(config.authUrl);
+  const clientId = getClientId(platform, config.clientIdEnv);
+
+  if (!clientId) {
+    return new Response(`Brak zmiennej ${config.clientIdEnv} dla ${platform}`, { status: 500 });
+  }
 
   if (platform === "tiktok") {
-    url.searchParams.set("client_key", env(config.clientIdEnv));
+    url.searchParams.set("client_key", clientId);
   } else {
-    url.searchParams.set("client_id", env(config.clientIdEnv));
+    url.searchParams.set("client_id", clientId);
   }
 
   url.searchParams.set("redirect_uri", getRedirectUri(req, platform));

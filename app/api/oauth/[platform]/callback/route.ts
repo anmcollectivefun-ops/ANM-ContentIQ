@@ -73,7 +73,7 @@ async function exchangeTikTok(code: string, redirectUri: string): Promise<TokenR
     }),
   });
   const data = await res.json();
-  if (data.error) throw new Error(`TikTok token error: ${data.error}`);
+  if (data.error) throw new Error(`TikTok token error: ${data.error_description || data.error}`);
   return data;
 }
  
@@ -156,13 +156,16 @@ async function fetchAccountInfo(
  
     if (platform === "tiktok") {
       const res = await fetch(
-        "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,username",
+        "https://open.tiktokapis.com/v2/user/info/?fields=open_id,avatar_url,display_name",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
+      if (data.error?.code && data.error.code !== "ok") {
+        throw new Error(data.error.message || data.error.code);
+      }
       return {
         account_id: data.data?.user?.open_id || "unknown",
-        account_name: `@${data.data?.user?.username || data.data?.user?.display_name || "TikTok"}`,
+        account_name: data.data?.user?.display_name || "TikTok",
       };
     }
  
