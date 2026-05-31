@@ -551,10 +551,14 @@ export default function AppWorkspacePage() {
     router.refresh();
   }
 
-  function openTab(tab: TabId) {
-    setActiveTab(tab);
-    setActiveAccount(null);
+ function openTab(tab: TabId) {
+  if (tab === "integrations") {
+    router.push(`/app/${workspaceId}/settings`);
+    return;
   }
+  setActiveTab(tab);
+  setActiveAccount(null);
+}
 
   if (!mounted) {
     return null;
