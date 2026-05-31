@@ -15,6 +15,12 @@ type InsightMetric = {
 function getInsightValue(insights: InsightMetric[], name: string) {
   return insights.find((item) => item.name === name)?.values?.[0]?.value || 0;
 }
+
+function ensureAccountId(platform: string, accountId: string | null) {
+  if (!accountId || accountId === "unknown") {
+    throw new Error(`Brakuje ID konta dla ${platform}. Połącz konto ponownie albo uzupełnij wymagane ID w ustawieniach.`);
+  }
+}
  
 // ─── FETCHERS ────────────────────────────────────────────────────────────────
  
@@ -68,10 +74,45 @@ async function fetchFacebook(token: string, pageId: string) {
     };
   });
 }
+
+async function resolveMetaResource(token: string, platform: "instagram" | "facebook", savedAccountId: string) {
+  const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`);
+  const pages = await pagesRes.json();
+  if (pages.error) throw new Error(pages.error.message);
+
+  const pageList = (pages.data || []) as Array<{
+    id?: string;
+    name?: string;
+    access_token?: string;
+  }>;
+
+  if (platform === "facebook") {
+    const page = pageList.find((item) => item.id === savedAccountId) || pageList[0];
+    if (!page?.id || !page.access_token) {
+      throw new Error("Nie znaleziono strony Facebook albo tokenu strony. Połącz Meta ponownie.");
+    }
+    return { accountId: page.id, token: page.access_token };
+  }
+
+  for (const page of pageList) {
+    if (!page.id || !page.access_token) continue;
+    const igRes = await fetch(
+      `https://graph.facebook.com/v19.0/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`
+    );
+    const igData = await igRes.json();
+    const igId = igData.instagram_business_account?.id;
+    if (igId && (igId === savedAccountId || savedAccountId === "unknown")) {
+      return { accountId: igId as string, token: page.access_token };
+    }
+  }
+
+  throw new Error("Nie znaleziono Instagram Business Account podpiętego do strony Meta. Sprawdź połączenie IG z Facebook Page.");
+}
  
 async function fetchLinkedIn(token: string, authorId: string) {
+  const authorUrn = authorId.startsWith("urn:li:") ? authorId : `urn:li:person:${authorId}`;
   const res = await fetch(
-    `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorId)})&count=20`,
+    `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=20`,
     { headers: { Authorization: `Bearer ${token}`, "X-Restli-Protocol-Version": "2.0.0" } }
   );
   const data = await res.json();
@@ -91,6 +132,39 @@ async function fetchLinkedIn(token: string, authorId: string) {
       published_at: new Date((post.firstPublishedAt as number) || Date.now()).toISOString(),
     };
   });
+}
+
+async function fetchTikTok(token: string) {
+  const res = await fetch(
+    "https://open.tiktokapis.com/v2/video/list/?fields=id,title,video_description,duration,share_url,create_time,view_count,like_count,comment_count,share_count",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ max_count: 20 }),
+    }
+  );
+  const data = await res.json();
+  if (data.error?.code && data.error.code !== "ok") {
+    throw new Error(data.error.message || data.error.code);
+  }
+
+  return (data.data?.videos || []).map((video: Record<string, unknown>) => ({
+    platform_post_id: video.id,
+    title: video.title || "",
+    content: video.video_description || "",
+    post_type: "video",
+    url: video.share_url,
+    published_at: video.create_time
+      ? new Date(Number(video.create_time) * 1000).toISOString()
+      : null,
+    reach: Number(video.view_count || 0),
+    likes: Number(video.like_count || 0),
+    comments: Number(video.comment_count || 0),
+    shares: Number(video.share_count || 0),
+  }));
 }
  
 async function fetchYouTube(token: string) {
@@ -206,21 +280,38 @@ export async function POST(req: NextRequest) {
   try {
     switch (body.platform) {
       case "instagram":
-        posts = await fetchInstagram(token, accountId);
+        ensureAccountId(body.platform, accountId);
+        {
+          const meta = await resolveMetaResource(token, "instagram", accountId);
+          posts = await fetchInstagram(meta.token, meta.accountId);
+        }
         break;
       case "facebook":
-        posts = await fetchFacebook(token, accountId);
+        ensureAccountId(body.platform, accountId);
+        {
+          const meta = await resolveMetaResource(token, "facebook", accountId);
+          posts = await fetchFacebook(meta.token, meta.accountId);
+        }
         break;
       case "linkedin":
+        ensureAccountId(body.platform, accountId);
         posts = await fetchLinkedIn(token, accountId);
+        break;
+      case "tiktok":
+        posts = await fetchTikTok(token);
         break;
       case "youtube":
         posts = await fetchYouTube(token);
         break;
       case "spotify":
+        ensureAccountId(body.platform, accountId);
+        if (accountId.includes("@") || accountId.length < 12) {
+          throw new Error("Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz.");
+        }
         posts = await fetchSpotify(token, accountId);
         break;
       case "blog":
+        ensureAccountId(body.platform, accountId);
         // account_id to URL bloga, access_token to Basic auth
         posts = await fetchBlog(token, accountId);
         break;
@@ -232,6 +323,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Fetch failed: ${err}` }, { status: 500 });
   }
  
+  const { error: deleteError } = await supabase
+    .schema("contentiq")
+    .from("posts")
+    .delete()
+    .eq("connection_id", connection.id);
+
+  if (deleteError) {
+    console.error("Delete old posts error:", deleteError);
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
   // Zapisz posty do Supabase
   if (posts.length > 0) {
     const rows = posts.map(post => ({
@@ -239,17 +341,6 @@ export async function POST(req: NextRequest) {
       connection_id: connection.id,
       fetched_at: new Date().toISOString(),
     }));
- 
-    const { error: deleteError } = await supabase
-      .schema("contentiq")
-      .from("posts")
-      .delete()
-      .eq("connection_id", connection.id);
-
-    if (deleteError) {
-      console.error("Delete old posts error:", deleteError);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
 
     const { error: insertError } = await supabase
       .schema("contentiq")
@@ -269,5 +360,11 @@ export async function POST(req: NextRequest) {
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", connection.id);
  
-  return NextResponse.json({ ok: true, synced: posts.length });
+  return NextResponse.json({
+    ok: true,
+    synced: posts.length,
+    message: posts.length
+      ? `Pobrano ${posts.length} publikacji`
+      : "API odpowiedziało poprawnie, ale nie zwróciło żadnych publikacji.",
+  });
 }

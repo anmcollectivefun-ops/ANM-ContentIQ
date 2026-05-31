@@ -114,7 +114,7 @@ async function exchangeSpotify(code: string, redirectUri: string): Promise<Token
 async function fetchAccountInfo(
   platform: string,
   token: string
-): Promise<{ account_id: string; account_name: string }> {
+): Promise<{ account_id: string; account_name: string; access_token?: string }> {
   try {
     if (platform === "instagram") {
       const pagesRes = await fetch(
@@ -135,7 +135,7 @@ async function fetchAccountInfo(
           `https://graph.facebook.com/v19.0/${igId}?fields=name,username&access_token=${token}`
         );
         const igInfo = await igInfoRes.json();
-        return { account_id: igId, account_name: `@${igInfo.username || igInfo.name}` };
+        return { account_id: igId, account_name: `@${igInfo.username || igInfo.name}`, access_token: page.access_token };
       }
     }
  
@@ -143,7 +143,7 @@ async function fetchAccountInfo(
       const res = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`);
       const data = await res.json();
       const page = data.data?.[0];
-      return { account_id: page?.id || "unknown", account_name: page?.name || "Facebook Page" };
+      return { account_id: page?.id || "unknown", account_name: page?.name || "Facebook Page", access_token: page?.access_token };
     }
  
     if (platform === "linkedin") {
@@ -311,7 +311,7 @@ export async function GET(
           platform,
           account_id: accountInfo.account_id,
           account_name: accountInfo.account_name,
-          access_token: tokenData.access_token,
+          access_token: accountInfo.access_token || tokenData.access_token,
           refresh_token: tokenData.refresh_token || null,
           token_expires_at: expiresAt,
           connected: true,

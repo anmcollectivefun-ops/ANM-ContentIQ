@@ -467,10 +467,11 @@ export default function IntegrationsPage() {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || "Błąd synchronizacji");
       }
-      showToast(`Synchronizacja ${connection.platform} zakończona`, "ok");
+      const data = await res.json().catch(() => null);
+      showToast(data?.message || `Synchronizacja ${connection.platform} zakończona`, "ok");
       await loadConnections();
     } catch (err) {
-      showToast("Błąd synchronizacji", "err");
+      showToast(err instanceof Error ? err.message : "Błąd synchronizacji", "err");
     } finally {
       setSyncing(null);
     }
