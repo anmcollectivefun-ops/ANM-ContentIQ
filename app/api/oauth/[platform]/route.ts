@@ -58,6 +58,12 @@ function getClientId(platform: string, envName: string) {
   return env(envName);
 }
 
+function maskValue(value: string) {
+  if (!value) return "BRAK";
+  if (value.length <= 8) return `${value.slice(0, 2)}...${value.slice(-2)} (${value.length})`;
+  return `${value.slice(0, 4)}...${value.slice(-4)} (${value.length})`;
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ platform: string }> }
@@ -67,6 +73,19 @@ export async function GET(
 
   if (!config) {
     return new Response(`Nieznana platforma: ${platform}`, { status: 400 });
+  }
+
+  if (req.nextUrl.searchParams.get("debug") === "1") {
+    const clientId = getClientId(platform, config.clientIdEnv);
+    return Response.json({
+      platform,
+      clientParam: platform === "tiktok" ? "client_key" : "client_id",
+      clientKeyPresent: Boolean(clientId),
+      clientKeyMasked: maskValue(clientId),
+      redirectUri: getRedirectUri(req, platform),
+      scope: config.scope,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin,
+    });
   }
 
   const supabase = await createClient();
