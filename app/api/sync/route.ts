@@ -1,4 +1,3 @@
-/ app/api/sync/route.ts
 // Pobiera realne dane z platform i zapisuje do Supabase contentiq.posts
  
 import { NextRequest, NextResponse } from "next/server";
@@ -7,6 +6,15 @@ import { createClient } from "@/lib/supabase/server";
 const SYNCABLE_PLATFORMS = new Set([
   "instagram", "facebook", "linkedin", "tiktok", "youtube", "blog", "spotify",
 ]);
+
+type InsightMetric = {
+  name?: string;
+  values?: Array<{ value?: unknown }>;
+};
+
+function getInsightValue(insights: InsightMetric[], name: string) {
+  return insights.find((item) => item.name === name)?.values?.[0]?.value || 0;
+}
  
 // ─── FETCHERS ────────────────────────────────────────────────────────────────
  
@@ -21,20 +29,19 @@ async function fetchInstagram(token: string, accountId: string) {
   if (data.error) throw new Error(data.error.message);
  
   return (data.data || []).map((post: Record<string, unknown>) => {
-    const insights = (post.insights as Record<string, unknown>)?.data as Record<string, unknown>[] || [];
-    const get = (name: string) => (insights.find((i: Record<string, unknown>) => i.name === name) as Record<string, unknown>)?.values?.[0]?.value || 0;
+    const insights = ((post.insights as { data?: InsightMetric[] } | undefined)?.data) || [];
     return {
       platform_post_id: post.id,
       content: post.caption || "",
       post_type: String(post.media_type || "").toLowerCase(),
       url: post.permalink,
       published_at: post.timestamp,
-      reach: get("reach"),
-      impressions: get("impressions"),
-      likes: get("likes_count"),
-      comments: get("comments_count"),
-      saves: get("saved"),
-      shares: get("shares"),
+      reach: getInsightValue(insights, "reach"),
+      impressions: getInsightValue(insights, "impressions"),
+      likes: getInsightValue(insights, "likes_count"),
+      comments: getInsightValue(insights, "comments_count"),
+      saves: getInsightValue(insights, "saved"),
+      shares: getInsightValue(insights, "shares"),
     };
   });
 }
@@ -49,16 +56,15 @@ async function fetchFacebook(token: string, pageId: string) {
   if (data.error) throw new Error(data.error.message);
  
   return (data.data || []).map((post: Record<string, unknown>) => {
-    const insights = (post.insights as Record<string, unknown>)?.data as Record<string, unknown>[] || [];
-    const get = (name: string) => (insights.find((i: Record<string, unknown>) => i.name === name) as Record<string, unknown>)?.values?.[0]?.value || 0;
+    const insights = ((post.insights as { data?: InsightMetric[] } | undefined)?.data) || [];
     return {
       platform_post_id: post.id,
       content: post.message || "",
       post_type: "post",
       url: post.permalink_url,
       published_at: post.created_time,
-      impressions: get("post_impressions"),
-      likes: get("post_engaged_users"),
+      impressions: getInsightValue(insights, "post_impressions"),
+      likes: getInsightValue(insights, "post_engaged_users"),
     };
   });
 }
@@ -71,12 +77,20 @@ async function fetchLinkedIn(token: string, authorId: string) {
   const data = await res.json();
   if (data.message) throw new Error(data.message);
  
-  return (data.elements || []).map((post: Record<string, unknown>) => ({
-    platform_post_id: post.id,
-    content: (post.specificContent as Record<string, unknown>)?.["com.linkedin.ugc.ShareContent"]?.shareCommentary?.text || "",
-    post_type: "post",
-    published_at: new Date((post.firstPublishedAt as number) || Date.now()).toISOString(),
-  }));
+  return (data.elements || []).map((post: Record<string, unknown>) => {
+    const content = post.specificContent as {
+      "com.linkedin.ugc.ShareContent"?: {
+        shareCommentary?: { text?: string };
+      };
+    } | undefined;
+
+    return {
+      platform_post_id: post.id,
+      content: content?.["com.linkedin.ugc.ShareContent"]?.shareCommentary?.text || "",
+      post_type: "post",
+      published_at: new Date((post.firstPublishedAt as number) || Date.now()).toISOString(),
+    };
+  });
 }
  
 async function fetchYouTube(token: string) {
@@ -226,10 +240,21 @@ export async function POST(req: NextRequest) {
       fetched_at: new Date().toISOString(),
     }));
  
+    const { error: deleteError } = await supabase
+      .schema("contentiq")
+      .from("posts")
+      .delete()
+      .eq("connection_id", connection.id);
+
+    if (deleteError) {
+      console.error("Delete old posts error:", deleteError);
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
     const { error: insertError } = await supabase
       .schema("contentiq")
       .from("posts")
-      .upsert(rows, { onConflict: "connection_id,platform_post_id" });
+      .insert(rows);
  
     if (insertError) {
       console.error("Insert error:", insertError);
