@@ -527,6 +527,14 @@ export default function IntegrationsPage() {
         >
           ← Wróć do dashboardu
         </Link>
+        <div style={{ display: "flex", gap: 14, marginBottom: 14 }}>
+          <Link href="/privacy" style={{ fontSize: 12, color: css.muted, textDecoration: "none" }}>
+            Polityka prywatności
+          </Link>
+          <Link href="/terms" style={{ fontSize: 12, color: css.muted, textDecoration: "none" }}>
+            Regulamin
+          </Link>
+        </div>
         <h2 style={{ fontSize: 22, fontWeight: 500, color: css.text, marginBottom: 6 }}>Podłączone platformy</h2>
         <p style={{ fontSize: 13, color: css.muted, lineHeight: 1.6 }}>
           Połącz swoje konta — aplikacja zacznie automatycznie pobierać wyniki i analizować content.
@@ -680,6 +688,15 @@ export default function IntegrationsPage() {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: 28, display: "flex", justifyContent: "center", gap: 16, fontSize: 12 }}>
+        <Link href="/privacy" style={{ color: css.muted, textDecoration: "none" }}>
+          Polityka prywatności
+        </Link>
+        <Link href="/terms" style={{ color: css.muted, textDecoration: "none" }}>
+          Regulamin
+        </Link>
+      </div>
     </div>
   );
 }

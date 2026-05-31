@@ -50,6 +50,27 @@ interface PlatformConnection {
   connected: boolean;
 }
 
+interface DbPost {
+  id: string;
+  connection_id: string;
+  platform_post_id: string | null;
+  title: string | null;
+  content: string | null;
+  post_type: string | null;
+  url: string | null;
+  published_at: string | null;
+  reach: number | null;
+  impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  clicks: number | null;
+  ai_score: number | null;
+  ai_summary: string | null;
+  fetched_at: string | null;
+}
+
 interface Post {
   id: string;
   title: string;
@@ -90,420 +111,16 @@ interface NavTab {
 // ─── DATA STARTOWE / PÓŹNIEJ SUPABASE ────────────────────────────────────────
 
 const ACCOUNTS: Account[] = [
-  {
-    id: "instagram",
-    name: "Instagram",
-    handle: "@anm_collective",
-    score: 84,
-    trend: 11,
-    posts: 38,
-    engRate: "4.2%",
-    reach: "12.4k",
-    bestFormat: "Reels edukacyjne",
-    aiTag:
-      "Reels edukacyjne mają 2× wyższy zasięg niż karuzele. Warto zwiększyć liczbę krótkich materiałów video.",
-    color: "#E1306C",
-    connected: true,
-    lastSync: "12 min temu",
-  },
-  {
-    id: "linkedin",
-    name: "LinkedIn",
-    handle: "ANM Collective",
-    score: 91,
-    trend: 18,
-    posts: 22,
-    engRate: "6.8%",
-    reach: "28.1k",
-    bestFormat: "Case studies",
-    aiTag:
-      "Najlepszy kanał na leady B2B i content ekspercki. Tematy z LinkedIna warto rozwijać później na blogu.",
-    color: "#0A66C2",
-    connected: true,
-    lastSync: "8 min temu",
-  },
-  {
-    id: "tiktok",
-    name: "TikTok",
-    handle: "@anm_collective",
-    score: 63,
-    trend: -4,
-    posts: 15,
-    engRate: "2.1%",
-    reach: "6.8k",
-    bestFormat: "Krótkie listy błędów",
-    aiTag:
-      "Długie opisy nie działają. TikTok wymaga krótszego hooka i mocniejszego wejścia w pierwszych sekundach.",
-    color: "#FFFFFF",
-    connected: true,
-    lastSync: "28 min temu",
-  },
-  {
-    id: "youtube",
-    name: "YouTube",
-    handle: "ANM Collective",
-    score: 77,
-    trend: 6,
-    posts: 9,
-    engRate: "54% ret.",
-    reach: "3.2k",
-    bestFormat: "Shorts + tutoriale",
-    aiTag:
-      "Shorts mają wyższy CTR niż długie filmy. Warto zwiększyć częstotliwość krótkich formatów edukacyjnych.",
-    color: "#FF0033",
-    connected: true,
-    lastSync: "1 godz. temu",
-  },
-  {
-    id: "facebook",
-    name: "Facebook",
-    handle: "ANM Collective",
-    score: 58,
-    trend: -2,
-    posts: 18,
-    engRate: "1.4%",
-    reach: "5.1k",
-    bestFormat: "Video + grupy",
-    aiTag:
-      "Organiczny zasięg spada. Facebook warto traktować jako kanał społecznościowy i dystrybucję do grup.",
-    color: "#1877F2",
-    connected: false,
-    lastSync: "Niepodłączone",
-  },
-  {
-    id: "blog",
-    name: "Blog",
-    handle: "anmcollective.pl",
-    score: 79,
-    trend: 22,
-    posts: 11,
-    engRate: "3:42 avg",
-    reach: "8.9k",
-    bestFormat: "Poradniki SEO",
-    aiTag:
-      "Artykuły poradnikowe mają najwyższy czas na stronie. Blog powinien być bazą do recyklingu treści na social media.",
-    color: "#22C55E",
-    connected: true,
-    lastSync: "2 godz. temu",
-  },
-  {
-    id: "spotify",
-    name: "Spotify",
-    handle: "ANM Podcast",
-    score: 72,
-    trend: 9,
-    posts: 7,
-    engRate: "41% completion",
-    reach: "2.7k",
-    bestFormat: "Odcinki poradnikowe",
-    aiTag:
-      "Najlepiej działają krótkie odcinki z konkretną obietnicą w tytule. Warto tworzyć podcasty z tematów blogowych.",
-    color: "#1DB954",
-    connected: false,
-    lastSync: "Niepodłączone",
-  },
+  { id: "instagram", name: "Instagram", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#E1306C", connected: false, lastSync: "Niepodłączone" },
+  { id: "linkedin", name: "LinkedIn", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#0A66C2", connected: false, lastSync: "Niepodłączone" },
+  { id: "tiktok", name: "TikTok", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#FFFFFF", connected: false, lastSync: "Niepodłączone" },
+  { id: "youtube", name: "YouTube", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#FF0033", connected: false, lastSync: "Niepodłączone" },
+  { id: "facebook", name: "Facebook", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#1877F2", connected: false, lastSync: "Niepodłączone" },
+  { id: "blog", name: "Blog", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#22C55E", connected: false, lastSync: "Niepodłączone" },
+  { id: "spotify", name: "Spotify", handle: "Niepodłączone", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.", color: "#1DB954", connected: false, lastSync: "Niepodłączone" },
 ];
 
-const POSTS: Record<Platform, Post[]> = {
-  instagram: [
-    {
-      id: "ig-1",
-      title: "5 narzędzi AI do tworzenia contentu",
-      date: "24 maja",
-      type: "Reels",
-      score: 94,
-      reach: "31.2k",
-      likes: 1840,
-      comments: 94,
-      saves: 420,
-      shares: 122,
-      status: "opublikowany",
-      source: "scheduled_in_app",
-      ai: "Najlepszy wynik miesiąca. Kontynuuj format „narzędzia + demo” w Reels.",
-    },
-    {
-      id: "ig-2",
-      title: "Jak planować content na miesiąc",
-      date: "19 maja",
-      type: "Karuzela",
-      score: 71,
-      reach: "12.8k",
-      likes: 540,
-      comments: 38,
-      saves: 210,
-      shares: 41,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Dobre zapisy, ale niższy zasięg. Popraw okładkę i skróć pierwszy slajd.",
-    },
-    {
-      id: "ig-3",
-      title: "Cytat o content marketingu",
-      date: "15 maja",
-      type: "Obraz",
-      score: 42,
-      reach: "4.1k",
-      likes: 180,
-      comments: 6,
-      saves: 22,
-      status: "opublikowany",
-      source: "import",
-      ai: "Słaby wynik. Cytaty bez kontekstu nie angażują. Zastąp konkretną radą.",
-    },
-  ],
-  linkedin: [
-    {
-      id: "li-1",
-      title: "Case study: +340% zasięgu dla klienta",
-      date: "23 maja",
-      type: "Post",
-      score: 96,
-      reach: "48.3k",
-      likes: 2140,
-      comments: 187,
-      shares: 89,
-      status: "opublikowany",
-      source: "scheduled_in_app",
-      ai: "Najlepszy post kwartału. Kontynuuj case studies z liczbami w tytule.",
-    },
-    {
-      id: "li-2",
-      title: "AI nie zastąpi strategii contentowej",
-      date: "18 maja",
-      type: "Post",
-      score: 89,
-      reach: "33.1k",
-      likes: 1640,
-      comments: 142,
-      shares: 61,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Wysoki engagement. Posty kontrariańskie działają dobrze na B2B.",
-    },
-    {
-      id: "li-3",
-      title: "Jak tworzysz content? Ankieta",
-      date: "13 maja",
-      type: "Ankieta",
-      score: 74,
-      reach: "18.9k",
-      likes: 890,
-      comments: 98,
-      status: "opublikowany",
-      source: "import",
-      ai: "Ankiety zbierają komentarze, ale mają mniejszy zasięg. Używaj jako uzupełnienie.",
-    },
-  ],
-  tiktok: [
-    {
-      id: "tt-1",
-      title: "3 błędy twórców content marketingu",
-      date: "22 maja",
-      type: "Video",
-      score: 81,
-      reach: "18.4k",
-      likes: 1240,
-      comments: 87,
-      saves: 340,
-      shares: 102,
-      status: "opublikowany",
-      source: "scheduled_in_app",
-      ai: "Format „3 błędy” + dynamiczny montaż działa. Dubluj ten schemat.",
-    },
-    {
-      id: "tt-2",
-      title: "Jak działają algorytmy TikToka",
-      date: "17 maja",
-      type: "Video",
-      score: 44,
-      reach: "3.2k",
-      likes: 210,
-      comments: 12,
-      saves: 44,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Zbyt długi wstęp — 8 sekund bez hooka. Przebuduj pierwsze 2 sekundy.",
-    },
-    {
-      id: "tt-3",
-      title: "Mega lista narzędzi AI do marketingu",
-      date: "11 maja",
-      type: "Video",
-      score: 38,
-      reach: "2.8k",
-      likes: 180,
-      comments: 8,
-      saves: 62,
-      status: "opublikowany",
-      source: "import",
-      ai: "Ten temat lepiej działa jako karuzela na Instagramie albo post LinkedIn.",
-    },
-  ],
-  youtube: [
-    {
-      id: "yt-1",
-      title: "AI do planowania contentu — tutorial",
-      date: "20 maja",
-      type: "Film",
-      score: 83,
-      reach: "4.1k",
-      likes: 312,
-      comments: 54,
-      shares: 19,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Dobra retencja. Dodaj rozdziały — użytkownicy pomijają intro.",
-    },
-    {
-      id: "yt-2",
-      title: "Content strategy 2025 — co działa?",
-      date: "12 maja",
-      type: "Shorts",
-      score: 91,
-      reach: "11.2k",
-      likes: 840,
-      comments: 73,
-      shares: 44,
-      status: "opublikowany",
-      source: "scheduled_in_app",
-      ai: "Shorts ma wyższy CTR niż długie filmy. Zwiększ liczbę Shorts tygodniowo.",
-    },
-  ],
-  facebook: [
-    {
-      id: "fb-1",
-      title: "5 trendów content marketingu 2025",
-      date: "21 maja",
-      type: "Post",
-      score: 52,
-      reach: "6.8k",
-      likes: 210,
-      comments: 18,
-      shares: 12,
-      status: "opublikowany",
-      source: "import",
-      ai: "Zasięg organiczny spada. Rozważ grupy tematyczne lub promocję.",
-    },
-    {
-      id: "fb-2",
-      title: "Prezentacja nowych usług ANM",
-      date: "14 maja",
-      type: "Video",
-      score: 61,
-      reach: "9.2k",
-      likes: 380,
-      comments: 27,
-      shares: 18,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Video działa lepiej niż posty statyczne. Zwiększ udział video.",
-    },
-  ],
-  blog: [
-    {
-      id: "bl-1",
-      title: "Jak mierzyć skuteczność content marketingu?",
-      date: "23 maja",
-      type: "Artykuł",
-      score: 88,
-      reach: "12.3k",
-      likes: 0,
-      comments: 34,
-      shares: 22,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Najwyższy czas na stronie. Format z checklistą warto replikować.",
-    },
-    {
-      id: "bl-2",
-      title: "AI w marketingu treści: przegląd narzędzi",
-      date: "16 maja",
-      type: "Artykuł",
-      score: 79,
-      reach: "8.1k",
-      likes: 0,
-      comments: 18,
-      shares: 14,
-      status: "opublikowany",
-      source: "scheduled_in_app",
-      ai: "Dobre SEO. Aktualizuj sekcję o narzędziach co kwartał.",
-    },
-    {
-      id: "bl-3",
-      title: "Dlaczego twój content nie działa? 7 powodów",
-      date: "9 maja",
-      type: "Artykuł",
-      score: 92,
-      reach: "18.7k",
-      likes: 0,
-      comments: 61,
-      shares: 47,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Format „N powodów” + liczba w tytule daje świetne SEO.",
-    },
-  ],
-  spotify: [
-    {
-      id: "sp-1",
-      title: "Jak AI zmieni pracę content managera?",
-      date: "25 maja",
-      type: "Podcast",
-      score: 78,
-      reach: "3.4k",
-      likes: 260,
-      comments: 21,
-      shares: 17,
-      status: "opublikowany",
-      source: "created_in_app",
-      ai: "Dobry completion rate. Tytuł z pytaniem działa lepiej niż tytuły opisowe.",
-    },
-    {
-      id: "sp-2",
-      title: "Strategia contentu bez chaosu",
-      date: "18 maja",
-      type: "Podcast",
-      score: 69,
-      reach: "2.1k",
-      likes: 180,
-      comments: 12,
-      shares: 9,
-      status: "opublikowany",
-      source: "import",
-      ai: "Temat dobry, ale opis za ogólny. Dodaj listę konkretnych punktów odcinka.",
-    },
-  ],
-};
-
-const PLANNED_CONTENT: PlannedContent[] = [
-  {
-    id: "plan-1",
-    title: "Jak AI analizuje skuteczność contentu?",
-    platform: "linkedin",
-    date: "Jutro, 09:00",
-    status: "Zaplanowane",
-    originalIdea: "Post ekspercki B2B",
-    aiPrediction: "Wysoki potencjał komentarzy. Użyj liczby w pierwszym zdaniu.",
-  },
-  {
-    id: "plan-2",
-    title: "3 błędy w tworzeniu TikToków firmowych",
-    platform: "tiktok",
-    date: "Piątek, 18:30",
-    status: "Do akceptacji",
-    originalIdea: "Krótki format video",
-    aiPrediction: "Dobry format dla TikToka. Hook musi wejść w pierwszej sekundzie.",
-  },
-  {
-    id: "plan-3",
-    title: "Dlaczego content bez analityki nie działa?",
-    platform: "blog",
-    date: "Poniedziałek, 08:00",
-    status: "Szkic",
-    originalIdea: "Artykuł SEO",
-    aiPrediction: "Warto przerobić później na LinkedIn i newsletter.",
-  },
-];
+const PLANNED_CONTENT: PlannedContent[] = [];
 
 const NAV_TABS: NavTab[] = [
   { id: "accounts", label: "Podsumowanie kont", icon: "◈" },
@@ -513,21 +130,6 @@ const NAV_TABS: NavTab[] = [
   { id: "studio", label: "Content Studio", icon: "✦" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
   { id: "settings", label: "Ustawienia", icon: "◎" },
-];
-
-const INSIGHTS: Insight[] = [
-  {
-    type: "up",
-    text: "Temat „AI w marketingu” zebrał 48k na LinkedIn, ale tylko 2.1k na TikToku. Rozwijaj go jako post ekspercki, a na TikToka przebuduj jako „3 błędy”.",
-  },
-  {
-    type: "warn",
-    text: "Styl z długim wstępem działa źle na TikToku i Instagramie. Skróć hook do 1–2 zdań.",
-  },
-  {
-    type: "up",
-    text: "Content edukacyjny ma 2× wyższe zaangażowanie niż sprzedażowy na większości kanałów.",
-  },
 ];
 
 const INTEGRATIONS = [
@@ -596,7 +198,96 @@ function formatLastSync(value: string | null) {
   return `${diffDays} dni temu`;
 }
 
-function mergeConnections(accounts: Account[], connections: PlatformConnection[]) {
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("pl-PL", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
+function formatDbDate(value: string | null) {
+  if (!value) return "Brak daty";
+  return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "short" }).format(new Date(value));
+}
+
+function emptyPostsByPlatform(): Record<Platform, Post[]> {
+  return {
+    instagram: [],
+    linkedin: [],
+    tiktok: [],
+    youtube: [],
+    facebook: [],
+    blog: [],
+    spotify: [],
+  };
+}
+
+function summarizePosts(account: Account, posts: Post[]) {
+  if (!posts.length) {
+    return {
+      score: 0,
+      trend: 0,
+      posts: 0,
+      engRate: "0%",
+      reach: "0",
+      bestFormat: "Brak danych",
+      aiTag: account.connected
+        ? "Konto jest podłączone, ale synchronizacja nie zapisała jeszcze żadnych postów. Uruchom pobieranie danych."
+        : "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
+    };
+  }
+
+  const reachTotal = posts.reduce((sum, post) => sum + Number(post.reach || 0), 0);
+  const engagementTotal = posts.reduce((sum, post) => sum + post.likes + post.comments + (post.shares || 0) + (post.saves || 0), 0);
+  const scored = posts.filter((post) => post.score > 0);
+  const avgScore = scored.length ? Math.round(scored.reduce((sum, post) => sum + post.score, 0) / scored.length) : 0;
+  const typeCounts = posts.reduce<Record<string, number>>((acc, post) => {
+    acc[post.type] = (acc[post.type] || 0) + 1;
+    return acc;
+  }, {});
+  const bestFormat = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Brak danych";
+
+  return {
+    score: avgScore,
+    trend: 0,
+    posts: posts.length,
+    engRate: reachTotal > 0 ? `${((engagementTotal / reachTotal) * 100).toFixed(1)}%` : "0%",
+    reach: formatNumber(reachTotal),
+    bestFormat,
+    aiTag: `Dane pochodzą z ostatniej synchronizacji API. Zaimportowano ${posts.length} publikacji dla ${account.name}.`,
+  };
+}
+
+function mapDbPost(post: DbPost): Post {
+  const reachValue = post.reach ?? post.impressions ?? 0;
+  return {
+    id: post.id,
+    title: post.title || post.content?.slice(0, 80) || "Publikacja bez tytułu",
+    date: formatDbDate(post.published_at || post.fetched_at),
+    type: post.post_type || "Post",
+    score: post.ai_score ?? 0,
+    reach: String(reachValue),
+    likes: post.likes ?? 0,
+    comments: post.comments ?? 0,
+    shares: post.shares ?? 0,
+    saves: post.saves ?? 0,
+    status: "opublikowany",
+    source: "import",
+    ai: post.ai_summary || "Prawdziwy rekord pobrany z API. Analiza AI pojawi się po przeliczeniu wyników.",
+  };
+}
+
+function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost[]) {
+  const byPlatform = emptyPostsByPlatform();
+  const connectionPlatform = new Map(connections.map((connection) => [connection.id, connection.platform]));
+
+  dbPosts.forEach((dbPost) => {
+    const platform = connectionPlatform.get(dbPost.connection_id);
+    if (!platform) return;
+    byPlatform[platform].push(mapDbPost(dbPost));
+  });
+
+  return byPlatform;
+}
+
+function mergeConnections(accounts: Account[], connections: PlatformConnection[], postsByPlatform: Record<Platform, Post[]>) {
   return accounts.map((account) => {
     const connection = connections.find((item) => item.platform === account.id);
 
@@ -606,14 +297,26 @@ function mergeConnections(accounts: Account[], connections: PlatformConnection[]
         connected: false,
         handle: "Niepodłączone",
         lastSync: "Niepodłączone",
+        score: 0,
+        trend: 0,
+        posts: 0,
+        engRate: "0%",
+        reach: "0",
+        bestFormat: "Brak danych",
+        aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
       };
     }
 
-    return {
+    const base = {
       ...account,
       connected: true,
-      handle: connection.account_name,
+      handle: connection.account_name || account.name,
       lastSync: formatLastSync(connection.last_synced_at),
+    };
+
+    return {
+      ...base,
+      ...summarizePosts(base, postsByPlatform[account.id] || []),
     };
   });
 }
@@ -687,7 +390,8 @@ export default function AppWorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabId>("accounts");
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
   const [signingOut, setSigningOut] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>(ACCOUNTS);
+  const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
+  const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
 
   const css = dark ? darkVars : lightVars;
 
@@ -697,8 +401,42 @@ export default function AppWorkspacePage() {
   const latestContentGroups = useMemo(() => {
     return accounts.map((account) => ({
       account,
-      posts: (POSTS[account.id] ?? []).slice(0, 3),
+      posts: (postsByPlatform[account.id] ?? []).slice(0, 3),
     }));
+  }, [accounts, postsByPlatform]);
+
+  const realInsights = useMemo<Insight[]>(() => {
+    const totalPosts = accounts.reduce((sum, account) => sum + account.posts, 0);
+    const connected = accounts.filter((account) => account.connected);
+
+    if (!totalPosts) {
+      return [
+        {
+          type: "info",
+          text: connected.length
+            ? "Konta są podłączone, ale w bazie nie ma jeszcze pobranych publikacji. Po uruchomieniu synchronizacji analiza zostanie policzona z realnych danych."
+            : "Nie ma jeszcze podłączonych kont. Po połączeniu platform i synchronizacji zobaczysz tutaj realną analizę cross-platform.",
+        },
+      ];
+    }
+
+    const strongest = [...accounts].filter((account) => account.posts > 0).sort((a, b) => b.score - a.score)[0];
+    const weakest = [...accounts].filter((account) => account.posts > 0).sort((a, b) => a.score - b.score)[0];
+
+    return [
+      {
+        type: "up",
+        text: `Najmocniejszy kanał z realnych danych: ${strongest.name}. Wynik AI: ${strongest.score}/100, publikacje: ${strongest.posts}.`,
+      },
+      {
+        type: "warn",
+        text: `Do obserwacji: ${weakest.name}. Jeśli wynik jest niski albo zerowy, sprawdź zakresy API i jakość pobranych metryk.`,
+      },
+      {
+        type: "info",
+        text: `Łącznie w bazie jest ${totalPosts} pobranych publikacji z podłączonych platform.`,
+      },
+    ];
   }, [accounts]);
 
   async function getOrCreateWorkspace() {
@@ -760,7 +498,31 @@ export default function AppWorkspacePage() {
               return;
             }
 
-            setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+            const connections = (data || []) as PlatformConnection[];
+            const connectionIds = connections.map((connection) => connection.id);
+
+            if (!connectionIds.length) {
+              const emptyPosts = emptyPostsByPlatform();
+              setPostsByPlatform(emptyPosts);
+              setAccounts(mergeConnections(ACCOUNTS, [], emptyPosts));
+              return;
+            }
+
+            supabase
+              .schema("contentiq")
+              .from("posts")
+              .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
+              .in("connection_id", connectionIds)
+              .order("published_at", { ascending: false })
+              .then(({ data: postRows, error: postsError }) => {
+                if (postsError) {
+                  console.error("Posts load error:", postsError.message);
+                }
+
+                const nextPosts = buildPostsByPlatform(connections, (postRows || []) as DbPost[]);
+                setPostsByPlatform(nextPosts);
+                setAccounts(mergeConnections(ACCOUNTS, connections, nextPosts));
+              });
           });
       })
       .catch((error) => {
@@ -1141,7 +903,7 @@ export default function AppWorkspacePage() {
                   </p>
 
                   <div style={st.aiStack}>
-                    {INSIGHTS.map((insight, index) => (
+                    {realInsights.map((insight, index) => (
                       <div
                         key={index}
                         style={{
@@ -1305,11 +1067,12 @@ export default function AppWorkspacePage() {
                       <div
                         style={{
                           ...st.tileTrend,
-                          color: account.trend > 0 ? "#22c55e" : "#ef4444",
+                          color: account.trend === 0 ? css.muted : account.trend > 0 ? "#22c55e" : "#ef4444",
                         }}
                       >
-                        {account.trend > 0 ? "↑" : "↓"}{" "}
-                        {Math.abs(account.trend)}% miesiąc do miesiąca
+                        {account.trend === 0
+                          ? "0% miesiąc do miesiąca"
+                          : `${account.trend > 0 ? "↑" : "↓"} ${Math.abs(account.trend)}% miesiąc do miesiąca`}
                       </div>
                     </button>
                   ))}
@@ -1416,11 +1179,11 @@ export default function AppWorkspacePage() {
                 </div>
 
                 <div style={{ ...st.postsLabel, color: css.muted }}>
-                  Ostatnie publikacje — {POSTS[activeAccount.id]?.length ?? 0}
+                  Ostatnie publikacje — {postsByPlatform[activeAccount.id]?.length ?? 0}
                 </div>
 
                 <div style={st.postsList}>
-                  {(POSTS[activeAccount.id] ?? []).map((post) => {
+                  {(postsByPlatform[activeAccount.id] ?? []).map((post) => {
                     const scoreColor = getScoreColor(post.score);
 
                     const metrics = [
@@ -1694,9 +1457,7 @@ export default function AppWorkspacePage() {
                   </p>
 
                   <p style={{ ...st.sectionText, color: css.text }}>
-                    Content ekspercki i case studies mają najwyższy potencjał na
-                    LinkedIn i Blogu. TikTok i Instagram wymagają skrócenia
-                    przekazu oraz dużo mocniejszego hooka na wejściu.
+                    {realInsights[0]?.text || "Brak pobranych danych do porównania platform. Po synchronizacji aplikacja pokaże tutaj realny wniosek."}
                   </p>
                 </div>
 
@@ -1802,7 +1563,21 @@ export default function AppWorkspacePage() {
                 </h2>
 
                 <div style={st.postsList}>
-                  {PLANNED_CONTENT.map((item) => (
+                  {true && (
+                    <div
+                      className="ciq-post-row"
+                      style={{
+                        ...st.postRow,
+                        background: css.surface,
+                        border: `1px solid ${css.border}`,
+                        color: css.muted,
+                      }}
+                    >
+                      Brak zaplanowanych treści w bazie. Gdy aplikacja zapisze prawdziwe harmonogramy, pojawią się tutaj.
+                    </div>
+                  )}
+
+                  {([] as PlannedContent[]).map((item) => (
                     <div
                       key={item.id}
                       className="ciq-calendar-row ciq-post-row"

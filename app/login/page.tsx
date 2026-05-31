@@ -188,6 +188,15 @@ export default function LoginPage() {
             {message}
           </div>
         )}
+
+        <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs text-white/45">
+          <Link href="/privacy" className="hover:text-white">
+            Polityka prywatności
+          </Link>
+          <Link href="/terms" className="hover:text-white">
+            Regulamin
+          </Link>
+        </div>
       </div>
     </main>
   );

@@ -53,6 +53,8 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-white">Funkcje</a>
             <a href="#creators" className="hover:text-white">Dla influencerów</a>
             <a href="#business" className="hover:text-white">Dla firm</a>
+            <Link href="/privacy" className="hover:text-white">Polityka prywatności</Link>
+            <Link href="/terms" className="hover:text-white">Regulamin</Link>
             <Link href="/login" className="rounded-full bg-white px-5 py-2 font-semibold text-[#070816]">
               Zaloguj
             </Link>
@@ -100,18 +102,18 @@ export default function LandingPage() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <p className="text-sm text-white/50">Content Score</p>
-                <p className="text-4xl font-black text-cyan-300">87/100</p>
+                <p className="text-4xl font-black text-cyan-300">0/100</p>
               </div>
               <span className="rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-300">
-                +18% w tym miesiącu
+                Czeka na sync
               </span>
             </div>
 
             <div className="space-y-4">
               {[
-                "Posty edukacyjne mają najwyższe zaangażowanie.",
-                "W tym tygodniu brakuje contentu organicznego między współpracami.",
-                "Najlepszy potencjał mają krótkie formaty video z konkretnym problemem odbiorcy.",
+                "Połącz platformy, żeby zobaczyć realne publikacje.",
+                "Uruchom synchronizację, żeby pobrać wyniki z API.",
+                "Gdy nie ma danych, aplikacja pokazuje zera zamiast przykładowych wyników.",
               ].map((item) => (
                 <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <p className="text-sm text-white/75">{item}</p>
@@ -192,6 +194,14 @@ export default function LandingPage() {
           </Link>
         </div>
       </section>
+
+      <footer className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-6 py-8 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
+        <span>ANM ContentIQ</span>
+        <div className="flex gap-5">
+          <Link href="/privacy" className="hover:text-white">Polityka prywatności</Link>
+          <Link href="/terms" className="hover:text-white">Regulamin</Link>
+        </div>
+      </footer>
     </main>
   );
 }

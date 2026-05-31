@@ -47,142 +47,31 @@ interface PlatformConnection {
   connected: boolean;
 }
 
+interface DbPost {
+  connection_id: string;
+  post_type: string | null;
+  reach: number | null;
+  impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  ai_score: number | null;
+}
+
 // ─── DANE ────────────────────────────────────────────────────────────────────
 
 const ACCOUNTS: AccountData[] = [
-  {
-    id: "instagram",
-    name: "Instagram",
-    handle: "@anm_collective",
-    color: "#E1306C",
-    gradient: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)",
-    score: 84,
-    trend: 11,
-    posts: 38,
-    engRate: "4.2%",
-    reach: "12.4k",
-    followers: "8.2k",
-    bestFormat: "Reels edukacyjne",
-    aiTag: "Reels mają 2× wyższy zasięg niż karuzele. Zwiększ częstotliwość krótkich video.",
-    connected: true,
-    sparkline: [40, 55, 48, 62, 58, 71, 65, 80, 74, 88, 82, 94],
-    weeklyReach: [8200, 9400, 8800, 11200, 10400, 13100, 12400],
-  },
-  {
-    id: "facebook",
-    name: "Facebook",
-    handle: "ANM Collective",
-    color: "#1877F2",
-    gradient: "linear-gradient(135deg, #1877F2, #0d5fd8)",
-    score: 58,
-    trend: -2,
-    posts: 18,
-    engRate: "1.4%",
-    reach: "5.1k",
-    followers: "3.4k",
-    bestFormat: "Video + grupy",
-    aiTag: "Organiczny zasięg spada. Skup się na grupach tematycznych i video.",
-    connected: false,
-    sparkline: [62, 58, 55, 60, 52, 49, 55, 51, 48, 54, 56, 58],
-    weeklyReach: [5800, 5200, 4900, 5400, 4800, 5100, 5100],
-  },
-  {
-    id: "linkedin",
-    name: "LinkedIn",
-    handle: "ANM Collective",
-    color: "#0A66C2",
-    gradient: "linear-gradient(135deg, #0A66C2, #084fa0)",
-    score: 91,
-    trend: 18,
-    posts: 22,
-    engRate: "6.8%",
-    reach: "28.1k",
-    followers: "12.1k",
-    bestFormat: "Case studies",
-    aiTag: "Najlepszy kanał na leady B2B. Case studies z liczbami w tytule dominują.",
-    connected: true,
-    sparkline: [55, 62, 70, 68, 75, 80, 77, 85, 83, 88, 90, 91],
-    weeklyReach: [18200, 21400, 23800, 25200, 26400, 27800, 28100],
-  },
-  {
-    id: "tiktok",
-    name: "TikTok",
-    handle: "@anm_collective",
-    color: "#000000",
-    gradient: "linear-gradient(135deg, #010101, #69C9D0)",
-    score: 63,
-    trend: -4,
-    posts: 15,
-    engRate: "2.1%",
-    reach: "6.8k",
-    followers: "4.8k",
-    bestFormat: "Krótkie listy błędów",
-    aiTag: "Hook musi wejść w pierwszej sekundzie. Długie wstępy zabijają zasięg.",
-    connected: true,
-    sparkline: [72, 68, 65, 70, 63, 58, 65, 61, 57, 62, 64, 63],
-    weeklyReach: [7800, 7200, 6600, 7100, 6500, 6800, 6800],
-  },
-  {
-    id: "youtube",
-    name: "YouTube",
-    handle: "ANM Collective",
-    color: "#FF0000",
-    gradient: "linear-gradient(135deg, #FF0000, #cc0000)",
-    score: 77,
-    trend: 6,
-    posts: 9,
-    engRate: "54% ret.",
-    reach: "3.2k",
-    followers: "1.9k",
-    bestFormat: "Shorts + tutoriale",
-    aiTag: "Shorts mają 3× wyższy CTR niż długie filmy. Zwiększ do 3 Shorts tygodniowo.",
-    connected: true,
-    sparkline: [60, 65, 62, 68, 70, 72, 69, 74, 75, 76, 77, 77],
-    weeklyReach: [2400, 2600, 2800, 2900, 3000, 3100, 3200],
-  },
-  {
-    id: "blog",
-    name: "Blog",
-    handle: "anmcollective.pl",
-    color: "#22C55E",
-    gradient: "linear-gradient(135deg, #22C55E, #16a34a)",
-    score: 79,
-    trend: 22,
-    posts: 11,
-    engRate: "3:42 avg",
-    reach: "8.9k",
-    followers: "—",
-    bestFormat: "Poradniki SEO",
-    aiTag: "Artykuły poradnikowe mają najwyższy czas na stronie i generują leady organiczne.",
-    connected: true,
-    sparkline: [45, 50, 55, 58, 62, 65, 68, 72, 74, 76, 78, 79],
-    weeklyReach: [5200, 6100, 6800, 7400, 7900, 8400, 8900],
-  },
-  {
-    id: "spotify",
-    name: "Spotify",
-    handle: "ANM Podcast",
-    color: "#1DB954",
-    gradient: "linear-gradient(135deg, #1DB954, #158a3e)",
-    score: 72,
-    trend: 9,
-    posts: 7,
-    engRate: "41% compl.",
-    reach: "2.7k",
-    followers: "890",
-    bestFormat: "Odcinki poradnikowe",
-    aiTag: "Krótkie odcinki z konkretną obietnicą w tytule mają 2× wyższy completion rate.",
-    connected: false,
-    sparkline: [58, 62, 60, 65, 63, 68, 66, 70, 69, 72, 71, 72],
-    weeklyReach: [1800, 2000, 2100, 2300, 2400, 2600, 2700],
-  },
+  { id: "instagram", name: "Instagram", handle: "Niepodłączone", color: "#E1306C", gradient: "linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "facebook", name: "Facebook", handle: "Niepodłączone", color: "#1877F2", gradient: "linear-gradient(135deg, #1877F2, #0d5fd8)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "linkedin", name: "LinkedIn", handle: "Niepodłączone", color: "#0A66C2", gradient: "linear-gradient(135deg, #0A66C2, #084fa0)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "tiktok", name: "TikTok", handle: "Niepodłączone", color: "#000000", gradient: "linear-gradient(135deg, #010101, #69C9D0)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "youtube", name: "YouTube", handle: "Niepodłączone", color: "#FF0000", gradient: "linear-gradient(135deg, #FF0000, #cc0000)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "blog", name: "Blog", handle: "Niepodłączone", color: "#22C55E", gradient: "linear-gradient(135deg, #22C55E, #16a34a)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
+  { id: "spotify", name: "Spotify", handle: "Niepodłączone", color: "#1DB954", gradient: "linear-gradient(135deg, #1DB954, #158a3e)", score: 0, trend: 0, posts: 0, engRate: "0%", reach: "0", followers: "0", bestFormat: "Brak danych", aiTag: "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.", connected: false, sparkline: Array(12).fill(0), weeklyReach: Array(7).fill(0) },
 ];
 
-const GLOBAL_INSIGHTS = [
-  { col: "#22c55e", text: "LinkedIn generuje 3× więcej leadów niż pozostałe platformy. Content ekspercki z case studies dominuje." },
-  { col: "#f59e0b", text: "TikTok i Facebook tracą zasięg. Hook pierwszych 2 sekund jest kluczowy — bez niego algorytm nie wypycha treści." },
-  { col: "#818cf8", text: "Blog rośnie najszybciej (+22%). Artykuły poradnikowe warto recyklować na LinkedIn i jako Shorts na YouTube." },
-];
+const GLOBAL_INSIGHTS: { col: string; text: string }[] = [];
 
 // ─── MINI SPARKLINE SVG ───────────────────────────────────────────────────────
 
@@ -202,25 +91,73 @@ function formatLastSync(value: string | null) {
   return `${diffDays} dni temu`;
 }
 
-function mergeConnections(accounts: AccountData[], connections: PlatformConnection[]) {
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("pl-PL", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
+function zeroAccount(account: AccountData, connected: boolean, handle: string, lastSyncTag?: string): AccountData {
+  return {
+    ...account,
+    connected,
+    handle,
+    score: 0,
+    trend: 0,
+    posts: 0,
+    engRate: "0%",
+    reach: "0",
+    followers: "0",
+    bestFormat: "Brak danych",
+    aiTag: connected
+      ? `Konto jest podłączone${lastSyncTag ? ` (${lastSyncTag})` : ""}, ale nie ma jeszcze pobranych publikacji.`
+      : "Połącz konto, a po synchronizacji dashboard pokaże prawdziwe dane.",
+    sparkline: Array(12).fill(0),
+    weeklyReach: Array(7).fill(0),
+  };
+}
+
+function summarizeDbPosts(account: AccountData, posts: DbPost[], lastSync: string) {
+  if (!posts.length) return zeroAccount(account, true, account.handle, lastSync);
+
+  const reachTotal = posts.reduce((sum, post) => sum + (post.reach ?? post.impressions ?? 0), 0);
+  const engagementTotal = posts.reduce((sum, post) => sum + (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0) + (post.saves ?? 0), 0);
+  const scores = posts.map((post) => post.ai_score ?? 0).filter((score) => score > 0);
+  const typeCounts = posts.reduce<Record<string, number>>((acc, post) => {
+    const type = post.post_type || "Post";
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+  const bestFormat = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Brak danych";
+
+  return {
+    ...account,
+    score: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
+    trend: 0,
+    posts: posts.length,
+    engRate: reachTotal > 0 ? `${((engagementTotal / reachTotal) * 100).toFixed(1)}%` : "0%",
+    reach: formatNumber(reachTotal),
+    followers: "0",
+    bestFormat,
+    aiTag: `Dane pochodzą z ostatniej synchronizacji API. Zaimportowano ${posts.length} publikacji dla ${account.name}.`,
+    sparkline: Array(12).fill(0),
+    weeklyReach: Array(7).fill(0),
+  };
+}
+
+function mergeConnections(accounts: AccountData[], connections: PlatformConnection[], postsByConnection: Map<string, DbPost[]>) {
   return accounts.map((account) => {
     const connection = connections.find((item) => item.platform === account.id);
 
     if (!connection) {
-      return {
-        ...account,
-        connected: false,
-        handle: "Niepodłączone",
-        lastSync: "Niepodłączone",
-      };
+      return zeroAccount(account, false, "Niepodłączone");
     }
 
-    return {
+    const connectedAccount = {
       ...account,
       connected: true,
-      handle: connection.account_name,
-      lastSync: formatLastSync(connection.last_synced_at),
+      handle: connection.account_name || account.name,
     };
+
+    return summarizeDbPosts(connectedAccount, postsByConnection.get(connection.id) || [], formatLastSync(connection.last_synced_at));
   });
 }
 
@@ -254,7 +191,7 @@ function Sparkline({ data, color, width = 120, height = 40 }: { data: number[]; 
 // ─── BAR CHART (weekly reach) ─────────────────────────────────────────────────
 
 function MiniBarChart({ data, color }: { data: number[]; color: string }) {
-  const max = Math.max(...data);
+  const max = Math.max(...data, 1);
   const days = ["P", "W", "Ś", "C", "P", "S", "N"];
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 36 }}>
@@ -293,7 +230,7 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState(true);
-  const [accounts, setAccounts] = useState<AccountData[]>(ACCOUNTS);
+  const [accounts, setAccounts] = useState<AccountData[]>(() => mergeConnections(ACCOUNTS, [], new Map()));
 
   async function getOrCreateWorkspace(slug: string) {
     const { data: existing } = await supabase
@@ -356,7 +293,33 @@ export default function DashboardPage() {
               return;
             }
 
-            setAccounts(mergeConnections(ACCOUNTS, (data || []) as PlatformConnection[]));
+            const connections = (data || []) as PlatformConnection[];
+            const connectionIds = connections.map((connection) => connection.id);
+
+            if (!connectionIds.length) {
+              setAccounts(mergeConnections(ACCOUNTS, [], new Map()));
+              return;
+            }
+
+            supabase
+              .schema("contentiq")
+              .from("posts")
+              .select("connection_id, post_type, reach, impressions, likes, comments, shares, saves, ai_score")
+              .in("connection_id", connectionIds)
+              .then(({ data: postRows, error: postsError }) => {
+                if (postsError) {
+                  console.error("Dashboard posts load error:", postsError.message);
+                }
+
+                const postsByConnection = new Map<string, DbPost[]>();
+                ((postRows || []) as DbPost[]).forEach((post) => {
+                  const current = postsByConnection.get(post.connection_id) || [];
+                  current.push(post);
+                  postsByConnection.set(post.connection_id, current);
+                });
+
+                setAccounts(mergeConnections(ACCOUNTS, connections, postsByConnection));
+              });
           });
       })
       .catch((error) => {
@@ -392,6 +355,26 @@ export default function DashboardPage() {
   const connectedCount = accounts.filter(a => a.connected).length;
   const avgScore = Math.round(accounts.reduce((s, a) => s + a.score, 0) / accounts.length);
   const totalPosts = accounts.reduce((s, a) => s + a.posts, 0);
+  const bestPlatform = [...accounts].filter(a => a.posts > 0).sort((a, b) => b.score - a.score)[0] || null;
+  const globalInsights = totalPosts === 0
+    ? [
+        {
+          col: accent,
+          text: connectedCount
+            ? "Konta są podłączone, ale w Supabase nie ma jeszcze pobranych publikacji. Dashboard pokazuje zera zamiast atrap."
+            : "Połącz pierwszą platformę i uruchom synchronizację. Do tego czasu dashboard pokazuje zera zamiast przykładowych danych.",
+        },
+      ]
+    : [
+        {
+          col: "#22c55e",
+          text: `Realnie pobrane publikacje: ${totalPosts}. Średni wynik AI z zapisanych danych: ${avgScore}/100.`,
+        },
+        {
+          col: "#818cf8",
+          text: `Aktywne połączenia: ${connectedCount}/${accounts.length}. Kafelki liczą posty i zasięg z tabeli contentiq.posts.`,
+        },
+      ];
 
   return (
     <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", transition: "background 0.3s" }}>
@@ -462,7 +445,12 @@ export default function DashboardPage() {
             { label: "Podłączone konta", value: `${connectedCount}/${accounts.length}`, sub: "platform aktywnych", color: "#22c55e" },
             { label: "Avg AI Score", value: String(avgScore), sub: "średnia wszystkich kanałów", color: accent },
             { label: "Publikacje", value: String(totalPosts), sub: "wszystkich platform", color: "#f59e0b" },
-            { label: "Najlepsza platforma", value: "LinkedIn", sub: "score 91 · trend +18%", color: "#0A66C2" },
+            {
+              label: "Najlepsza platforma",
+              value: bestPlatform?.name || "Brak danych",
+              sub: bestPlatform ? `score ${bestPlatform.score} · ${bestPlatform.posts} publikacji` : "czeka na synchronizację",
+              color: bestPlatform?.color || muted,
+            },
           ].map((stat, i) => (
             <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: "16px 18px" }} className="fade-up">
               <div style={{ fontSize: 11, color: muted, marginBottom: 6, fontWeight: 500 }}>{stat.label}</div>
@@ -485,7 +473,7 @@ export default function DashboardPage() {
           </div>
           {expandedInsights && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-              {GLOBAL_INSIGHTS.map((ins, i) => (
+              {globalInsights.map((ins, i) => (
                 <div key={i} style={{ borderLeft: `2px solid ${ins.col}`, paddingLeft: 12, fontSize: 12, color: d ? "#a8c4e0" : "#334e66", lineHeight: 1.65 }}>
                   {ins.text}
                 </div>
@@ -537,8 +525,8 @@ export default function DashboardPage() {
                     <div>
                       <div style={{ fontSize: 22, fontWeight: 700, color: acc.color, fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{acc.score}</div>
                       <div style={{ fontSize: 10, color: muted }}>AI Score</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: acc.trend > 0 ? "#22c55e" : "#ef4444", marginTop: 2 }}>
-                        {acc.trend > 0 ? "↑" : "↓"} {Math.abs(acc.trend)}%
+                      <div style={{ fontSize: 11, fontWeight: 600, color: acc.trend === 0 ? muted : acc.trend > 0 ? "#22c55e" : "#ef4444", marginTop: 2 }}>
+                        {acc.trend === 0 ? "0%" : `${acc.trend > 0 ? "↑" : "↓"} ${Math.abs(acc.trend)}%`}
                       </div>
                     </div>
                   </div>
