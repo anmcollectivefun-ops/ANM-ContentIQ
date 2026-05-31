@@ -305,25 +305,45 @@ export async function GET(
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
  
-    const { error: dbError } = await supabase
+    // Sprawdź czy już istnieje połączenie dla tej platformy w tym workspace
+    const { data: existing } = await supabase
       .schema("contentiq")
       .from("platform_connections")
-      .insert(
-        {
-          workspace_id: workspaceUuid,
-          platform,
-          account_id: accountInfo.account_id,
-          account_name: accountInfo.account_name,
-          access_token: accountInfo.access_token || tokenData.access_token,
-          refresh_token: tokenData.refresh_token || null,
-          token_expires_at: expiresAt,
-          connected: true,
-          last_synced_at: new Date().toISOString(),
-        }
-      );
- 
+      .select("id")
+      .eq("workspace_id", workspaceUuid)
+      .eq("platform", platform)
+      .limit(1)
+      .single();
+
+    const connectionData = {
+      workspace_id: workspaceUuid,
+      platform,
+      account_id: accountInfo.account_id,
+      account_name: accountInfo.account_name,
+      access_token: accountInfo.access_token || tokenData.access_token,
+      refresh_token: tokenData.refresh_token || null,
+      token_expires_at: expiresAt,
+      connected: true,
+      last_synced_at: new Date().toISOString(),
+    };
+
+    let dbError;
+    if (existing?.id) {
+      // Aktualizuj istniejący rekord — bez duplikatów
+      ({ error: dbError } = await supabase
+        .schema("contentiq")
+        .from("platform_connections")
+        .update(connectionData)
+        .eq("id", existing.id));
+    } else {
+      ({ error: dbError } = await supabase
+        .schema("contentiq")
+        .from("platform_connections")
+        .insert(connectionData));
+    }
+
     if (dbError) {
-      console.error("Supabase upsert error:", dbError);
+      console.error("Supabase connection error:", dbError);
       throw new Error(dbError.message);
     }
  

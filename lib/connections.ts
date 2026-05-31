@@ -80,7 +80,7 @@ export async function getAllConnections(workspaceId: string): Promise<PlatformCo
  
 export function isTokenValid(connection: PlatformConnection): boolean {
   if (!connection.token_expires_at) return true; // brak exp = nie wygasa
-  return new Date(connection.token_expires_at) > new Date(Date.now() + 60 * 60 * 1000); // ważny > 1h
+  return new Date(connection.token_expires_at) > new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // ważny > 7 dni
 }
  
 // ─── Odśwież token jeśli wygasł ──────────────────────────────────────────────
@@ -140,7 +140,45 @@ export async function refreshTokenIfNeeded(connection: PlatformConnection): Prom
       newToken = data.access_token;
       expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
     }
- 
+
+    if (connection.platform === "spotify" && connection.refresh_token) {
+      const credentials = Buffer.from(
+        `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+      ).toString("base64");
+      const res = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${credentials}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: connection.refresh_token,
+        }),
+      });
+      const data = await res.json();
+      newToken = data.access_token;
+      expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+    }
+
+    if (connection.platform === "instagram" || connection.platform === "facebook") {
+      // Meta long-lived tokens trwają 60 dni — odśwież gdy < 7 dni
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/oauth/access_token?` +
+        `grant_type=fb_exchange_token&` +
+        `client_id=${process.env.META_APP_ID}&` +
+        `client_secret=${process.env.META_APP_SECRET}&` +
+        `fb_exchange_token=${connection.access_token}`
+      );
+      const data = await res.json();
+      if (data.access_token) {
+        newToken = data.access_token;
+        expiresAt = data.expires_in
+          ? new Date(Date.now() + data.expires_in * 1000).toISOString()
+          : null;
+      }
+    }
+
     // Zapisz nowy token do bazy
     if (newToken !== connection.access_token) {
       const supabase = await createClient();

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ContentStudio from "@/app/components/ContentStudio";
+import Schedule from "@/app/components/Schedule";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -1544,111 +1545,9 @@ export default function AppWorkspacePage() {
             )}
 
             {/* ================= HARMONOGRAM ================= */}
-            {activeTab === "calendar" && (
-              <div
-                style={{
-                  ...st.panel,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                }}
-              >
-                <p style={{ ...st.smallLabel, color: css.accent }}>
-                  Harmonogram contentu
-                </p>
-
-                <h2
-                  style={{
-                    ...st.sectionTitle,
-                    color: css.text,
-                    fontFamily: "'DM Serif Display', serif",
-                  }}
-                >
-                  Zaplanowane treści połączone z późniejszym wynikiem
-                </h2>
-
-                <div style={st.postsList}>
-                  {true && (
-                    <div
-                      className="ciq-post-row"
-                      style={{
-                        ...st.postRow,
-                        background: css.surface,
-                        border: `1px solid ${css.border}`,
-                        color: css.muted,
-                      }}
-                    >
-                      Brak zaplanowanych treści w bazie. Gdy aplikacja zapisze prawdziwe harmonogramy, pojawią się tutaj.
-                    </div>
-                  )}
-
-                  {([] as PlannedContent[]).map((item) => (
-                    <div
-                      key={item.id}
-                      className="ciq-calendar-row ciq-post-row"
-                      style={{
-                        ...st.calendarRow,
-                        background: css.liveSoft,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <div>
-                        <p style={{ ...st.postTitle, color: css.text }}>
-                          {item.title}
-                        </p>
-
-                        <p style={{ ...st.sectionText, color: css.muted }}>
-                          {item.originalIdea}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span
-                          style={{
-                            ...st.badge,
-                            background: `${getPlatformColor(item.platform)}18`,
-                            color: getPlatformColor(item.platform),
-                          }}
-                        >
-                          {getPlatformName(item.platform)}
-                        </span>
-                      </div>
-
-                      <div style={{ color: css.muted, fontSize: 12 }}>
-                        {item.date}
-                      </div>
-
-                      <div>
-                        <span
-                          style={{
-                            ...st.badge,
-                            background: css.activeBg,
-                            color: css.muted,
-                          }}
-                        >
-                          {item.status}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          ...st.scheduleAI,
-                          background: css.aiBgSoft,
-                          border: `1px solid ${css.aiBorder}`,
-                        }}
-                      >
-                        <span style={{ ...st.aiBoxLabel, color: css.aiText }}>
-                          ✦ AI przewidywanie
-                        </span>
-
-                        <p style={{ ...st.aiSmall, color: css.text }}>
-                          {item.aiPrediction}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          {activeTab === "calendar" && (
+  <Schedule dark={dark} workspaceId={workspaceId} />
+)}
 
             {/* ================= CONTENT STUDIO ================= */}
             {activeTab === "studio" && (
