@@ -223,6 +223,113 @@ function BlogForm({
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
+function SpotifyShowIdForm({
+  connection,
+  onSaved,
+  css,
+}: {
+  connection: Connection;
+  onSaved: () => void;
+  css: Record<string, string>;
+}) {
+  const supabase = createClient();
+  const [showId, setShowId] = useState(connection.account_id || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  async function handleSave() {
+    const value = showId.trim();
+    if (!value) {
+      setError("Wpisz Show ID podcastu");
+      return;
+    }
+
+    const extracted = value.includes("spotify.com/show/")
+      ? value.split("/show/")[1].split("?")[0].split("/")[0]
+      : value;
+
+    setSaving(true);
+    setError("");
+
+    const { error: dbError } = await supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .update({ account_id: extracted })
+      .eq("id", connection.id);
+
+    if (dbError) {
+      setError(dbError.message);
+      setSaving(false);
+      return;
+    }
+
+    setShowId(extracted);
+    setSuccess(true);
+    setSaving(false);
+    setTimeout(() => setSuccess(false), 3000);
+    onSaved();
+  }
+
+  return (
+    <div style={{ marginTop: 10, padding: "12px", borderRadius: 8, background: css.bg, border: `1px solid ${css.border}` }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: css.text, marginBottom: 4 }}>
+        Show ID podcastu Spotify
+      </div>
+      <div style={{ fontSize: 11, color: css.muted, marginBottom: 10, lineHeight: 1.6 }}>
+        Wklej URL podcastu lub samo ID z adresu open.spotify.com/show/
+        <span style={{ fontFamily: "monospace", background: "#1DB95420", color: "#1DB954", padding: "1px 6px", borderRadius: 4, marginLeft: 4 }}>
+          TWOJE_ID_TUTAJ
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={showId}
+          onChange={(e) => setShowId(e.target.value)}
+          placeholder="https://open.spotify.com/show/... lub samo ID"
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: `1px solid ${error ? "#ef4444" : css.border}`,
+            background: css.surface,
+            color: css.text,
+            fontSize: 12,
+            fontFamily: "monospace",
+            outline: "none",
+          }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            padding: "8px 16px",
+            borderRadius: 8,
+            background: "#1DB954",
+            color: "#fff",
+            border: "none",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            opacity: saving ? 0.6 : 1,
+          }}
+        >
+          {saving ? "Zapisuję..." : success ? "Zapisano" : "Zapisz"}
+        </button>
+      </div>
+      {error && <p style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>{error}</p>}
+      <div style={{ fontSize: 11, color: css.muted, marginTop: 8 }}>
+        Jak znaleźć Show ID: otwórz podcast na{" "}
+        <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" style={{ color: "#1DB954" }}>
+          open.spotify.com
+        </a>{" "}
+        → skopiuj URL → wklej tutaj.
+      </div>
+    </div>
+  );
+}
+
 export default function IntegrationsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -518,6 +625,14 @@ export default function IntegrationsPage() {
                             </button>
                           </div>
                         </div>
+                      ))}
+                      {platform.id === "spotify" && platformConnections.map((conn) => (
+                        <SpotifyShowIdForm
+                          key={`${conn.id}-show-id`}
+                          connection={conn}
+                          onSaved={() => { loadConnections(); showToast("Show ID Spotify zapisane", "ok"); }}
+                          css={css}
+                        />
                       ))}
                     </div>
                   )}
