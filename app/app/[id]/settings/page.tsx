@@ -62,14 +62,22 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   async function loadLinks() {
-    const { data } = await supabase.schema("contentiq").from("manual_links")
+    const { data, error: loadError } = await supabase.schema("contentiq").from("manual_links")
       .select("*").eq("connection_id", connection.id).order("created_at");
+    if (loadError) {
+      setError(loadError.message);
+      setLoading(false);
+      return;
+    }
     const all = (data || []) as ManualLink[];
     setLinks(all);
     const acc = all.find(l => l.type === "account");
     if (acc) setAccountUrl(acc.url);
+    else setAccountUrl("");
+    setError("");
     setLoading(false);
   }
 
@@ -81,12 +89,21 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   async function saveAccountUrl() {
     if (!accountUrl.trim()) return;
     setSaving(true);
+    setError("");
+    let dbError;
     if (accountLink) {
-      await supabase.schema("contentiq").from("manual_links")
+      const { error } = await supabase.schema("contentiq").from("manual_links")
         .update({ url: accountUrl.trim() }).eq("id", accountLink.id);
+      dbError = error;
     } else {
-      await supabase.schema("contentiq").from("manual_links")
+      const { error } = await supabase.schema("contentiq").from("manual_links")
         .insert({ connection_id: connection.id, type: "account", url: accountUrl.trim(), title: meta.label });
+      dbError = error;
+    }
+    if (dbError) {
+      setError(dbError.message);
+      setSaving(false);
+      return;
     }
     await loadLinks();
     setSaving(false);
@@ -95,8 +112,14 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   async function addPostLink() {
     if (!newPostUrl.trim() || postLinks.length >= 5) return;
     setSaving(true);
-    await supabase.schema("contentiq").from("manual_links")
+    setError("");
+    const { error: dbError } = await supabase.schema("contentiq").from("manual_links")
       .insert({ connection_id: connection.id, type: "post", url: newPostUrl.trim(), title: null });
+    if (dbError) {
+      setError(dbError.message);
+      setSaving(false);
+      return;
+    }
     setNewPostUrl("");
     await loadLinks();
     setSaving(false);
@@ -104,7 +127,13 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
 
   async function deleteLink(id: string) {
     setDeleting(id);
-    await supabase.schema("contentiq").from("manual_links").delete().eq("id", id);
+    setError("");
+    const { error: dbError } = await supabase.schema("contentiq").from("manual_links").delete().eq("id", id);
+    if (dbError) {
+      setError(dbError.message);
+      setDeleting(null);
+      return;
+    }
     await loadLinks();
     setDeleting(null);
   }
@@ -116,6 +145,11 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
       <div style={{ fontSize: 10, fontWeight: 700, color: meta.color, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
         ⊕ Linki do konta i postów
       </div>
+      {error && (
+        <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: 7, background: "#450a0a", border: "1px solid #991b1b", color: "#ef4444", fontSize: 11, lineHeight: 1.5 }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 11, color: "#4a6480", marginBottom: 6 }}>Link do konta / profilu</div>
