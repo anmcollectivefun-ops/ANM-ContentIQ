@@ -182,9 +182,16 @@ export async function fetchLinkedInPosts(workspaceId: string) {
  
   const token = await refreshTokenIfNeeded(conn);
  
+  const authorUrn = conn.account_id.startsWith("urn:li:") ? conn.account_id : `urn:li:person:${conn.account_id}`;
   const res = await fetch(
-    `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(conn.account_id)})&count=20`,
-    { headers: { Authorization: `Bearer ${token}`, "X-Restli-Protocol-Version": "2.0.0" } }
+    `https://api.linkedin.com/rest/posts?q=author&author=${encodeURIComponent(authorUrn)}&count=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "LinkedIn-Version": "202504",
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+    }
   );
   return res.json();
 }
