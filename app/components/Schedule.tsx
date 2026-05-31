@@ -119,7 +119,8 @@ export default function Schedule({
         .order("scheduled_at", { ascending: true });
 
       if (error) throw new Error(error.message);
-      setPosts((data || []) as ScheduledPost[]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setPosts((data || []) as any as ScheduledPost[]);
     } catch (e) {
       console.error("Schedule load error:", e);
     }
