@@ -1678,7 +1678,7 @@ export default function AppWorkspacePage() {
                   </p>
                 </div>
 
-                <ContentStudio dark={dark} />
+                <ContentStudio dark={dark} workspaceId={workspaceId} />
               </div>
             )}
 
