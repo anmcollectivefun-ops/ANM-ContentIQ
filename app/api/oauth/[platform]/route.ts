@@ -21,7 +21,7 @@ const PLATFORM_CONFIG: Record<string, {
   linkedin: {
     authUrl: "https://www.linkedin.com/oauth/v2/authorization",
     clientIdEnv: "LINKEDIN_CLIENT_ID",
-    scope: "openid profile email w_member_social r_member_social",
+    scope: "openid profile email w_member_social",
   },
   tiktok: {
     authUrl: "https://www.tiktok.com/v2/auth/authorize/",
