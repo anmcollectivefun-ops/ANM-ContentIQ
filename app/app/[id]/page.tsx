@@ -9,6 +9,7 @@ import Schedule from "@/app/components/Schedule";
 import BrandVoice from "@/app/components/BrandVoice";
 import AIChat from "@/app/components/AIChat";
 import Templates from "@/app/components/Templates";
+import AIPartner from "@/app/components/AIPartner";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ type TabId =
   | "calendar"
   | "studio"
   | "templates"
+  | "partner"
   | "brand"
   | "chat"
   | "integrations"
@@ -136,6 +138,7 @@ const NAV_TABS: NavTab[] = [
   { id: "calendar", label: "Harmonogram", icon: "◷" },
   { id: "studio", label: "Content Studio", icon: "✦" },
   { id: "templates", label: "Szablony", icon: "TPL" },
+  { id: "partner", label: "AI Partner", icon: "AI+" },
   { id: "brand", label: "Brand Voice", icon: "BV" },
   { id: "chat", label: "AI Chat", icon: "AI" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
@@ -1639,6 +1642,43 @@ export default function AppWorkspacePage() {
                   workspaceId={workspaceId}
                   onOpenStudio={() => setActiveTab("studio")}
                 />
+              </div>
+            )}
+
+            {/* ================= AI PARTNER ================= */}
+            {activeTab === "partner" && (
+              <div>
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    marginBottom: 18,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.accent }}>
+                    AI Partner
+                  </p>
+
+                  <h2
+                    style={{
+                      ...st.sectionTitle,
+                      color: css.text,
+                      fontFamily: "'DM Serif Display', serif",
+                    }}
+                  >
+                    Samouczący się partner contentowy
+                  </h2>
+
+                  <p style={{ ...st.sectionText, color: css.muted }}>
+                    Ten moduł łączy Brand Voice, wybrane szablony, szkice i realne
+                    wyniki z social mediów. AI ma uczyć się stylu twórcy oraz
+                    podpowiadać, co rozwijać, co testować i jak dopasować treść
+                    do platformy.
+                  </p>
+                </div>
+
+                <AIPartner dark={dark} workspaceId={workspaceId} />
               </div>
             )}
 
