@@ -321,7 +321,7 @@ export async function GET(
       account_id: accountInfo.account_id,
       account_name: accountInfo.account_name,
       access_token: accountInfo.access_token || tokenData.access_token,
-      refresh_token: tokenData.refresh_token || null,
+      ...(tokenData.refresh_token ? { refresh_token: tokenData.refresh_token } : {}),
       token_expires_at: expiresAt,
       connected: true,
       last_synced_at: new Date().toISOString(),

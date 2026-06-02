@@ -187,14 +187,31 @@ async function fetchTikTok(token: string) {
 }
  
 async function fetchYouTube(token: string) {
-  const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&maxResults=25&order=date`,
+  const channelRes = await fetch(
+    "https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true",
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
- 
-  const videoIds = (data.items || []).map((v: Record<string, unknown>) => (v.id as Record<string, unknown>).videoId).join(",");
+  const channelData = await channelRes.json();
+  if (channelData.error) throw new Error(channelData.error.message);
+
+  const channel = channelData.items?.[0];
+  const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploadsPlaylistId) return [];
+
+  const playlistRes = await fetch(
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=25`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const playlistData = await playlistRes.json();
+  if (playlistData.error) throw new Error(playlistData.error.message);
+
+  const videoIds = (playlistData.items || [])
+    .map((item: Record<string, unknown>) => {
+      const contentDetails = item.contentDetails as Record<string, unknown> | undefined;
+      return contentDetails?.videoId;
+    })
+    .filter(Boolean)
+    .join(",");
   if (!videoIds) return [];
  
   const statsRes = await fetch(
@@ -262,8 +279,92 @@ type SyncConnection = {
   platform: string;
   account_id: string | null;
   access_token: string | null;
+  refresh_token?: string | null;
+  token_expires_at?: string | null;
   connected: boolean;
 };
+
+function isExpiringSoon(expiresAt?: string | null) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() < Date.now() + 10 * 60 * 1000;
+}
+
+async function refreshAccessToken(supabase: SupabaseClient, connection: SyncConnection) {
+  if (!connection.refresh_token || !isExpiringSoon(connection.token_expires_at)) {
+    return connection.access_token || "";
+  }
+
+  let tokenUrl = "";
+  let headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+  let body: URLSearchParams;
+
+  if (connection.platform === "youtube") {
+    tokenUrl = "https://oauth2.googleapis.com/token";
+    body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: connection.refresh_token,
+      client_id: process.env.GOOGLE_CLIENT_ID?.trim() || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET?.trim() || "",
+    });
+  } else if (connection.platform === "spotify") {
+    tokenUrl = "https://accounts.spotify.com/api/token";
+    const credentials = Buffer.from(
+      `${process.env.SPOTIFY_CLIENT_ID?.trim() || ""}:${process.env.SPOTIFY_CLIENT_SECRET?.trim() || ""}`
+    ).toString("base64");
+    headers.Authorization = `Basic ${credentials}`;
+    body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: connection.refresh_token,
+    });
+  } else if (connection.platform === "tiktok") {
+    tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/";
+    body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: connection.refresh_token,
+      client_key: process.env.TIKTOK_CLIENT_KEY?.trim() || "",
+      client_secret: process.env.TIKTOK_CLIENT_SECRET?.trim() || "",
+    });
+  } else if (connection.platform === "linkedin") {
+    tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken";
+    body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: connection.refresh_token,
+      client_id: process.env.LINKEDIN_CLIENT_ID?.trim() || "",
+      client_secret: process.env.LINKEDIN_CLIENT_SECRET?.trim() || "",
+    });
+  } else {
+    return connection.access_token || "";
+  }
+
+  const res = await fetch(tokenUrl, { method: "POST", headers, body });
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    throw new Error(`Nie udało się odświeżyć tokenu ${connection.platform}: ${data.error_description || data.error || res.status}`);
+  }
+
+  const nextToken = data.access_token as string;
+  const nextRefresh = (data.refresh_token as string | undefined) || connection.refresh_token;
+  const expiresAt = data.expires_in
+    ? new Date(Date.now() + Number(data.expires_in) * 1000).toISOString()
+    : connection.token_expires_at || null;
+
+  const { error } = await supabase
+    .schema("contentiq")
+    .from("platform_connections")
+    .update({
+      access_token: nextToken,
+      refresh_token: nextRefresh,
+      token_expires_at: expiresAt,
+    })
+    .eq("id", connection.id);
+
+  if (error) throw new Error(error.message);
+
+  connection.access_token = nextToken;
+  connection.refresh_token = nextRefresh;
+  connection.token_expires_at = expiresAt;
+  return nextToken;
+}
 
 function summarizeSyncedPosts(posts: Record<string, unknown>[]) {
   const totalReach = posts.reduce((sum, post) => sum + toNumber(post.reach ?? post.impressions), 0);
@@ -287,8 +388,8 @@ function summarizeSyncedPosts(posts: Record<string, unknown>[]) {
   };
 }
 
-async function fetchPlatformPosts(connection: SyncConnection): Promise<Record<string, unknown>[]> {
-  const token = connection.access_token || "";
+async function fetchPlatformPosts(supabase: SupabaseClient, connection: SyncConnection): Promise<Record<string, unknown>[]> {
+  const token = await refreshAccessToken(supabase, connection);
   const accountId = connection.account_id || "";
 
   switch (connection.platform) {
@@ -328,7 +429,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
     throw new Error(`Unsupported platform: ${connection.platform}`);
   }
 
-  const posts = await fetchPlatformPosts(connection);
+  const posts = await fetchPlatformPosts(supabase, connection);
 
   const { error: deleteError } = await supabase
     .schema("contentiq")
@@ -411,7 +512,7 @@ export async function POST(req: NextRequest) {
     const { data: connections, error } = await supabase
       .schema("contentiq")
       .from("platform_connections")
-      .select("id, platform, account_id, access_token, connected")
+      .select("id, platform, account_id, access_token, refresh_token, token_expires_at, connected")
       .eq("workspace_id", body.workspace_id)
       .eq("connected", true);
 
@@ -454,7 +555,7 @@ export async function POST(req: NextRequest) {
   const { data: connection, error: fetchError } = await supabase
     .schema("contentiq")
     .from("platform_connections")
-    .select("id, platform, account_id, access_token, connected")
+    .select("id, platform, account_id, access_token, refresh_token, token_expires_at, connected")
     .eq("id", body.connection_id)
     .eq("platform", body.platform)
     .eq("connected", true)
