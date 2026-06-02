@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ContentStudio from "@/app/components/ContentStudio";
 import Schedule from "@/app/components/Schedule";
+import BrandVoice from "@/app/components/BrandVoice";
+import AIChat from "@/app/components/AIChat";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -24,6 +26,8 @@ type TabId =
   | "compare"
   | "calendar"
   | "studio"
+  | "brand"
+  | "chat"
   | "integrations"
   | "settings";
 
@@ -129,6 +133,8 @@ const NAV_TABS: NavTab[] = [
   { id: "compare", label: "Porównanie contentu", icon: "⊞" },
   { id: "calendar", label: "Harmonogram", icon: "◷" },
   { id: "studio", label: "Content Studio", icon: "✦" },
+  { id: "brand", label: "Brand Voice", icon: "BV" },
+  { id: "chat", label: "AI Chat", icon: "AI" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
   { id: "settings", label: "Ustawienia", icon: "◎" },
 ];
@@ -1086,6 +1092,14 @@ export default function AppWorkspacePage() {
             )}
 
             {/* ================= SZCZEGÓŁY KONTA ================= */}
+            {activeTab === "brand" && (
+              <BrandVoice dark={dark} workspaceId={workspaceId} />
+            )}
+
+            {activeTab === "chat" && (
+              <AIChat dark={dark} workspaceId={workspaceId} />
+            )}
+
             {activeTab === "accounts" && activeAccount && (
               <div>
                 <button
