@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 // app/components/BrandVoice.tsx
-// Ustawienia Brand Voice â€” ton, styl, grupa docelowa, sĹ‚owa klucze
+// Ustawienia Brand Voice — ton, styl, grupa docelowa, słowa klucze
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -18,8 +18,8 @@ interface BrandVoiceData {
   cta_style: string;
 }
 
-const TONE_OPTIONS = ["Ekspercki", "LuĹşny / przyjazny", "Narracyjny", "Motywacyjny", "Profesjonalny B2B", "Edukacyjny", "Humorystyczny"];
-const STYLE_OPTIONS = ["KrĂłtkie posty z hakami", "DĹ‚ugie artykuĹ‚y eksperckie", "Storytelling", "Listy i poradniki", "Case studies", "Behind the scenes", "Dane i statystyki"];
+const TONE_OPTIONS = ["Ekspercki", "Luźny / przyjazny", "Narracyjny", "Motywacyjny", "Profesjonalny B2B", "Edukacyjny", "Humorystyczny"];
+const STYLE_OPTIONS = ["Krótkie posty z hakami", "Długie artykuły eksperckie", "Storytelling", "Listy i poradniki", "Case studies", "Behind the scenes", "Dane i statystyki"];
 
 const EMPTY: BrandVoiceData = {
   tone: "",
@@ -135,7 +135,7 @@ export default function BrandVoice({
   } as React.CSSProperties);
 
   if (loading) return (
-    <div style={{ textAlign: "center", padding: 60, color: css.muted, fontSize: 13 }}>Ĺadowanie Brand Voice...</div>
+    <div style={{ textAlign: "center", padding: 60, color: css.muted, fontSize: 13 }}>Ładowanie Brand Voice...</div>
   );
 
   return (
@@ -155,10 +155,10 @@ export default function BrandVoice({
 
       {/* Header */}
       <div style={{ marginBottom: 28 }} className="fade">
-        <div style={{ fontSize: 10, fontWeight: 700, color: css.accent, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>âś¦ AI Personalizacja</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: css.accent, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>✦ AI Personalizacja</div>
         <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, fontWeight: 400, color: css.text, marginBottom: 8, letterSpacing: "-0.02em" }}>Brand Voice</h2>
         <p style={{ fontSize: 13, color: css.muted, lineHeight: 1.7 }}>
-          Opisz styl swojej marki â€” AI bÄ™dzie automatycznie uwzglÄ™dniaÄ‡ te ustawienia podczas generowania treĹ›ci w Content Studio.
+          Opisz styl swojej marki — AI będzie automatycznie uwzględniać te ustawienia podczas generowania treści w Content Studio.
         </p>
       </div>
 
@@ -176,12 +176,12 @@ export default function BrandVoice({
               </button>
             ))}
           </div>
-          {data.tone === "" && <div style={{ fontSize: 11, color: css.muted, marginTop: 8 }}>Nie wybrano â€” AI uĹĽyje domyĹ›lnego tonu</div>}
+          {data.tone === "" && <div style={{ fontSize: 11, color: css.muted, marginTop: 8 }}>Nie wybrano — AI użyje domyślnego tonu</div>}
         </div>
 
-        {/* Styl treĹ›ci */}
+        {/* Styl treści */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color={css.accent}>Preferowany styl treĹ›ci</Label>
+          <Label color={css.accent}>Preferowany styl treści</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {STYLE_OPTIONS.map(s => (
               <button key={s} className="bv-option bv-btn"
@@ -199,47 +199,47 @@ export default function BrandVoice({
           <textarea className="bv-input"
             value={data.target_audience}
             onChange={e => setData(d => ({ ...d, target_audience: e.target.value }))}
-            placeholder="np. PrzedsiÄ™biorcy i managerowie 30-45 lat, zainteresowani AI, marketingiem i automatyzacjÄ… biznesu. ProwadzÄ… firmy 5-50 osĂłb."
+            placeholder="np. Przedsiębiorcy i managerowie 30-45 lat, zainteresowani AI, marketingiem i automatyzacją biznesu. Prowadzą firmy 5-50 osób."
             rows={3}
             style={{ ...inputStyle, resize: "vertical" }} />
         </div>
 
-        {/* WartoĹ›ci marki */}
+        {/* Wartości marki */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color={css.accent}>WartoĹ›ci i DNA marki</Label>
+          <Label color={css.accent}>Wartości i DNA marki</Label>
           <textarea className="bv-input"
             value={data.brand_values}
             onChange={e => setData(d => ({ ...d, brand_values: e.target.value }))}
-            placeholder="np. AutentycznoĹ›Ä‡, praktycznoĹ›Ä‡, dzielenie siÄ™ wiedzÄ…. Nie sprzedajemy â€” edukujemy. Pokazujemy zakulisowo jak budujemy firmÄ™."
+            placeholder="np. Autentyczność, praktyczność, dzielenie się wiedzą. Nie sprzedajemy — edukujemy. Pokazujemy zakulisowo jak budujemy firmę."
             rows={3}
             style={{ ...inputStyle, resize: "vertical" }} />
         </div>
 
         {/* CTA style */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color={css.accent}>Styl CTA (wezwanie do dziaĹ‚ania)</Label>
+          <Label color={css.accent}>Styl CTA (wezwanie do działania)</Label>
           <input className="bv-input"
             value={data.cta_style}
             onChange={e => setData(d => ({ ...d, cta_style: e.target.value }))}
-            placeholder='np. "Napisz mi w komentarzu", "Zapisz post", "Obserwuj ĹĽeby nie przegapiÄ‡ kolejnych"'
+            placeholder='np. "Napisz mi w komentarzu", "Zapisz post", "Obserwuj żeby nie przegapić kolejnych"'
             style={inputStyle} />
         </div>
 
-        {/* SĹ‚owa klucze */}
+        {/* Słowa klucze */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color="#22c55e">SĹ‚owa i frazy ktĂłre lubisz uĹĽywaÄ‡</Label>
+          <Label color="#22c55e">Słowa i frazy które lubisz używać</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
             {data.keywords.map((k, i) => (
               <span key={i} style={tagStyle("#22c55e")}>
                 {k}
-                <button onClick={() => removeTag("keywords", i)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>âś•</button>
+                <button onClick={() => removeTag("keywords", i)} style={{ background: "none", border: "none", color: "#22c55e", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
               </span>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input className="bv-input" value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addTag("keywords", newKeyword, setNewKeyword)}
-              placeholder='np. "growth mindset", "automatyzacja", "real talk" â€” Enter ĹĽeby dodaÄ‡'
+              placeholder='np. "growth mindset", "automatyzacja", "real talk" — Enter żeby dodać'
               style={{ ...inputStyle, flex: 1 }} />
             <button className="bv-btn" onClick={() => addTag("keywords", newKeyword, setNewKeyword)}
               style={{ padding: "10px 14px", borderRadius: 10, background: "#22c55e20", border: "1px solid #22c55e40", color: "#22c55e", fontSize: 12, fontWeight: 600 }}>
@@ -248,21 +248,21 @@ export default function BrandVoice({
           </div>
         </div>
 
-        {/* SĹ‚owa do unikania */}
+        {/* Słowa do unikania */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color="#ef4444">SĹ‚owa i frazy ktĂłrych unikasz</Label>
+          <Label color="#ef4444">Słowa i frazy których unikasz</Label>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
             {data.avoid_words.map((k, i) => (
               <span key={i} style={tagStyle("#ef4444")}>
                 {k}
-                <button onClick={() => removeTag("avoid_words", i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>âś•</button>
+                <button onClick={() => removeTag("avoid_words", i)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
               </span>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input className="bv-input" value={newAvoid} onChange={e => setNewAvoid(e.target.value)}
               onKeyDown={e => e.key === "Enter" && addTag("avoid_words", newAvoid, setNewAvoid)}
-              placeholder='np. "synergii", "ekosystem", "wdraĹĽamy" â€” Enter ĹĽeby dodaÄ‡'
+              placeholder='np. "synergii", "ekosystem", "wdrażamy" — Enter żeby dodać'
               style={{ ...inputStyle, flex: 1 }} />
             <button className="bv-btn" onClick={() => addTag("avoid_words", newAvoid, setNewAvoid)}
               style={{ padding: "10px 14px", borderRadius: 10, background: "#ef444420", border: "1px solid #ef444440", color: "#ef4444", fontSize: 12, fontWeight: 600 }}>
@@ -271,11 +271,11 @@ export default function BrandVoice({
           </div>
         </div>
 
-        {/* PrzykĹ‚ady postĂłw */}
+        {/* Przykłady postów */}
         <div className="fade" style={{ padding: 20, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
-          <Label color={css.accent}>PrzykĹ‚ady Twoich najlepszych postĂłw</Label>
+          <Label color={css.accent}>Przykłady Twoich najlepszych postów</Label>
           <p style={{ fontSize: 12, color: css.muted, marginBottom: 12, lineHeight: 1.6 }}>
-            Wklej treĹ›Ä‡ postĂłw ktĂłre najbardziej Ci siÄ™ udaĹ‚y. AI bÄ™dzie siÄ™ wzorowaÄ‡ na tym stylu.
+            Wklej treść postów które najbardziej Ci się udały. AI będzie się wzorować na tym stylu.
           </p>
           {data.example_posts.map((ex, i) => (
             <div key={i} style={{ position: "relative", marginBottom: 8 }}>
@@ -283,18 +283,18 @@ export default function BrandVoice({
                 {ex.slice(0, 200)}{ex.length > 200 ? "..." : ""}
               </div>
               <button onClick={() => removeExample(i)}
-                style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>âś•</button>
+                style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14 }}>✕</button>
             </div>
           ))}
           {data.example_posts.length < 5 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <textarea className="bv-input" value={newExample} onChange={e => setNewExample(e.target.value)}
-                placeholder="Wklej treĹ›Ä‡ przykĹ‚adowego posta..."
+                placeholder="Wklej treść przykładowego posta..."
                 rows={4}
                 style={{ ...inputStyle, resize: "vertical" }} />
               <button className="bv-btn" onClick={addExample} disabled={!newExample.trim()}
                 style={{ padding: "9px", borderRadius: 10, background: css.accent + "20", border: `1px solid ${css.accent}40`, color: css.accent, fontSize: 12, fontWeight: 600, opacity: !newExample.trim() ? 0.5 : 1 }}>
-                + Dodaj przykĹ‚ad ({data.example_posts.length}/5)
+                + Dodaj przykład ({data.example_posts.length}/5)
               </button>
             </div>
           )}
@@ -303,12 +303,12 @@ export default function BrandVoice({
         {/* Save button */}
         <button className="bv-btn fade" onClick={save} disabled={saving}
           style={{ padding: "14px", borderRadius: 14, background: saved ? "#22c55e" : dark ? "#fff" : "#0f172a", color: saved ? "#fff" : dark ? "#0f172a" : "#fff", border: "none", fontSize: 14, fontWeight: 800, opacity: saving ? 0.6 : 1 }}>
-          {saving ? "ZapisujÄ™..." : saved ? "âś“ Brand Voice zapisany" : "Zapisz Brand Voice"}
+          {saving ? "Zapisuję..." : saved ? "✓ Brand Voice zapisany" : "Zapisz Brand Voice"}
         </button>
 
         {saved && (
           <div style={{ padding: "12px 16px", borderRadius: 10, background: "#052e16", border: "1px solid #166534", color: "#22c55e", fontSize: 13 }}>
-            âś“ Brand Voice zapisany â€” Content Studio bÄ™dzie teraz uwzglÄ™dniaÄ‡ TwĂłj styl przy kaĹĽdym generowaniu treĹ›ci.
+            ✓ Brand Voice zapisany — Content Studio będzie teraz uwzględniać Twój styl przy każdym generowaniu treści.
           </div>
         )}
         {error && (

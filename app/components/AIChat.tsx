@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 // app/components/AIChat.tsx
-// AI Chat ktĂłry zna dane z Supabase â€” posty, wyniki, brand voice
+// AI Chat który zna dane z Supabase — posty, wyniki, brand voice
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -13,12 +13,12 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-  "Dlaczego moje ostatnie posty majÄ… niski zasiÄ™g?",
-  "Jakie formaty treĹ›ci dziaĹ‚ajÄ… u mnie najlepiej?",
-  "Zaproponuj 5 tematĂłw na nastÄ™pny tydzieĹ„",
-  "KtĂłry kanaĹ‚ powinienem teraz rozwijaÄ‡ najbardziej?",
-  "Jak poprawiÄ‡ mĂłj hook ĹĽeby zatrzymaĹ‚ uwagÄ™?",
-  "PorĂłwnaj moje wyniki z ostatniego miesiÄ…ca",
+  "Dlaczego moje ostatnie posty mają niski zasięg?",
+  "Jakie formaty treści działają u mnie najlepiej?",
+  "Zaproponuj 5 tematów na następny tydzień",
+  "Który kanał powinienem teraz rozwijać najbardziej?",
+  "Jak poprawić mój hook żeby zatrzymał uwagę?",
+  "Porównaj moje wyniki z ostatniego miesiąca",
 ];
 
 export default function AIChat({
@@ -59,19 +59,19 @@ export default function AIChat({
       const ctx = `
 WORKSPACE: ${ws.name}
 
-PODĹÄ„CZONE PLATFORMY:
+PODŁĄCZONE PLATFORMY:
 ${(connections || []).map(c => `- ${c.platform}: ${c.account_name} (ostatni sync: ${c.last_synced_at ? new Date(c.last_synced_at).toLocaleDateString("pl") : "nigdy"})`).join("\n")}
 
-OSTATNIE POSTY (${(posts || []).length} rekordĂłw):
-${(posts || []).slice(0, 15).map(p => `- [${p.post_type || "post"}] "${p.title?.slice(0, 60) || "bez tytuĹ‚u"}" | reach: ${p.reach || 0} | likes: ${p.likes || 0} | comments: ${p.comments || 0} | AI score: ${p.ai_score || 0} | data: ${p.published_at ? new Date(p.published_at).toLocaleDateString("pl") : "?"}`).join("\n")}
+OSTATNIE POSTY (${(posts || []).length} rekordów):
+${(posts || []).slice(0, 15).map(p => `- [${p.post_type || "post"}] "${p.title?.slice(0, 60) || "bez tytułu"}" | reach: ${p.reach || 0} | likes: ${p.likes || 0} | comments: ${p.comments || 0} | AI score: ${p.ai_score || 0} | data: ${p.published_at ? new Date(p.published_at).toLocaleDateString("pl") : "?"}`).join("\n")}
 
 ${bv.data ? `BRAND VOICE:
-- Ton: ${bv.data.tone || "nieokreĹ›lony"}
-- Styl: ${bv.data.style || "nieokreĹ›lony"}
-- Grupa docelowa: ${bv.data.target_audience || "nieokreĹ›lona"}
-- WartoĹ›ci marki: ${bv.data.brand_values || "nieokreĹ›lone"}
-- SĹ‚owa klucze: ${(bv.data.keywords || []).join(", ") || "brak"}
-- Unikane sĹ‚owa: ${(bv.data.avoid_words || []).join(", ") || "brak"}` : "BRAND VOICE: Nie skonfigurowany"}
+- Ton: ${bv.data.tone || "nieokreślony"}
+- Styl: ${bv.data.style || "nieokreślony"}
+- Grupa docelowa: ${bv.data.target_audience || "nieokreślona"}
+- Wartości marki: ${bv.data.brand_values || "nieokreślone"}
+- Słowa klucze: ${(bv.data.keywords || []).join(", ") || "brak"}
+- Unikane słowa: ${(bv.data.avoid_words || []).join(", ") || "brak"}` : "BRAND VOICE: Nie skonfigurowany"}
 
 OSTATNIE SZKICE (${(drafts || []).length}):
 ${(drafts || []).map(d => `- "${d.title}" [${d.content_type || "?"}] status: ${d.status} | AI score: ${d.ai_score || 0}`).join("\n")}
@@ -89,7 +89,7 @@ ${(drafts || []).map(d => `- "${d.title}" [${d.content_type || "?"}] status: ${d
     loadContext();
     setMessages([{
       role: "assistant",
-      content: "CzeĹ›Ä‡! Jestem Twoim AI asystentem ContentIQ. Znam Twoje posty, wyniki i Brand Voice. MoĹĽesz mnie zapytaÄ‡ o analizÄ™ wynikĂłw, pomysĹ‚y na content, porĂłwnanie platform lub co tylko chcesz wiedzieÄ‡ o swojej strategii contentowej.",
+      content: "Cześć! Jestem Twoim AI asystentem ContentIQ. Znam Twoje posty, wyniki i Brand Voice. Możesz mnie zapytać o analizę wyników, pomysły na content, porównanie platform lub co tylko chcesz wiedzieć o swojej strategii contentowej.",
       ts: Date.now(),
     }]);
   }, [workspaceId]);
@@ -172,17 +172,17 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
       {/* Header */}
       <div style={{ padding: "0 0 16px", borderBottom: `1px solid ${css.border}`, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>âś¦</div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: css.text }}>AI Asystent ContentIQ</div>
             <div style={{ fontSize: 11, color: contextLoaded ? "#22c55e" : css.muted }}>
-              {contextLoaded ? `âś“ Zna Twoje dane (${context.split("\n").length} linii kontekstu)` : "Ĺadowanie danych..."}
+              {contextLoaded ? `✓ Zna Twoje dane (${context.split("\n").length} linii kontekstu)` : "Ładowanie danych..."}
             </div>
           </div>
         </div>
         <button className="ai-btn" onClick={() => setMessages([{
           role: "assistant",
-          content: "Nowa rozmowa rozpoczÄ™ta. W czym mogÄ™ pomĂłc?",
+          content: "Nowa rozmowa rozpoczęta. W czym mogę pomóc?",
           ts: Date.now(),
         }])}
           style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, fontSize: 11 }}>
@@ -210,7 +210,7 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
         {messages.map((msg, i) => (
           <div key={i} className="msg" style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
             {msg.role === "assistant" && (
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, marginTop: 2 }}>âś¦</div>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, marginTop: 2 }}>✦</div>
             )}
             <div style={{
               maxWidth: "75%", padding: "12px 14px", borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
@@ -228,7 +228,7 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
 
         {loading && (
           <div className="msg" style={{ display: "flex", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>âś¦</div>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>✦</div>
             <div style={{ padding: "14px 16px", borderRadius: "14px 14px 14px 4px", background: css.surface, border: `1px solid ${css.border}`, display: "flex", gap: 4, alignItems: "center" }}>
               {[0,1,2].map(i => (
                 <div key={i} className="dot" style={{ width: 6, height: 6, borderRadius: "50%", background: css.accent, animationDelay: `${i*0.2}s` }} />
@@ -248,7 +248,7 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Zapytaj o swoje wyniki, poproĹ› o pomysĹ‚y na content, analizÄ™ strategii... (Enter = wyĹ›lij, Shift+Enter = nowa linia)"
+            placeholder="Zapytaj o swoje wyniki, poproś o pomysły na content, analizę strategii... (Enter = wyślij, Shift+Enter = nowa linia)"
             rows={2}
             style={{ flex: 1, padding: "11px 14px", borderRadius: 12, border: `1px solid ${css.border}`, background: css.surface, color: css.text, fontSize: 13, lineHeight: 1.6 }}
             onFocus={e => e.target.style.borderColor = css.accent}
@@ -256,11 +256,11 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
           />
           <button className="ai-btn" onClick={() => send()} disabled={loading || !input.trim()}
             style={{ padding: "11px 18px", borderRadius: 12, background: dark ? "#fff" : "#0f172a", color: dark ? "#0f172a" : "#fff", border: "none", fontSize: 13, fontWeight: 800, opacity: loading || !input.trim() ? 0.4 : 1, flexShrink: 0 }}>
-            âś¦ WyĹ›lij
+            ✦ Wyślij
           </button>
         </div>
         <div style={{ fontSize: 10, color: css.muted, marginTop: 6, textAlign: "center" }}>
-          AI ma dostÄ™p do Twoich postĂłw i wynikĂłw z Supabase â€” odpowiedzi bazujÄ… na realnych danych
+          AI ma dostęp do Twoich postów i wyników z Supabase — odpowiedzi bazują na realnych danych
         </div>
       </div>
     </div>
