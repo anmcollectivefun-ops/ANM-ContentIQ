@@ -633,138 +633,6 @@ function ScheduleModal({
   );
 }
 
-function TemplateLibrary({
-  workspaceId,
-  css,
-  onUseTemplate,
-  refreshKey,
-}: {
-  workspaceId: string;
-  css: Record<string, string>;
-  onUseTemplate: (template: TemplateDraft) => void;
-  refreshKey: number;
-}) {
-  const supabase = createClient();
-  const [templates, setTemplates] = useState<TemplateDraft[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadTemplates() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const { data: ws, error: wsError } = await supabase
-          .schema("contentiq")
-          .from("workspaces")
-          .select("id")
-          .eq("slug", workspaceId)
-          .single();
-
-        if (wsError || !ws?.id) {
-          if (!cancelled) setTemplates([]);
-          return;
-        }
-
-        const { data, error: listError } = await supabase
-          .schema("contentiq")
-          .from("content_drafts")
-          .select("id,title,body,topic,content_type,target_platforms,ai_score,ai_feedback,created_at")
-          .eq("workspace_id", ws.id)
-          .eq("status", "template")
-          .order("created_at", { ascending: false })
-          .limit(6);
-
-        if (listError) throw new Error(listError.message);
-        if (!cancelled) setTemplates((data || []) as TemplateDraft[]);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadTemplates();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId, refreshKey]);
-
-  return (
-    <div
-      style={{
-        borderRadius: 14,
-        border: `1px solid ${css.border}`,
-        background: css.surface,
-        padding: 14,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-        <div>
-          <SectionLabel color={css.accent}>Biblioteka szablonów</SectionLabel>
-          <div style={{ fontSize: 12, color: css.muted, lineHeight: 1.6 }}>
-            Szablony zapisują samą treść. Media dodajesz dopiero przed zapisem,
-            planowaniem albo publikacją.
-          </div>
-        </div>
-
-        {loading && <span style={{ fontSize: 11, color: css.muted }}>Ładowanie...</span>}
-      </div>
-
-      {error && (
-        <div style={{ marginTop: 10, fontSize: 11, color: "#ef4444" }}>
-          {error}
-        </div>
-      )}
-
-      {!loading && templates.length === 0 && (
-        <div style={{ marginTop: 12, fontSize: 11, color: css.muted }}>
-          Brak szablonów. Wygeneruj treść i kliknij “Zapisz szablon”.
-        </div>
-      )}
-
-      {templates.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-          {templates.map((template) => (
-            <button
-              key={template.id}
-              type="button"
-              onClick={() => onUseTemplate(template)}
-              style={{
-                width: "100%",
-                border: `1px solid ${css.border}`,
-                background: css.bg,
-                color: css.text,
-                borderRadius: 10,
-                padding: "9px 10px",
-                textAlign: "left",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 3 }}>
-                {template.title || "Szablon bez tytułu"}
-              </div>
-
-              <div style={{ fontSize: 10, color: css.muted }}>
-                {template.content_type || "Content"} ·{" "}
-                {safeArray(template.target_platforms).join(", ") || "bez platformy"}
-                {template.ai_score ? ` · AI ${template.ai_score}/100` : ""}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ContentActions({
   generated,
   platform,
@@ -773,7 +641,6 @@ function ContentActions({
   workspaceId,
   css,
   media,
-  onTemplateSaved,
 }: {
   generated: GeneratedContent;
   platform: Platform;
@@ -782,7 +649,6 @@ function ContentActions({
   workspaceId: string;
   css: Record<string, string>;
   media: LocalMediaItem[];
-  onTemplateSaved: () => void;
 }) {
   const supabase = createClient();
 
@@ -958,8 +824,6 @@ function ContentActions({
         });
 
       if (error) throw new Error(error.message);
-
-      onTemplateSaved();
       showToast("✓ Zapisano szablon", "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
@@ -1212,7 +1076,6 @@ export default function ContentStudio({
   const [rawAnswer, setRawAnswer] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
-  const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1354,6 +1217,19 @@ export default function ContentStudio({
     setRawAnswer("");
     setError("");
   }
+
+  useEffect(() => {
+    const rawTemplate = localStorage.getItem("ciq-content-template");
+    if (!rawTemplate) return;
+
+    localStorage.removeItem("ciq-content-template");
+
+    try {
+      useTemplate(JSON.parse(rawTemplate) as TemplateDraft);
+    } catch {
+      setError("Nie udało się wczytać szablonu.");
+    }
+  }, []);
 
   return (
     <div style={rootStyle}>
@@ -1580,13 +1456,6 @@ export default function ContentStudio({
               </div>
             </div>
           )}
-
-          <TemplateLibrary
-            workspaceId={workspaceId}
-            css={css}
-            onUseTemplate={useTemplate}
-            refreshKey={templateRefreshKey}
-          />
 
           <MediaPicker media={media} setMedia={setMedia} css={css} />
 
@@ -1897,7 +1766,6 @@ export default function ContentStudio({
                   workspaceId={workspaceId}
                   css={css}
                   media={media}
-                  onTemplateSaved={() => setTemplateRefreshKey((key) => key + 1)}
                 />
               </div>
 
@@ -2349,3 +2217,5 @@ function ListCard({
     </div>
   );
 }
+
+

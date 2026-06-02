@@ -8,6 +8,7 @@ import ContentStudio from "@/app/components/ContentStudio";
 import Schedule from "@/app/components/Schedule";
 import BrandVoice from "@/app/components/BrandVoice";
 import AIChat from "@/app/components/AIChat";
+import Templates from "@/app/components/Templates";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ type TabId =
   | "compare"
   | "calendar"
   | "studio"
+  | "templates"
   | "brand"
   | "chat"
   | "integrations"
@@ -133,6 +135,7 @@ const NAV_TABS: NavTab[] = [
   { id: "compare", label: "Porównanie contentu", icon: "⊞" },
   { id: "calendar", label: "Harmonogram", icon: "◷" },
   { id: "studio", label: "Content Studio", icon: "✦" },
+  { id: "templates", label: "Szablony", icon: "TPL" },
   { id: "brand", label: "Brand Voice", icon: "BV" },
   { id: "chat", label: "AI Chat", icon: "AI" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
@@ -1596,6 +1599,46 @@ export default function AppWorkspacePage() {
                 </div>
 
                 <ContentStudio dark={dark} workspaceId={workspaceId} />
+              </div>
+            )}
+
+            {/* ================= SZABLONY ================= */}
+            {activeTab === "templates" && (
+              <div>
+                <div
+                  style={{
+                    ...st.panel,
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    marginBottom: 18,
+                  }}
+                >
+                  <p style={{ ...st.smallLabel, color: css.accent }}>
+                    Szablony contentu
+                  </p>
+
+                  <h2
+                    style={{
+                      ...st.sectionTitle,
+                      color: css.text,
+                      fontFamily: "'DM Serif Display', serif",
+                    }}
+                  >
+                    Gotowe szablony pod social media
+                  </h2>
+
+                  <p style={{ ...st.sectionText, color: css.muted }}>
+                    Tutaj trzymasz treści zapisane jako szablon. Media dodajesz
+                    dopiero w Content Studio przed zapisem, planowaniem albo
+                    publikacją.
+                  </p>
+                </div>
+
+                <Templates
+                  dark={dark}
+                  workspaceId={workspaceId}
+                  onOpenStudio={() => setActiveTab("studio")}
+                />
               </div>
             )}
 
