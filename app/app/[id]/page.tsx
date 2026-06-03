@@ -10,6 +10,7 @@ import BrandVoice from "@/app/components/BrandVoice";
 import AIChat from "@/app/components/AIChat";
 import Templates from "@/app/components/Templates";
 import AIPartner from "@/app/components/AIPartner";
+import { calculatePerformanceScore } from "@/lib/performanceScore";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -275,7 +276,7 @@ function mapDbPost(post: DbPost): Post {
     title: post.title || post.content?.slice(0, 80) || "Publikacja bez tytułu",
     date: formatDbDate(post.published_at || post.fetched_at),
     type: post.post_type || "Post",
-    score: post.ai_score ?? 0,
+    score: calculatePerformanceScore(post),
     reach: String(reachValue),
     likes: post.likes ?? 0,
     comments: post.comments ?? 0,

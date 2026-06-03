@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { calculatePerformanceScore, getMetricEngagement, getMetricReach } from "@/lib/performanceScore";
 
 // ─── TYPY ────────────────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ interface DbPost {
   comments: number | null;
   shares: number | null;
   saves: number | null;
+  clicks: number | null;
   ai_score: number | null;
 }
 
@@ -118,21 +120,15 @@ function zeroAccount(account: AccountData, connected: boolean, handle: string, l
 }
 
 function getPostReach(post: DbPost) {
-  return post.reach ?? post.impressions ?? 0;
+  return getMetricReach(post);
 }
 
 function getPostEngagement(post: DbPost) {
-  return (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0) + (post.saves ?? 0);
+  return getMetricEngagement(post);
 }
 
 function scorePost(post: DbPost) {
-  if (post.ai_score && post.ai_score > 0) return post.ai_score;
-
-  const reach = getPostReach(post);
-  const engagement = getPostEngagement(post);
-  if (reach <= 0) return engagement > 0 ? 50 : 0;
-
-  return Math.max(1, Math.min(100, Math.round((engagement / reach) * 1000)));
+  return calculatePerformanceScore(post);
 }
 
 function buildWeeklyReach(posts: DbPost[]) {
@@ -353,7 +349,7 @@ export default function DashboardPage() {
             supabase
               .schema("contentiq")
               .from("posts")
-              .select("connection_id, post_type, published_at, fetched_at, reach, impressions, likes, comments, shares, saves, ai_score")
+              .select("connection_id, post_type, published_at, fetched_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score")
               .in("connection_id", connectionIds)
               .then(({ data: postRows, error: postsError }) => {
                 if (postsError) {

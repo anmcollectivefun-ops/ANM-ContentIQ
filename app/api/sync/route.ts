@@ -2,6 +2,7 @@
  
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { calculatePerformanceScore, getMetricEngagement, getMetricReach } from "@/lib/performanceScore";
  
 const SYNCABLE_PLATFORMS = new Set([
   "instagram", "facebook", "linkedin", "tiktok", "youtube", "blog", "spotify",
@@ -22,22 +23,8 @@ function ensureAccountId(platform: string, accountId: string | null) {
   }
 }
 
-function toNumber(value: unknown) {
-  const parsed = Number(value || 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
 function estimateScore(post: Record<string, unknown>) {
-  const reach = toNumber(post.reach ?? post.impressions);
-  const engagement =
-    toNumber(post.likes) +
-    toNumber(post.comments) +
-    toNumber(post.shares) +
-    toNumber(post.saves) +
-    toNumber(post.clicks);
-
-  if (reach <= 0) return engagement > 0 ? 50 : 0;
-  return Math.max(1, Math.min(100, Math.round((engagement / reach) * 1000)));
+  return calculatePerformanceScore(post);
 }
  
 // ─── FETCHERS ────────────────────────────────────────────────────────────────
@@ -367,17 +354,8 @@ async function refreshAccessToken(supabase: SupabaseClient, connection: SyncConn
 }
 
 function summarizeSyncedPosts(posts: Record<string, unknown>[]) {
-  const totalReach = posts.reduce((sum, post) => sum + toNumber(post.reach ?? post.impressions), 0);
-  const totalEngagement = posts.reduce(
-    (sum, post) =>
-      sum +
-      toNumber(post.likes) +
-      toNumber(post.comments) +
-      toNumber(post.shares) +
-      toNumber(post.saves) +
-      toNumber(post.clicks),
-    0
-  );
+  const totalReach = posts.reduce((sum, post) => sum + getMetricReach(post), 0);
+  const totalEngagement = posts.reduce((sum, post) => sum + getMetricEngagement(post), 0);
   const scores = posts.map(estimateScore).filter((score) => score > 0);
 
   return {
@@ -444,7 +422,7 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
       ...post,
       connection_id: connection.id,
       ai_score: estimateScore(post),
-      ai_summary: "Wynik liczony automatycznie z metryk pobranych przez API.",
+      ai_summary: "Wynik liczony z miksu zasięgu, reakcji i współczynnika zaangażowania.",
       fetched_at: new Date().toISOString(),
     }));
 
