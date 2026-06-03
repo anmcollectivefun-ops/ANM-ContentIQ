@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="220" fill="#FFF8E7"/>
+  <circle cx="512" cy="512" r="362" fill="#FFFFFF" stroke="#C9A24E" stroke-width="32"/>
+  <circle cx="512" cy="512" r="292" fill="#FFFDF7" stroke="#E7C879" stroke-width="10"/>
+  <path d="M323 681C366 596 404 506 427 410C434 379 458 354 490 350C531 345 566 373 573 413C584 477 606 535 640 589C664 627 697 662 736 681" stroke="#C9A24E" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M393 682H721" stroke="#C9A24E" stroke-width="32" stroke-linecap="round"/>
+  <path d="M496 341C496 285 532 240 577 240C621 240 657 285 657 341C657 397 621 442 577 442C532 442 496 397 496 341Z" fill="#FFFFFF" stroke="#C9A24E" stroke-width="28"/>
+  <path d="M282 433C237 418 204 383 192 338C232 351 264 375 286 410C309 370 344 343 389 329C377 380 343 419 282 433Z" fill="#FFFFFF" stroke="#C9A24E" stroke-width="22" stroke-linejoin="round"/>
+  <text x="512" y="799" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="132" font-weight="800" fill="#111827">IQ</text>
+</svg>

@@ -1,4 +1,5 @@
 // app/privacy/page.tsx
+import { LegalBrandHeader } from "@/app/components/LegalBrandHeader";
 
 export const metadata = {
   title: "Polityka Prywatności — ANM ContentIQ",
@@ -170,6 +171,86 @@ export default function PrivacyPage() {
           margin-top: 34px;
         }
 
+        .legal-brand {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          margin-bottom: 22px;
+        }
+
+        .legal-brand__identity {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          color: #0f172a;
+          text-decoration: none;
+        }
+
+        .legal-brand__identity:hover {
+          text-decoration: none;
+        }
+
+        .legal-brand__icon {
+          width: 52px;
+          height: 52px;
+          border-radius: 14px;
+          box-shadow: 0 10px 24px rgba(201, 162, 78, 0.2);
+        }
+
+        .legal-brand__identity strong {
+          display: block;
+          font-size: 18px;
+          color: #0f172a;
+          line-height: 1.1;
+        }
+
+        .legal-brand__identity small {
+          display: block;
+          margin-top: 4px;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .legal-brand__nav {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 12px;
+        }
+
+        .legal-brand__nav a,
+        .footer-links a {
+          display: inline-flex;
+          align-items: center;
+          min-height: 34px;
+          color: #0f172a;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 999px;
+          padding: 6px 12px;
+          font-size: 13px;
+          font-weight: 800;
+          text-decoration: none;
+        }
+
+        .legal-brand__nav a:hover,
+        .footer-links a:hover {
+          border-color: #c9a24e;
+          color: #8a6a19;
+          text-decoration: none;
+        }
+
+        .footer-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 22px;
+        }
+
         @media (max-width: 720px) {
           main {
             padding: 42px 18px 80px !important;
@@ -182,8 +263,19 @@ export default function PrivacyPage() {
           .data-grid {
             grid-template-columns: 1fr;
           }
+
+          .legal-brand {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .legal-brand__nav {
+            justify-content: flex-start;
+          }
         }
       `}</style>
+
+      <LegalBrandHeader />
 
       <section className="card">
         <div className="chip">Ostatnia aktualizacja: 31 maja 2026</div>
@@ -689,6 +781,12 @@ export default function PrivacyPage() {
             anmcollective.pl
           </a>
         </p>
+
+        <div className="footer-links" aria-label="Najważniejsze linki ANM ContentIQ">
+          <a href={company.appUrl}>ANM ContentIQ</a>
+          <a href={`${company.appUrl}/privacy`}>Polityka prywatności</a>
+          <a href={`${company.appUrl}/terms`}>Regulamin</a>
+        </div>
       </section>
     </main>
   );

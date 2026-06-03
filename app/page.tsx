@@ -44,9 +44,12 @@ export default function LandingPage() {
       {/* ================= NAVBAR ================= */}
       <header className="border-b border-white/10 bg-[#070816]/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <div>
-            <p className="text-xl font-bold tracking-tight">ANM ContentIQ</p>
-            <p className="text-xs text-white/50">AI Content Intelligence Platform</p>
+          <div className="flex items-center gap-3">
+            <img src="/app-icon.svg" alt="ANM ContentIQ app icon" className="h-11 w-11 rounded-xl" />
+            <div>
+              <p className="text-xl font-bold tracking-tight">ANM ContentIQ</p>
+              <p className="text-xs text-white/50">AI Content Intelligence Platform</p>
+            </div>
           </div>
 
           <nav className="hidden items-center gap-6 text-sm text-white/70 md:flex">
@@ -196,8 +199,12 @@ export default function LandingPage() {
       </section>
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-6 py-8 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
-        <span>ANM ContentIQ</span>
+        <span className="flex items-center gap-3">
+          <img src="/app-icon.svg" alt="ANM ContentIQ app icon" className="h-9 w-9 rounded-lg" />
+          ANM ContentIQ
+        </span>
         <div className="flex gap-5">
+          <Link href="/" className="hover:text-white">Strona główna</Link>
           <Link href="/privacy" className="hover:text-white">Polityka prywatności</Link>
           <Link href="/terms" className="hover:text-white">Regulamin</Link>
         </div>
