@@ -11,27 +11,27 @@ const PLATFORM_CONFIG: Record<string, {
   instagram: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "pages_read_engagement,pages_show_list",
+    scope: "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_show_list,pages_manage_posts",
   },
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "pages_read_engagement,pages_show_list",
+    scope: "pages_read_engagement,pages_show_list,pages_manage_posts",
   },
   linkedin: {
     authUrl: "https://www.linkedin.com/oauth/v2/authorization",
     clientIdEnv: "LINKEDIN_CLIENT_ID",
-    scope: "openid profile email w_member_social",
+    scope: "openid profile email r_member_social w_member_social r_organization_social w_organization_social",
   },
   tiktok: {
     authUrl: "https://www.tiktok.com/v2/auth/authorize/",
     clientIdEnv: "TIKTOK_CLIENT_KEY",
-    scope: "user.info.basic",
+    scope: "user.info.basic,video.list,video.upload,video.publish",
   },
   youtube: {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     clientIdEnv: "GOOGLE_CLIENT_ID",
-    scope: "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly",
+    scope: "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/youtube.upload",
     extraParams: { access_type: "offline", prompt: "consent" },
   },
   spotify: {

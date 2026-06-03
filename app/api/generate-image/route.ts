@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     const apiKey =
-      body.providerMode === "own"
+      body.providerMode === "own" && body.userApiKey
         ? body.userApiKey
         : process.env.GOOGLE_GENAI_API_KEY;
 
@@ -68,7 +68,7 @@ Wymagania:
 `.trim();
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image",
+      model: "gemini-2.5-flash-image",
       contents: finalPrompt,
       config: {
         responseModalities: ["TEXT", "IMAGE"],
@@ -115,7 +115,7 @@ Wymagania:
     return NextResponse.json({
       ok: true,
       provider: "google",
-      model: "gemini-3.1-flash-image",
+      model: "gemini-2.5-flash-image",
       aspectRatio,
       text,
       images,

@@ -42,6 +42,21 @@ type DraftImageResult = {
   format: CreativeFormat;
   style: CreativeStyle;
   providerMode: ProviderMode;
+  generatedImageUrl?: string;
+  generatedImageMimeType?: string;
+  generationText?: string;
+};
+
+type GenerateImageResponse = {
+  ok?: boolean;
+  error?: string;
+  text?: string;
+  images?: {
+    id: string;
+    mimeType: string;
+    base64: string;
+    dataUrl: string;
+  }[];
 };
 
 const PLATFORM_OPTIONS: {
@@ -158,6 +173,7 @@ export default function CreativeStudio({
 
   const [results, setResults] = useState<DraftImageResult[]>([]);
   const [savingTemplateId, setSavingTemplateId] = useState<string | null>(null);
+  const [generatingImageId, setGeneratingImageId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
@@ -309,6 +325,56 @@ export default function CreativeStudio({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSavingTemplateId(null);
+    }
+  }
+
+  async function generateImage(item: DraftImageResult) {
+    setGeneratingImageId(item.id);
+    setError("");
+
+    try {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: item.prompt,
+          negativePrompt: item.negativePrompt,
+          aspectRatio: item.format,
+          providerMode: item.providerMode,
+        }),
+      });
+
+      const json = (await response.json()) as GenerateImageResponse;
+
+      if (!response.ok || json.error) {
+        throw new Error(json.error || "Nie udało się wygenerować obrazu.");
+      }
+
+      const image = json.images?.[0];
+      if (!image?.dataUrl) {
+        throw new Error("API nie zwróciło obrazu.");
+      }
+
+      setResults((current) =>
+        current.map((result) =>
+          result.id === item.id
+            ? {
+                ...result,
+                generatedImageUrl: image.dataUrl,
+                generatedImageMimeType: image.mimeType,
+                generationText: json.text,
+              }
+            : result
+        )
+      );
+
+      showToast("✓ Wygenerowano obraz");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGeneratingImageId(null);
     }
   }
 
@@ -858,6 +924,8 @@ export default function CreativeStudio({
                           marginBottom: 12,
                           padding: 14,
                           textAlign: "center",
+                          position: "relative",
+                          overflow: "hidden",
                         }}
                       >
                         <div>
@@ -895,6 +963,20 @@ export default function CreativeStudio({
                             </div>
                           )}
                         </div>
+                        {item.generatedImageUrl && (
+                          <img
+                            src={item.generatedImageUrl}
+                            alt={item.title}
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                            }}
+                          />
+                        )}
                       </div>
 
                       <div
@@ -989,7 +1071,8 @@ export default function CreativeStudio({
 
                         <button
                           type="button"
-                          disabled
+                          onClick={() => generateImage(item)}
+                          disabled={generatingImageId === item.id}
                           style={{
                             borderRadius: 12,
                             border: "none",
@@ -998,12 +1081,12 @@ export default function CreativeStudio({
                             padding: "10px 12px",
                             fontSize: 11,
                             fontWeight: 900,
-                            opacity: 0.55,
-                            cursor: "not-allowed",
+                            opacity: generatingImageId === item.id ? 0.6 : 1,
+                            cursor: generatingImageId === item.id ? "not-allowed" : "pointer",
                             fontFamily: "inherit",
                           }}
                         >
-                          Generuj obraz
+                          {generatingImageId === item.id ? "Generuję..." : "Generuj obraz"}
                         </button>
                       </div>
 
