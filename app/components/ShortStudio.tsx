@@ -406,6 +406,7 @@ export default function ShortStudio({
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const [result, setResult] = useState<ShortResult | null>(null);
   const [rawAnswer, setRawAnswer] = useState("");
@@ -611,6 +612,48 @@ export default function ShortStudio({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveTemplate() {
+    if (!result) return;
+
+    setSavingTemplate(true);
+    setError("");
+
+    try {
+      const wsId = await getOrCreateWorkspaceUuid();
+      const body = formatResultAsText(result);
+      const avgScore =
+        result.variants.length > 0
+          ? Math.round(
+              result.variants.reduce((sum, item) => sum + item.score, 0) /
+                result.variants.length
+            )
+          : null;
+
+      const { error: insertError } = await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .insert({
+          workspace_id: wsId,
+          title: result.idea_title || topic.slice(0, 80),
+          body,
+          topic,
+          content_type: "Short Studio / multi-platform video",
+          target_platforms: selectedPlatforms,
+          ai_score: avgScore,
+          ai_feedback: result.ai_summary,
+          status: "template",
+        });
+
+      if (insertError) throw new Error(insertError.message);
+
+      showToast("✓ Zapisano Short Studio jako szablon");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingTemplate(false);
     }
   }
 
@@ -1323,7 +1366,7 @@ export default function ShortStudio({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "1fr 1fr 1fr",
                   gap: 10,
                 }}
               >
@@ -1343,6 +1386,26 @@ export default function ShortStudio({
                   }}
                 >
                   {copied ? "✓ Skopiowano" : "Kopiuj całość"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveTemplate}
+                  disabled={savingTemplate}
+                  style={{
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.aiBg,
+                    color: css.aiText,
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: savingTemplate ? "not-allowed" : "pointer",
+                    opacity: savingTemplate ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {savingTemplate ? "Zapisuję..." : "Zapisz jako szablon"}
                 </button>
 
                 <button

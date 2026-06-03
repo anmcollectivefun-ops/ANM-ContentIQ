@@ -12,6 +12,7 @@ import Templates from "@/app/components/Templates";
 import AIPartner from "@/app/components/AIPartner";
 import VideoStudio from "@/app/components/VideoStudio";
 import ShortStudio from "@/app/components/ShortStudio";
+import CreativeStudio from "@/app/components/CreativeStudio";
 import { calculatePerformanceScore } from "@/lib/performanceScore";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -31,14 +32,19 @@ type TabId =
   | "compare"
   | "calendar"
   | "studio"
+  | "video"
+  | "shorts"
+  | "creative"
   | "templates"
+  | "templatesContent"
+  | "templatesVideo"
+  | "templatesShort"
+  | "templatesCreative"
   | "partner"
   | "brand"
   | "chat"
   | "integrations"
-  | "settings"
-  | "video"
-  | "shorts";
+  | "settings";
 
 interface Account {
   id: Platform;
@@ -134,7 +140,7 @@ interface NavTab {
 }
 
 interface NavGroup {
-  id: "stats" | "creation" | "ai" | "settings";
+  id: "stats" | "creation" | "templateLibrary" | "ai" | "settings";
   title: string;
   icon: string;
   tabs: NavTab[];
@@ -173,8 +179,19 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "studio", label: "Content Studio", icon: "CS" },
       { id: "video", label: "Video Studio", icon: "VD" },
       { id: "shorts", label: "Short Studio", icon: "SH" },
-      { id: "templates", label: "Szablony", icon: "SZ" },
+      { id: "creative", label: "Creative Studio", icon: "ART" },
       { id: "calendar", label: "Harmonogram", icon: "HR" },
+    ],
+  },
+  {
+    id: "templateLibrary",
+    title: "Szablony",
+    icon: "SZ",
+    tabs: [
+      { id: "templatesContent", label: "Szablony contentu", icon: "SC" },
+      { id: "templatesVideo", label: "Szablony video", icon: "SV" },
+      { id: "templatesShort", label: "Szablony short", icon: "SS" },
+      { id: "templatesCreative", label: "Szablony creative", icon: "SA" },
     ],
   },
   {
@@ -199,6 +216,47 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((group) => group.tabs);
+
+const TEMPLATE_VIEWS = {
+  templates: {
+    kind: "content",
+    label: "Szablony contentu",
+    title: "Gotowe szablony pod social media",
+    description: "Tutaj trzymasz treści zapisane jako szablon w Content Studio.",
+    targetTab: "studio",
+  },
+  templatesContent: {
+    kind: "content",
+    label: "Szablony contentu",
+    title: "Szablony z Content Studio",
+    description: "Treści tekstowe, posty, karuzele i warianty przygotowane w Content Studio.",
+    targetTab: "studio",
+  },
+  templatesVideo: {
+    kind: "video",
+    label: "Szablony video",
+    title: "Szablony z Video Studio",
+    description: "Briefy video, scenariusze, ujęcia, miniatury i checklisty zapisane z Video Studio.",
+    targetTab: "video",
+  },
+  templatesShort: {
+    kind: "short",
+    label: "Szablony short",
+    title: "Szablony z Short Studio",
+    description: "Krótkie formaty i warianty pod TikTok, Reels, Shorts i LinkedIn Video.",
+    targetTab: "shorts",
+  },
+  templatesCreative: {
+    kind: "creative",
+    label: "Szablony creative",
+    title: "Szablony z Creative Studio",
+    description: "Prompty, formaty i briefy grafik przygotowane w Creative Studio.",
+    targetTab: "creative",
+  },
+} as const satisfies Record<
+  Extract<TabId, "templates" | "templatesContent" | "templatesVideo" | "templatesShort" | "templatesCreative">,
+  { kind: "content" | "video" | "short" | "creative"; label: string; title: string; description: string; targetTab: TabId }
+>;
 
 const INTEGRATIONS = [
   {
@@ -512,6 +570,7 @@ export default function AppWorkspacePage() {
   const [openNavGroups, setOpenNavGroups] = useState<Record<NavGroup["id"], boolean>>({
     stats: true,
     creation: true,
+    templateLibrary: true,
     ai: true,
     settings: true,
   });
@@ -1934,8 +1993,43 @@ export default function AppWorkspacePage() {
     <ShortStudio dark={dark} workspaceId={workspaceId} />
   </div>
 )}
+{/* ================= CREATIVE STUDIO ================= */}
+{activeTab === "creative" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent }}>
+        Creative Studio
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        Generowanie grafik AI do contentu
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Twórz grafiki do postów, okładki, miniatury i materiały contentowe.
+        Teraz przygotowujemy komponent i strukturę, a w następnym kroku
+        podepniemy generowanie obrazów przez API.
+      </p>
+    </div>
+
+    <CreativeStudio dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
             {/* ================= SZABLONY ================= */}
-            {activeTab === "templates" && (
+            {activeTab in TEMPLATE_VIEWS && (
               <div>
                 <div
                   style={{
@@ -1946,7 +2040,7 @@ export default function AppWorkspacePage() {
                   }}
                 >
                   <p style={{ ...st.smallLabel, color: css.accent }}>
-                    Szablony contentu
+                    {TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].label}
                   </p>
 
                   <h2
@@ -1956,7 +2050,7 @@ export default function AppWorkspacePage() {
                       fontFamily: "'DM Serif Display', serif",
                     }}
                   >
-                    Gotowe szablony pod social media
+                    {TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].title}
                   </h2>
 
                   <p style={{ ...st.sectionText, color: css.muted }}>
@@ -1969,7 +2063,8 @@ export default function AppWorkspacePage() {
                 <Templates
                   dark={dark}
                   workspaceId={workspaceId}
-                  onOpenStudio={() => setActiveTab("studio")}
+                  kind={TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].kind}
+                  onOpenStudio={() => setActiveTab(TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].targetTab)}
                 />
               </div>
             )}

@@ -12,6 +12,8 @@ type Platform =
   | "blog"
   | "spotify";
 
+type TemplateKind = "content" | "video" | "short" | "creative";
+
 interface TemplateDraft {
   id: string;
   title: string | null;
@@ -38,6 +40,31 @@ function safeArray(value: string[] | null | undefined) {
   return Array.isArray(value) ? value : [];
 }
 
+function getTemplateKind(template: TemplateDraft): TemplateKind {
+  const type = (template.content_type || "").toLowerCase();
+
+  if (type.startsWith("video studio")) return "video";
+  if (type.startsWith("short studio")) return "short";
+  if (type.startsWith("creative studio")) return "creative";
+  return "content";
+}
+
+function platformMatches(template: TemplateDraft, platform: Platform) {
+  const targets = safeArray(template.target_platforms).map((item) => item.toLowerCase());
+
+  const aliases: Record<Platform, string[]> = {
+    linkedin: ["linkedin", "linkedin_video"],
+    instagram: ["instagram", "instagram_reels"],
+    tiktok: ["tiktok"],
+    youtube: ["youtube", "youtube_shorts"],
+    facebook: ["facebook", "facebook_reels"],
+    blog: ["blog"],
+    spotify: ["spotify"],
+  };
+
+  return aliases[platform].some((alias) => targets.includes(alias));
+}
+
 function formatDate(value: string | null) {
   if (!value) return "Brak daty";
   return new Date(value).toLocaleDateString("pl-PL", {
@@ -51,10 +78,12 @@ export default function Templates({
   dark = true,
   workspaceId,
   onOpenStudio,
+  kind = "content",
 }: {
   dark?: boolean;
   workspaceId: string;
   onOpenStudio: () => void;
+  kind?: TemplateKind;
 }) {
   const supabase = createClient();
   const [templates, setTemplates] = useState<TemplateDraft[]>([]);
@@ -123,14 +152,16 @@ export default function Templates({
     };
   }, [workspaceId]);
 
+  const visibleTemplates = useMemo(() => {
+    return templates.filter((template) => getTemplateKind(template) === kind);
+  }, [templates, kind]);
+
   const grouped = useMemo(() => {
     return PLATFORMS.map((platform) => ({
       platform,
-      items: templates.filter((template) =>
-        safeArray(template.target_platforms).includes(platform.id)
-      ),
+      items: visibleTemplates.filter((template) => platformMatches(template, platform.id)),
     }));
-  }, [templates]);
+  }, [visibleTemplates]);
 
   function openInStudio(template: TemplateDraft) {
     localStorage.setItem("ciq-content-template", JSON.stringify(template));
@@ -158,7 +189,7 @@ export default function Templates({
           </div>
         )}
 
-        {!loading && !error && templates.length === 0 && (
+        {!loading && !error && visibleTemplates.length === 0 && (
           <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>
             Nie ma jeszcze zapisanych szablonów. W Content Studio wygeneruj treść i kliknij “Zapisz szablon”.
           </div>

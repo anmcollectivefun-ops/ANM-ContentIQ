@@ -362,6 +362,7 @@ export default function VideoStudio({
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const [brief, setBrief] = useState<VideoBrief | null>(null);
   const [rawAnswer, setRawAnswer] = useState("");
@@ -554,6 +555,41 @@ export default function VideoStudio({
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveTemplate() {
+    if (!brief) return;
+
+    setSavingTemplate(true);
+    setError("");
+
+    try {
+      const wsId = await getOrCreateWorkspaceUuid();
+      const body = formatBriefAsText(brief);
+
+      const { error: insertError } = await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .insert({
+          workspace_id: wsId,
+          title: brief.title || topic.slice(0, 80),
+          body,
+          topic,
+          content_type: `Video Studio / ${brief.format}`,
+          target_platforms: [brief.platform],
+          ai_score: brief.estimated_score,
+          ai_feedback: brief.ai_notes,
+          status: "template",
+        });
+
+      if (insertError) throw new Error(insertError.message);
+
+      showToast("✓ Zapisano brief video jako szablon");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingTemplate(false);
     }
   }
 
@@ -1174,7 +1210,7 @@ export default function VideoStudio({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "1fr 1fr 1fr",
                   gap: 10,
                 }}
               >
@@ -1194,6 +1230,26 @@ export default function VideoStudio({
                   }}
                 >
                   {copied ? "✓ Skopiowano" : "Kopiuj brief"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveTemplate}
+                  disabled={savingTemplate}
+                  style={{
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.aiBg,
+                    color: css.aiText,
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: savingTemplate ? "not-allowed" : "pointer",
+                    opacity: savingTemplate ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {savingTemplate ? "Zapisuję..." : "Zapisz jako szablon"}
                 </button>
 
                 <button
