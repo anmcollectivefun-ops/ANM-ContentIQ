@@ -5,9 +5,12 @@ export const metadata: Metadata = {
   title: "ANM ContentIQ",
   description: "AI Content Intelligence Platform",
   icons: {
-    icon: "/app-icon.svg",
-    shortcut: "/app-icon.svg",
-    apple: "/app-icon.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+      { url: "/ANM_ContentIQ_.JPG", sizes: "1024x1024", type: "image/jpeg" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/ANM_ContentIQ_.JPG",
   },
   verification: {
     other: {

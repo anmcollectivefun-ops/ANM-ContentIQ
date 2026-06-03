@@ -4,7 +4,7 @@ export function LegalBrandHeader() {
   return (
     <header className="legal-brand">
       <Link href="/" className="legal-brand__identity" aria-label="ANM ContentIQ - strona główna">
-        <img src="/app-icon.svg" alt="ANM ContentIQ app icon" className="legal-brand__icon" />
+        <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" className="legal-brand__icon" />
         <span>
           <strong>ANM ContentIQ</strong>
           <small>AI Content Intelligence Platform</small>

@@ -45,7 +45,7 @@ export default function LandingPage() {
       <header className="border-b border-white/10 bg-[#070816]/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
           <div className="flex items-center gap-3">
-            <img src="/app-icon.svg" alt="ANM ContentIQ app icon" className="h-11 w-11 rounded-xl" />
+            <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" className="h-11 w-11 rounded-xl" />
             <div>
               <p className="text-xl font-bold tracking-tight">ANM ContentIQ</p>
               <p className="text-xs text-white/50">AI Content Intelligence Platform</p>
@@ -200,7 +200,7 @@ export default function LandingPage() {
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-6 py-8 text-sm text-white/50 sm:flex-row sm:items-center sm:justify-between">
         <span className="flex items-center gap-3">
-          <img src="/app-icon.svg" alt="ANM ContentIQ app icon" className="h-9 w-9 rounded-lg" />
+          <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" className="h-9 w-9 rounded-lg" />
           ANM ContentIQ
         </span>
         <div className="flex gap-5">
