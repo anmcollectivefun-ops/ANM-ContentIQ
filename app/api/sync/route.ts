@@ -79,24 +79,52 @@ async function fetchInstagram(token: string, accountId: string) {
 async function fetchFacebook(token: string, pageId: string) {
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${pageId}/posts?` +
-    `fields=id,message,created_time,permalink_url,insights.metric(post_impressions,post_engaged_users,post_reactions_by_type_total)&` +
+    `fields=id,message,created_time,permalink_url,shares,` +
+    `comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
     `access_token=${token}&limit=25`
   );
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
  
-  return (data.data || []).map((post: Record<string, unknown>) => {
-    const insights = ((post.insights as { data?: InsightMetric[] } | undefined)?.data) || [];
+  return Promise.all((data.data || []).map(async (post: Record<string, unknown>) => {
+    let insights: InsightMetric[] = [];
+    const metricSets = [
+      "post_impressions,post_impressions_unique,post_engaged_users,post_clicks",
+      "post_impressions_unique,post_engaged_users",
+      "post_impressions",
+    ];
+
+    for (const metrics of metricSets) {
+      const insightRes = await fetch(
+        `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+        `metric=${metrics}&access_token=${token}`
+      );
+      const insightData = await insightRes.json();
+
+      if (!insightData.error) {
+        insights = insightData.data || [];
+        break;
+      }
+    }
+
+    const shares = post.shares as { count?: number } | undefined;
+    const comments = post.comments as { summary?: { total_count?: number } } | undefined;
+    const reactions = post.reactions as { summary?: { total_count?: number } } | undefined;
+
     return {
       platform_post_id: post.id,
       content: post.message || "",
       post_type: "post",
       url: post.permalink_url,
       published_at: post.created_time,
+      reach: getInsightValue(insights, "post_impressions_unique"),
       impressions: getInsightValue(insights, "post_impressions"),
-      likes: getInsightValue(insights, "post_engaged_users"),
+      likes: reactions?.summary?.total_count || 0,
+      comments: comments?.summary?.total_count || 0,
+      shares: shares?.count || 0,
+      clicks: getInsightValue(insights, "post_clicks"),
     };
-  });
+  }));
 }
 
 async function resolveMetaResource(token: string, platform: "instagram" | "facebook", savedAccountId: string) {
