@@ -38,8 +38,7 @@ type TabId =
   | "integrations"
   | "settings"
   | "video"
-  
-  ;
+  | "shorts";
 
 interface Account {
   id: Platform;
@@ -1811,7 +1810,7 @@ export default function AppWorkspacePage() {
       </p>
     </div>
 
-    <ShortStudio dark={dark} workspaceId="contentiq" />
+    <ShortStudio dark={dark} workspaceId={workspaceId} />
   </div>
 )}
             {/* ================= SZABLONY ================= */}

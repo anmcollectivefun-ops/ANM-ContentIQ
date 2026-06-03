@@ -292,7 +292,7 @@ function PillButton({
   css,
 }: {
   active: boolean;
-  children: string;
+  children: React.ReactNode;
   onClick: () => void;
   color: string;
   css: Record<string, string>;
