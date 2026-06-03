@@ -32,15 +32,24 @@ function estimateScore(post: Record<string, unknown>) {
 async function fetchInstagram(token: string, accountId: string) {
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${accountId}/media?` +
-    `fields=id,caption,media_type,timestamp,permalink,` +
-    `insights.metric(reach,impressions,likes_count,comments_count,saved,shares)&` +
+    `fields=id,caption,media_type,timestamp,permalink,like_count,comments_count&` +
     `access_token=${token}&limit=25`
   );
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
  
-  return (data.data || []).map((post: Record<string, unknown>) => {
-    const insights = ((post.insights as { data?: InsightMetric[] } | undefined)?.data) || [];
+  const posts = await Promise.all((data.data || []).map(async (post: Record<string, unknown>) => {
+    let insights: InsightMetric[] = [];
+    const insightRes = await fetch(
+      `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+      `metric=reach,saved,shares,views&access_token=${token}`
+    );
+    const insightData = await insightRes.json();
+
+    if (!insightData.error) {
+      insights = insightData.data || [];
+    }
+
     return {
       platform_post_id: post.id,
       content: post.caption || "",
@@ -48,13 +57,15 @@ async function fetchInstagram(token: string, accountId: string) {
       url: post.permalink,
       published_at: post.timestamp,
       reach: getInsightValue(insights, "reach"),
-      impressions: getInsightValue(insights, "impressions"),
-      likes: getInsightValue(insights, "likes_count"),
-      comments: getInsightValue(insights, "comments_count"),
+      impressions: getInsightValue(insights, "views"),
+      likes: Number(post.like_count || 0),
+      comments: Number(post.comments_count || 0),
       saves: getInsightValue(insights, "saved"),
       shares: getInsightValue(insights, "shares"),
     };
-  });
+  }));
+
+  return posts;
 }
  
 async function fetchFacebook(token: string, pageId: string) {

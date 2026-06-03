@@ -11,7 +11,7 @@ const PLATFORM_CONFIG: Record<string, {
 }> = {
   instagram: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-    clientIdEnv: "META_APP_ID",
+    clientIdEnv: "INSTAGRAM_APP_ID",
     scope: "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_show_list,pages_manage_posts",
     analyticsScope: "instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list",
   },
@@ -54,6 +54,10 @@ function env(name: string) {
 }
 
 function getClientId(platform: string, envName: string) {
+  if (platform === "instagram") {
+    return env("INSTAGRAM_APP_ID") || env("INATAGRAM_APP_ID") || env("META_APP_ID");
+  }
+
   if (platform === "tiktok") {
     return env("TIKTOK_CLIENT_KEY") || env("TIKTOK_CLIENT_ID");
   }
@@ -78,10 +82,13 @@ function getMetaConnectMode(req: NextRequest) {
 
 function getMetaConfigId(mode: string) {
   if (mode === "analytics") {
-    return env("META_LOGIN_ANALYTICS_CONFIG_ID");
+    return env("INSTAGRAM_LOGIN_ANALYTICS_CONFIG_ID") || env("META_LOGIN_ANALYTICS_CONFIG_ID");
   }
 
-  return env("META_LOGIN_PUBLISHING_CONFIG_ID") || env("META_LOGIN_CONFIG_ID");
+  return env("INSTAGRAM_LOGIN_PUBLISHING_CONFIG_ID")
+    || env("INSTAGRAM_LOGIN_CONFIG_ID")
+    || env("META_LOGIN_PUBLISHING_CONFIG_ID")
+    || env("META_LOGIN_CONFIG_ID");
 }
 
 function getOAuthScope(platform: string, config: { scope: string; analyticsScope?: string }, mode: string) {

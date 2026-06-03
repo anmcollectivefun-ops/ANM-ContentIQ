@@ -18,12 +18,38 @@ interface StateData {
 function env(name: string) {
   return process.env[name]?.trim() || "";
 }
+
+function getMetaAppId(platform: string) {
+  if (platform === "instagram") {
+    return env("INSTAGRAM_APP_ID") || env("INATAGRAM_APP_ID") || env("META_APP_ID");
+  }
+
+  return env("META_APP_ID");
+}
+
+function getMetaAppSecret(platform: string) {
+  if (platform === "instagram") {
+    return env("INSTAGRAM_CLIENT_SECRET")
+      || env("INSTAGRAM_APP_SECRET")
+      || env("INSTGRAM_CLIENT_SECRET")
+      || env("META_APP_SECRET");
+  }
+
+  return env("META_APP_SECRET");
+}
  
-async function exchangeMeta(code: string, redirectUri: string): Promise<TokenResult> {
+async function exchangeMeta(platform: string, code: string, redirectUri: string): Promise<TokenResult> {
+  const clientId = getMetaAppId(platform);
+  const clientSecret = getMetaAppSecret(platform);
+
+  if (!clientId || !clientSecret) {
+    throw new Error(`Brak danych OAuth dla ${platform}. Sprawdź APP_ID i APP_SECRET w env.`);
+  }
+
   const shortRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
-    `client_id=${env("META_APP_ID")}&` +
-    `client_secret=${env("META_APP_SECRET")}&` +
+    `client_id=${clientId}&` +
+    `client_secret=${clientSecret}&` +
     `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `code=${code}`
   );
@@ -33,8 +59,8 @@ async function exchangeMeta(code: string, redirectUri: string): Promise<TokenRes
   const longRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
     `grant_type=fb_exchange_token&` +
-    `client_id=${env("META_APP_ID")}&` +
-    `client_secret=${env("META_APP_SECRET")}&` +
+    `client_id=${clientId}&` +
+    `client_secret=${clientSecret}&` +
     `fb_exchange_token=${short.access_token}`
   );
   const long = await longRes.json();
@@ -285,7 +311,7 @@ export async function GET(
     let tokenData: TokenResult;
  
     if (platform === "instagram" || platform === "facebook") {
-      tokenData = await exchangeMeta(code, redirectUri);
+      tokenData = await exchangeMeta(platform, code, redirectUri);
     } else if (platform === "linkedin") {
       tokenData = await exchangeLinkedIn(code, redirectUri);
     } else if (platform === "tiktok") {
