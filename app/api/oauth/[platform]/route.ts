@@ -89,13 +89,11 @@ function getMetaConfigId(platform: string, mode: string) {
   }
 
   if (mode === "analytics") {
-    return env("FACEBOOK_LOGIN_ANALYTICS_CONFIG_ID") || env("META_LOGIN_ANALYTICS_CONFIG_ID");
+    return env("FACEBOOK_LOGIN_ANALYTICS_CONFIG_ID");
   }
 
   return env("FACEBOOK_LOGIN_PUBLISHING_CONFIG_ID")
-    || env("FACEBOOK_LOGIN_CONFIG_ID")
-    || env("META_LOGIN_PUBLISHING_CONFIG_ID")
-    || env("META_LOGIN_CONFIG_ID");
+    || env("FACEBOOK_LOGIN_CONFIG_ID");
 }
 
 function getOAuthScope(platform: string, config: { scope: string; analyticsScope?: string }, mode: string) {
