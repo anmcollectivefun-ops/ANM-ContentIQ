@@ -18,7 +18,7 @@ const PLATFORM_CONFIG: Record<string, {
   facebook: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
     clientIdEnv: "META_APP_ID",
-    scope: "pages_read_engagement,pages_show_list,pages_manage_posts",
+    scope: "pages_read_engagement,pages_show_list",
     analyticsScope: "pages_read_engagement,pages_show_list",
   },
   linkedin: {
@@ -99,6 +99,11 @@ function getMetaConfigId(platform: string, mode: string) {
 function getOAuthScope(platform: string, config: { scope: string; analyticsScope?: string }, mode: string) {
   if (isMetaPlatform(platform) && mode === "analytics") {
     return config.analyticsScope || config.scope;
+  }
+
+  if (platform === "facebook" && mode === "publishing") {
+    const wantsPublishing = env("FACEBOOK_ENABLE_PUBLISHING") === "1";
+    return wantsPublishing ? "pages_read_engagement,pages_show_list,pages_manage_posts" : config.scope;
   }
 
   return config.scope;

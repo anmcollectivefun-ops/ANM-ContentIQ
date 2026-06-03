@@ -431,13 +431,27 @@ async function fetchPlatformPosts(supabase: SupabaseClient, connection: SyncConn
 
   switch (connection.platform) {
     case "instagram": {
-      ensureAccountId(connection.platform, accountId);
       const meta = await resolveMetaResource(token, "instagram", accountId);
+      if (meta.accountId !== accountId) {
+        await supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .update({ account_id: meta.accountId })
+          .eq("id", connection.id);
+        connection.account_id = meta.accountId;
+      }
       return fetchInstagram(meta.token, meta.accountId);
     }
     case "facebook": {
-      ensureAccountId(connection.platform, accountId);
       const meta = await resolveMetaResource(token, "facebook", accountId);
+      if (meta.accountId !== accountId) {
+        await supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .update({ account_id: meta.accountId })
+          .eq("id", connection.id);
+        connection.account_id = meta.accountId;
+      }
       return fetchFacebook(meta.token, meta.accountId);
     }
     case "linkedin":
