@@ -133,6 +133,13 @@ interface NavTab {
   icon: string;
 }
 
+interface NavGroup {
+  id: "stats" | "creation" | "ai" | "settings";
+  title: string;
+  icon: string;
+  tabs: NavTab[];
+}
+
 // ─── DATA STARTOWE / PÓŹNIEJ SUPABASE ────────────────────────────────────────
 
 const ACCOUNTS: Account[] = [
@@ -147,22 +154,51 @@ const ACCOUNTS: Account[] = [
 
 const PLANNED_CONTENT: PlannedContent[] = [];
 
-const NAV_TABS: NavTab[] = [
-  { id: "accounts", label: "Podsumowanie kont", icon: "◈" },
-  { id: "content", label: "Podsumowanie contentu", icon: "▤" },
-  { id: "compare", label: "Porównanie contentu", icon: "⊞" },
-  { id: "calendar", label: "Harmonogram", icon: "◷" },
-  { id: "studio", label: "Content Studio", icon: "✦" },
-  { id: "templates", label: "Szablony", icon: "TPL" },
-  { id: "partner", label: "AI Partner", icon: "AI+" },
-  { id: "brand", label: "Brand Voice", icon: "BV" },
-  { id: "chat", label: "AI Chat", icon: "AI" },
-  { id: "integrations", label: "Integracje", icon: "⊕" },
-  { id: "settings", label: "Ustawienia", icon: "◎" },
-{ id: "video", label: "Video Studio", icon: "VID" },
-{ id: "shorts", label: "Short Studio", icon: "SRT" },
-
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "stats",
+    title: "Statystyki",
+    icon: "ST",
+    tabs: [
+      { id: "accounts", label: "Podsumowanie kont", icon: "AK" },
+      { id: "content", label: "Podsumowanie contentu", icon: "CT" },
+      { id: "compare", label: "Porownanie contentu", icon: "PR" },
+    ],
+  },
+  {
+    id: "creation",
+    title: "Tworzenie tresci",
+    icon: "TW",
+    tabs: [
+      { id: "studio", label: "Content Studio", icon: "CS" },
+      { id: "video", label: "Video Studio", icon: "VD" },
+      { id: "shorts", label: "Short Studio", icon: "SH" },
+      { id: "templates", label: "Szablony", icon: "SZ" },
+      { id: "calendar", label: "Harmonogram", icon: "HR" },
+    ],
+  },
+  {
+    id: "ai",
+    title: "AI",
+    icon: "AI",
+    tabs: [
+      { id: "chat", label: "AI Chat", icon: "CH" },
+      { id: "brand", label: "Brand Voice", icon: "BV" },
+      { id: "partner", label: "AI Partner", icon: "AP" },
+    ],
+  },
+  {
+    id: "settings",
+    title: "Ustawienia",
+    icon: "US",
+    tabs: [
+      { id: "integrations", label: "Integracje", icon: "IN" },
+      { id: "settings", label: "Ustawienia", icon: "US" },
+    ],
+  },
 ];
+
+const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((group) => group.tabs);
 
 const INTEGRATIONS = [
   {
@@ -472,6 +508,13 @@ export default function AppWorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabId>("accounts");
   const [activeAccount, setActiveAccount] = useState<Account | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [openNavGroups, setOpenNavGroups] = useState<Record<NavGroup["id"], boolean>>({
+    stats: true,
+    creation: true,
+    ai: true,
+    settings: true,
+  });
   const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
 
@@ -657,6 +700,13 @@ export default function AppWorkspacePage() {
   setActiveAccount(null);
 }
 
+  function toggleNavGroup(groupId: NavGroup["id"]) {
+    setOpenNavGroups((current) => ({
+      ...current,
+      [groupId]: !current[groupId],
+    }));
+  }
+
   if (!mounted) {
     return null;
   }
@@ -773,7 +823,13 @@ export default function AppWorkspacePage() {
         }
       `}</style>
 
-      <div className="ciq-shell" style={st.shell}>
+      <div
+        className="ciq-shell"
+        style={{
+          ...st.shell,
+          gridTemplateColumns: sidebarCollapsed ? "86px 1fr" : "270px 1fr",
+        }}
+      >
         {/* ───────────────── SIDEBAR ───────────────── */}
         <aside
           className="ciq-sidebar"
@@ -794,6 +850,7 @@ export default function AppWorkspacePage() {
               IQ
             </div>
 
+            {!sidebarCollapsed && (
             <div>
               <div
                 style={{
@@ -809,31 +866,95 @@ export default function AppWorkspacePage() {
                 Centrum contentu
               </div>
             </div>
+            )}
           </Link>
 
-          <nav className="ciq-nav" style={st.nav}>
-            {NAV_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => openTab(tab.id)}
-                className="ciq-nav-tab"
-                style={{
-                  ...st.navTab,
-                  background: activeTab === tab.id ? css.activeBg : "transparent",
-                  color: activeTab === tab.id ? css.text : css.muted,
-                  borderLeft:
-                    activeTab === tab.id
-                      ? `3px solid ${css.accent}`
-                      : "3px solid transparent",
-                }}
-              >
-                <span style={st.navIcon}>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
+          <div style={{ padding: sidebarCollapsed ? "0 12px 10px" : "0 16px 10px" }}>
+            <button
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              style={{
+                ...st.collapseButton,
+                background: css.surface,
+                border: `1px solid ${css.border}`,
+                color: css.muted,
+                justifyContent: sidebarCollapsed ? "center" : "space-between",
+              }}
+              title={sidebarCollapsed ? "Rozwin menu" : "Zwin menu"}
+            >
+              <span>{sidebarCollapsed ? ">>" : "Zwin menu"}</span>
+              {!sidebarCollapsed && <span>{"<<"}</span>}
+            </button>
+          </div>
+
+          <nav
+            className="ciq-nav"
+            style={{
+              ...st.nav,
+              padding: sidebarCollapsed ? "4px 10px" : "8px 0",
+            }}
+          >
+            {sidebarCollapsed ? (
+              <div style={st.collapsedNavGrid}>
+                {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => openTab(tab.id)}
+                    className="ciq-nav-tab"
+                    title={tab.label}
+                    style={{
+                      ...st.collapsedNavButton,
+                      background: activeTab === tab.id ? css.activeBg : css.surface,
+                      color: activeTab === tab.id ? css.text : css.muted,
+                      border: `1px solid ${activeTab === tab.id ? css.accentBorder : css.border}`,
+                    }}
+                  >
+                    {tab.icon}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              NAV_GROUPS.map((group) => (
+                <div key={group.id} style={st.navGroup}>
+                  <button
+                    onClick={() => toggleNavGroup(group.id)}
+                    style={{
+                      ...st.navGroupHeader,
+                      color: css.muted,
+                      background: "transparent",
+                    }}
+                  >
+                    <span style={st.navGroupIcon}>{group.icon}</span>
+                    <span>{group.title}</span>
+                    <span style={{ marginLeft: "auto" }}>
+                      {openNavGroups[group.id] ? "-" : "+"}
+                    </span>
+                  </button>
+
+                  {openNavGroups[group.id] && group.tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => openTab(tab.id)}
+                      className="ciq-nav-tab"
+                      style={{
+                        ...st.navTab,
+                        background: activeTab === tab.id ? css.activeBg : "transparent",
+                        color: activeTab === tab.id ? css.text : css.muted,
+                        borderLeft:
+                          activeTab === tab.id
+                            ? `3px solid ${css.accent}`
+                            : "3px solid transparent",
+                      }}
+                    >
+                      <span style={st.navIcon}>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
           </nav>
 
-          <div style={st.sidebarBottom}>
+          <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
             <button
               onClick={toggleTheme}
               style={{
@@ -843,7 +964,7 @@ export default function AppWorkspacePage() {
                 color: css.muted,
               }}
             >
-              {dark ? "☀ Jasny tryb" : "☾ Ciemny tryb"}
+              {sidebarCollapsed ? (dark ? "J" : "C") : (dark ? "Jasny tryb" : "Ciemny tryb")}
             </button>
 
             <button
@@ -856,7 +977,7 @@ export default function AppWorkspacePage() {
                 border: "1px solid #ef444440",
               }}
             >
-              {signingOut ? "Wylogowywanie..." : "Wyloguj"}
+              {sidebarCollapsed ? "WY" : (signingOut ? "Wylogowywanie..." : "Wyloguj")}
             </button>
           </div>
         </aside>
@@ -2055,6 +2176,7 @@ const st: Record<string, CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "270px 1fr",
     minHeight: "100vh",
+    transition: "grid-template-columns 0.22s ease",
   },
   sidebar: {
     display: "flex",
@@ -2071,6 +2193,19 @@ const st: Record<string, CSSProperties> = {
     gap: 10,
     padding: "22px 18px",
     textDecoration: "none",
+  },
+  collapseButton: {
+    width: "100%",
+    minHeight: 38,
+    borderRadius: 12,
+    padding: "8px 10px",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 11,
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif",
   },
   logoMark: {
     width: 38,
@@ -2096,6 +2231,53 @@ const st: Record<string, CSSProperties> = {
   nav: {
     flex: 1,
     padding: "8px 0",
+    overflowY: "auto",
+  },
+  navGroup: {
+    marginBottom: 8,
+  },
+  navGroupHeader: {
+    width: "100%",
+    minHeight: 32,
+    border: "none",
+    padding: "7px 18px",
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    fontSize: 10,
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif",
+  },
+  navGroupIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 10,
+    fontWeight: 900,
+    background: "rgba(127,127,127,0.12)",
+  },
+  collapsedNavGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr",
+    gap: 8,
+  },
+  collapsedNavButton: {
+    width: "100%",
+    aspectRatio: "1 / 1",
+    borderRadius: 14,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif",
   },
   navTab: {
     display: "flex",
