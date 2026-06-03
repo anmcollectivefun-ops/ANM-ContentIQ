@@ -76,13 +76,24 @@ function getMetaConnectMode(req: NextRequest) {
   return mode === "analytics" ? "analytics" : "publishing";
 }
 
-function getMetaConfigId(mode: string) {
-  if (mode === "analytics") {
+function getMetaConfigId(platform: string, mode: string) {
+  if (platform === "instagram" && mode === "analytics") {
     return env("INSTAGRAM_LOGIN_ANALYTICS_CONFIG_ID") || env("META_LOGIN_ANALYTICS_CONFIG_ID");
   }
 
-  return env("INSTAGRAM_LOGIN_PUBLISHING_CONFIG_ID")
-    || env("INSTAGRAM_LOGIN_CONFIG_ID")
+  if (platform === "instagram") {
+    return env("INSTAGRAM_LOGIN_PUBLISHING_CONFIG_ID")
+      || env("INSTAGRAM_LOGIN_CONFIG_ID")
+      || env("META_LOGIN_PUBLISHING_CONFIG_ID")
+      || env("META_LOGIN_CONFIG_ID");
+  }
+
+  if (mode === "analytics") {
+    return env("FACEBOOK_LOGIN_ANALYTICS_CONFIG_ID") || env("META_LOGIN_ANALYTICS_CONFIG_ID");
+  }
+
+  return env("FACEBOOK_LOGIN_PUBLISHING_CONFIG_ID")
+    || env("FACEBOOK_LOGIN_CONFIG_ID")
     || env("META_LOGIN_PUBLISHING_CONFIG_ID")
     || env("META_LOGIN_CONFIG_ID");
 }
@@ -109,7 +120,7 @@ export async function GET(
   if (req.nextUrl.searchParams.get("debug") === "1") {
     const clientId = getClientId(platform, config.clientIdEnv);
     const metaMode = isMetaPlatform(platform) ? getMetaConnectMode(req) : null;
-    const metaConfigId = metaMode ? getMetaConfigId(metaMode) : "";
+    const metaConfigId = metaMode ? getMetaConfigId(platform, metaMode) : "";
     return Response.json({
       platform,
       clientParam: platform === "tiktok" ? "client_key" : "client_id",
@@ -144,7 +155,7 @@ export async function GET(
   const clientId = getClientId(platform, config.clientIdEnv);
   const metaMode = isMetaPlatform(platform) ? getMetaConnectMode(req) : "publishing";
   const scope = getOAuthScope(platform, config, metaMode);
-  const metaConfigId = isMetaPlatform(platform) ? getMetaConfigId(metaMode) : "";
+  const metaConfigId = isMetaPlatform(platform) ? getMetaConfigId(platform, metaMode) : "";
 
   if (!clientId) {
     return new Response(`Brak zmiennej ${config.clientIdEnv} dla ${platform}`, { status: 500 });

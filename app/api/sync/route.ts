@@ -40,14 +40,22 @@ async function fetchInstagram(token: string, accountId: string) {
  
   const posts = await Promise.all((data.data || []).map(async (post: Record<string, unknown>) => {
     let insights: InsightMetric[] = [];
-    const insightRes = await fetch(
-      `https://graph.facebook.com/v19.0/${post.id}/insights?` +
-      `metric=reach,saved,shares,views&access_token=${token}`
-    );
-    const insightData = await insightRes.json();
+    const insightMetricSets = [
+      "reach,impressions,saved,shares",
+      "reach,views,saved,shares",
+    ];
 
-    if (!insightData.error) {
-      insights = insightData.data || [];
+    for (const metrics of insightMetricSets) {
+      const insightRes = await fetch(
+        `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+        `metric=${metrics}&access_token=${token}`
+      );
+      const insightData = await insightRes.json();
+
+      if (!insightData.error) {
+        insights = insightData.data || [];
+        break;
+      }
     }
 
     return {
@@ -57,7 +65,7 @@ async function fetchInstagram(token: string, accountId: string) {
       url: post.permalink,
       published_at: post.timestamp,
       reach: getInsightValue(insights, "reach"),
-      impressions: getInsightValue(insights, "views"),
+      impressions: getInsightValue(insights, "impressions") || getInsightValue(insights, "views"),
       likes: Number(post.like_count || 0),
       comments: Number(post.comments_count || 0),
       saves: getInsightValue(insights, "saved"),
