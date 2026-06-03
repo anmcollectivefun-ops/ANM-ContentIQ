@@ -292,7 +292,17 @@ export default function IntegrationsPage() {
         body: JSON.stringify({ workspace_id: wsDbId, all: true }),
       });
       const data = await res.json();
-      showToast(data?.message || "✓ Synchronizacja zakończona", !data?.failed);
+      const errors = Array.isArray(data?.results)
+        ? data.results
+            .filter((result: { error?: string }) => result.error)
+            .map((result: { platform?: string; error?: string }) => `${result.platform}: ${result.error}`)
+        : [];
+      showToast(
+        errors.length
+          ? `${data?.message || "Synchronizacja zakończona z błędami"}: ${errors.join(" | ")}`
+          : data?.message || "✓ Synchronizacja zakończona",
+        !data?.failed
+      );
       await load();
     } catch (e) { showToast(String(e), false); }
     setSyncAll(false);

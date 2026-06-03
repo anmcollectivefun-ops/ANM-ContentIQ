@@ -6,11 +6,12 @@ export const metadata: Metadata = {
   description: "AI Content Intelligence Platform",
   icons: {
     icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
       { url: "/ANM_ContentIQ_.JPG", sizes: "1024x1024", type: "image/jpeg" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/ANM_ContentIQ_.JPG",
+    shortcut: "/favicon-32.png",
+    apple: "/apple-touch-icon.png",
   },
   verification: {
     other: {

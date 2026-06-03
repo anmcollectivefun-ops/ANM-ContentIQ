@@ -83,6 +83,7 @@ export default function LoginPage() {
         {/* ================= LOGO ================= */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-block">
+            <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" className="mx-auto mb-4 h-14 w-14 rounded-2xl" />
             <p className="text-2xl font-black">ANM ContentIQ</p>
             <p className="mt-2 text-sm text-white/50">
               Zaloguj się lub utwórz konto

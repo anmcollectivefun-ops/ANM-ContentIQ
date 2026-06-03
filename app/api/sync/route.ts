@@ -100,6 +100,18 @@ async function fetchFacebook(token: string, pageId: string) {
 }
 
 async function resolveMetaResource(token: string, platform: "instagram" | "facebook", savedAccountId: string) {
+  if (savedAccountId && savedAccountId !== "unknown") {
+    const directFields = platform === "instagram" ? "id,username" : "id,name";
+    const directRes = await fetch(
+      `https://graph.facebook.com/v19.0/${savedAccountId}?fields=${directFields}&access_token=${token}`
+    );
+    const directData = await directRes.json();
+
+    if (!directData.error && directData.id) {
+      return { accountId: savedAccountId, token };
+    }
+  }
+
   const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`);
   const pages = await pagesRes.json();
   if (pages.error) throw new Error(pages.error.message);

@@ -444,7 +444,7 @@ export default function DashboardPage() {
       <header style={{ borderBottom: `1px solid ${border}`, background: d ? "rgba(7,17,30,0.9)" : "rgba(240,244,248,0.9)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ maxWidth: 1360, margin: "0 auto", padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", letterSpacing: "-0.03em" }}>IQ</div>
+            <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" style={{ width: 38, height: 38, borderRadius: 12, objectFit: "cover", border: `1px solid ${border}` }} />
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'DM Serif Display', serif", color: text, letterSpacing: "-0.02em" }}>ANM ContentIQ</div>
               <div style={{ fontSize: 10, color: muted, letterSpacing: "0.05em", textTransform: "uppercase" }}>Analytics Dashboard</div>
@@ -641,6 +641,17 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+
+        <footer style={{ marginTop: 32, paddingTop: 18, borderTop: `1px solid ${border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, color: muted, fontSize: 12 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+            <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" style={{ width: 28, height: 28, borderRadius: 8, objectFit: "cover" }} />
+            ANM ContentIQ
+          </span>
+          <span style={{ display: "inline-flex", gap: 16, flexWrap: "wrap" }}>
+            <Link href="/privacy" style={{ color: muted, textDecoration: "none" }}>Polityka prywatności</Link>
+            <Link href="/terms" style={{ color: muted, textDecoration: "none" }}>Regulamin</Link>
+          </span>
+        </footer>
       </main>
     </div>
   );

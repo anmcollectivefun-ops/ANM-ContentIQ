@@ -164,34 +164,34 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "stats",
     title: "Statystyki",
-    icon: "ST",
+    icon: "Stats",
     tabs: [
-      { id: "accounts", label: "Podsumowanie kont", icon: "AK" },
-      { id: "content", label: "Podsumowanie contentu", icon: "CT" },
-      { id: "compare", label: "Porownanie contentu", icon: "PR" },
+      { id: "accounts", label: "Podsumowanie kont", icon: "Konta" },
+      { id: "content", label: "Podsumowanie contentu", icon: "Posty" },
+      { id: "compare", label: "Porównanie contentu", icon: "Por." },
     ],
   },
   {
     id: "creation",
-    title: "Tworzenie tresci",
-    icon: "TW",
+    title: "Tworzenie treści",
+    icon: "Studio",
     tabs: [
-      { id: "studio", label: "Content Studio", icon: "CS" },
-      { id: "video", label: "Video Studio", icon: "VD" },
-      { id: "shorts", label: "Short Studio", icon: "SH" },
-      { id: "creative", label: "Creative Studio", icon: "ART" },
-      { id: "calendar", label: "Harmonogram", icon: "HR" },
+      { id: "studio", label: "Content Studio", icon: "Text" },
+      { id: "video", label: "Video Studio", icon: "Video" },
+      { id: "shorts", label: "Short Studio", icon: "Short" },
+      { id: "creative", label: "Creative Studio", icon: "Graf." },
+      { id: "calendar", label: "Harmonogram", icon: "Plan" },
     ],
   },
   {
     id: "templateLibrary",
     title: "Szablony",
-    icon: "SZ",
+    icon: "Baza",
     tabs: [
-      { id: "templatesContent", label: "Szablony contentu", icon: "SC" },
-      { id: "templatesVideo", label: "Szablony video", icon: "SV" },
-      { id: "templatesShort", label: "Szablony short", icon: "SS" },
-      { id: "templatesCreative", label: "Szablony creative", icon: "SA" },
+      { id: "templatesContent", label: "Szablony contentu", icon: "Text" },
+      { id: "templatesVideo", label: "Szablony video", icon: "Video" },
+      { id: "templatesShort", label: "Szablony short", icon: "Short" },
+      { id: "templatesCreative", label: "Szablony creative", icon: "Graf." },
     ],
   },
   {
@@ -200,17 +200,17 @@ const NAV_GROUPS: NavGroup[] = [
     icon: "AI",
     tabs: [
       { id: "chat", label: "AI Chat", icon: "CH" },
-      { id: "brand", label: "Brand Voice", icon: "BV" },
-      { id: "partner", label: "AI Partner", icon: "AP" },
+      { id: "brand", label: "Brand Voice", icon: "Styl" },
+      { id: "partner", label: "AI Partner", icon: "AI+" },
     ],
   },
   {
     id: "settings",
     title: "Ustawienia",
-    icon: "US",
+    icon: "Admin",
     tabs: [
-      { id: "integrations", label: "Integracje", icon: "IN" },
-      { id: "settings", label: "Ustawienia", icon: "US" },
+      { id: "integrations", label: "Integracje", icon: "API" },
+      { id: "settings", label: "Ustawienia", icon: "Set" },
     ],
   },
 ];
@@ -346,25 +346,30 @@ function emptyPostsByPlatform(): Record<Platform, Post[]> {
 }
 
 function summarizePosts(account: Account, posts: Post[]) {
-  if (!posts.length) {
+  const apiPosts = posts.filter((post) => post.source === "import");
+  const manualPosts = posts.filter((post) => post.source === "manual_link");
+
+  if (!apiPosts.length) {
     return {
       score: 0,
       trend: 0,
       posts: 0,
       engRate: "0%",
       reach: "0",
-      bestFormat: "Brak danych",
+      bestFormat: manualPosts.length ? "Linki ręczne" : "Brak danych",
       aiTag: account.connected
-        ? "Konto jest podłączone, ale synchronizacja nie zapisała jeszcze żadnych postów. Uruchom pobieranie danych."
+        ? manualPosts.length
+          ? `Masz ${manualPosts.length} ręcznych linków jako kontekst, ale Instagram API nie zapisało jeszcze żadnej publikacji. Uruchom synchronizację i sprawdź komunikat błędu.`
+          : "Konto jest podłączone, ale synchronizacja nie zapisała jeszcze żadnych postów. Uruchom pobieranie danych."
         : "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
     };
   }
 
-  const reachTotal = posts.reduce((sum, post) => sum + Number(post.reach || 0), 0);
-  const engagementTotal = posts.reduce((sum, post) => sum + post.likes + post.comments + (post.shares || 0) + (post.saves || 0), 0);
-  const scored = posts.filter((post) => post.score > 0);
+  const reachTotal = apiPosts.reduce((sum, post) => sum + Number(post.reach || 0), 0);
+  const engagementTotal = apiPosts.reduce((sum, post) => sum + post.likes + post.comments + (post.shares || 0) + (post.saves || 0), 0);
+  const scored = apiPosts.filter((post) => post.score > 0);
   const avgScore = scored.length ? Math.round(scored.reduce((sum, post) => sum + post.score, 0) / scored.length) : 0;
-  const typeCounts = posts.reduce<Record<string, number>>((acc, post) => {
+  const typeCounts = apiPosts.reduce<Record<string, number>>((acc, post) => {
     acc[post.type] = (acc[post.type] || 0) + 1;
     return acc;
   }, {});
@@ -373,11 +378,11 @@ function summarizePosts(account: Account, posts: Post[]) {
   return {
     score: avgScore,
     trend: 0,
-    posts: posts.length,
+    posts: apiPosts.length,
     engRate: reachTotal > 0 ? `${((engagementTotal / reachTotal) * 100).toFixed(1)}%` : "0%",
     reach: formatNumber(reachTotal),
     bestFormat,
-    aiTag: `Dane pochodzą z ostatniej synchronizacji API. Zaimportowano ${posts.length} publikacji dla ${account.name}.`,
+    aiTag: `Dane pochodzą z ostatniej synchronizacji API. Zaimportowano ${apiPosts.length} publikacji dla ${account.name}.`,
   };
 }
 
@@ -898,16 +903,16 @@ export default function AppWorkspacePage() {
             borderRight: `1px solid ${css.border}`,
           }}
         >
-          <Link href="/app/contentiq" style={st.sidebarLogo}>
-            <div
+          <Link href="/app/contentiq" style={st.sidebarLogo} aria-label="ANM ContentIQ">
+            <img
+              src="/ANM_ContentIQ_.JPG"
+              alt="ANM ContentIQ app icon"
               style={{
                 ...st.logoMark,
-                background: css.logoBg,
-                color: css.logoText,
+                background: css.surface,
+                border: `1px solid ${css.border}`,
               }}
-            >
-              IQ
-            </div>
+            />
 
             {!sidebarCollapsed && (
             <div>
@@ -940,8 +945,8 @@ export default function AppWorkspacePage() {
               }}
               title={sidebarCollapsed ? "Rozwin menu" : "Zwin menu"}
             >
-              <span>{sidebarCollapsed ? ">>" : "Zwin menu"}</span>
-              {!sidebarCollapsed && <span>{"<<"}</span>}
+              <span>{sidebarCollapsed ? "Menu" : "Zwin menu"}</span>
+              {!sidebarCollapsed && <span>{"<"}</span>}
             </button>
           </div>
 
@@ -982,7 +987,7 @@ export default function AppWorkspacePage() {
                       background: "transparent",
                     }}
                   >
-                    <span style={st.navGroupIcon}>{group.icon}</span>
+                    <span style={{ ...st.navGroupIcon, color: css.text }}>{group.icon}</span>
                     <span>{group.title}</span>
                     <span style={{ marginLeft: "auto" }}>
                       {openNavGroups[group.id] ? "-" : "+"}
@@ -998,13 +1003,23 @@ export default function AppWorkspacePage() {
                         ...st.navTab,
                         background: activeTab === tab.id ? css.activeBg : "transparent",
                         color: activeTab === tab.id ? css.text : css.muted,
+                        fontWeight: activeTab === tab.id ? 900 : 700,
                         borderLeft:
                           activeTab === tab.id
                             ? `3px solid ${css.accent}`
                             : "3px solid transparent",
                       }}
                     >
-                      <span style={st.navIcon}>{tab.icon}</span>
+                      <span
+                        style={{
+                          ...st.navIcon,
+                          background: activeTab === tab.id ? css.logoBg : css.surface,
+                          color: activeTab === tab.id ? css.logoText : css.muted,
+                          border: `1px solid ${activeTab === tab.id ? css.accentBorder : css.border}`,
+                        }}
+                      >
+                        {tab.icon}
+                      </span>
                       <span>{tab.label}</span>
                     </button>
                   ))}
@@ -1014,6 +1029,26 @@ export default function AppWorkspacePage() {
           </nav>
 
           <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
+            <div
+              style={{
+                ...st.legalLinks,
+                borderTop: `1px solid ${css.border}`,
+                paddingTop: sidebarCollapsed ? 8 : 10,
+              }}
+            >
+              {sidebarCollapsed ? (
+                <>
+                  <Link href="/privacy" title="Polityka prywatności" style={{ ...st.legalIconLink, color: css.muted, border: `1px solid ${css.border}` }}>P</Link>
+                  <Link href="/terms" title="Regulamin" style={{ ...st.legalIconLink, color: css.muted, border: `1px solid ${css.border}` }}>R</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/privacy" style={{ ...st.legalTextLink, color: css.muted }}>Polityka prywatności</Link>
+                  <Link href="/terms" style={{ ...st.legalTextLink, color: css.muted }}>Regulamin</Link>
+                </>
+              )}
+            </div>
+
             <button
               onClick={toggleTheme}
               style={{
@@ -2303,12 +2338,13 @@ const st: Record<string, CSSProperties> = {
     fontFamily: "'DM Sans', sans-serif",
   },
   logoMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    objectFit: "cover",
     fontSize: 12,
     fontWeight: 900,
     flexShrink: 0,
@@ -2335,11 +2371,11 @@ const st: Record<string, CSSProperties> = {
     width: "100%",
     minHeight: 32,
     border: "none",
-    padding: "7px 18px",
+    padding: "9px 18px",
     display: "flex",
     alignItems: "center",
     gap: 9,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 900,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
@@ -2347,8 +2383,8 @@ const st: Record<string, CSSProperties> = {
     fontFamily: "'DM Sans', sans-serif",
   },
   navGroupIcon: {
-    width: 24,
-    height: 24,
+    minWidth: 46,
+    height: 26,
     borderRadius: 8,
     display: "inline-flex",
     alignItems: "center",
@@ -2369,7 +2405,8 @@ const st: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 11,
+    fontSize: 9,
+    lineHeight: 1.1,
     fontWeight: 900,
     cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif",
@@ -2377,18 +2414,25 @@ const st: Record<string, CSSProperties> = {
   navTab: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     width: "100%",
-    padding: "11px 18px",
-    fontSize: 13,
+    padding: "12px 18px",
+    fontSize: 15,
     border: "none",
     cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif",
     textAlign: "left",
   },
   navIcon: {
-    fontSize: 12,
-    width: 16,
+    fontSize: 10,
+    width: 42,
+    minWidth: 42,
+    height: 24,
+    borderRadius: 8,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 900,
     textAlign: "center",
   },
   sidebarBottom: {
@@ -2410,6 +2454,28 @@ const st: Record<string, CSSProperties> = {
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
+  },
+  legalLinks: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "center",
+  },
+  legalTextLink: {
+    fontSize: 11,
+    textDecoration: "none",
+    lineHeight: 1.4,
+  },
+  legalIconLink: {
+    width: 34,
+    height: 30,
+    borderRadius: 10,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    fontWeight: 900,
+    textDecoration: "none",
   },
   mainArea: {
     display: "flex",
