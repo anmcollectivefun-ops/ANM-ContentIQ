@@ -10,6 +10,8 @@ import BrandVoice from "@/app/components/BrandVoice";
 import AIChat from "@/app/components/AIChat";
 import Templates from "@/app/components/Templates";
 import AIPartner from "@/app/components/AIPartner";
+import VideoStudio from "@/app/components/VideoStudio";
+import ShortStudio from "@/app/components/ShortStudio";
 import { calculatePerformanceScore } from "@/lib/performanceScore";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -34,7 +36,10 @@ type TabId =
   | "brand"
   | "chat"
   | "integrations"
-  | "settings";
+  | "settings"
+  | "video"
+  
+  ;
 
 interface Account {
   id: Platform;
@@ -155,6 +160,9 @@ const NAV_TABS: NavTab[] = [
   { id: "chat", label: "AI Chat", icon: "AI" },
   { id: "integrations", label: "Integracje", icon: "⊕" },
   { id: "settings", label: "Ustawienia", icon: "◎" },
+{ id: "video", label: "Video Studio", icon: "VID" },
+{ id: "shorts", label: "Short Studio", icon: "SRT" },
+
 ];
 
 const INTEGRATIONS = [
@@ -1737,7 +1745,75 @@ export default function AppWorkspacePage() {
                 <ContentStudio dark={dark} workspaceId={workspaceId} />
               </div>
             )}
+{/* ================= VIDEO STUDIO ================= */}
+{activeTab === "video" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent }}>
+        Video Studio
+      </p>
 
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        TikTok, Reels i Shorts od pomysłu do scenariusza
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Ten moduł tworzy pełny brief video: hook, scenariusz, ujęcia,
+        teksty na ekranie, opis posta, miniaturę i wskazówki retencyjne.
+      </p>
+    </div>
+
+    <VideoStudio dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
+
+{/* ================= SHORT STUDIO ================= */}
+{activeTab === "shorts" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent }}>
+        Short Studio
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        Jedna idea, wiele krótkich video
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Przygotuj jeden temat, a AI stworzy osobne wersje pod TikTok,
+        Instagram Reels, Facebook Reels, YouTube Shorts i LinkedIn Video.
+      </p>
+    </div>
+
+    <ShortStudio dark={dark} workspaceId="contentiq" />
+  </div>
+)}
             {/* ================= SZABLONY ================= */}
             {activeTab === "templates" && (
               <div>
