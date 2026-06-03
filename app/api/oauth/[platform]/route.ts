@@ -11,7 +11,7 @@ const PLATFORM_CONFIG: Record<string, {
 }> = {
   instagram: {
     authUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-    clientIdEnv: "INSTAGRAM_APP_ID",
+    clientIdEnv: "META_APP_ID",
     scope: "instagram_basic,instagram_manage_insights,instagram_content_publish,pages_read_engagement,pages_show_list,pages_manage_posts",
     analyticsScope: "instagram_basic,instagram_manage_insights,pages_read_engagement,pages_show_list",
   },
@@ -54,10 +54,6 @@ function env(name: string) {
 }
 
 function getClientId(platform: string, envName: string) {
-  if (platform === "instagram") {
-    return env("INSTAGRAM_APP_ID") || env("INATAGRAM_APP_ID") || env("META_APP_ID");
-  }
-
   if (platform === "tiktok") {
     return env("TIKTOK_CLIENT_KEY") || env("TIKTOK_CLIENT_ID");
   }

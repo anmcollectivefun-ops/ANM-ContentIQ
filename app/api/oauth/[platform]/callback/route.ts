@@ -20,21 +20,10 @@ function env(name: string) {
 }
 
 function getMetaAppId(platform: string) {
-  if (platform === "instagram") {
-    return env("INSTAGRAM_APP_ID") || env("INATAGRAM_APP_ID") || env("META_APP_ID");
-  }
-
   return env("META_APP_ID");
 }
 
 function getMetaAppSecret(platform: string) {
-  if (platform === "instagram") {
-    return env("INSTAGRAM_CLIENT_SECRET")
-      || env("INSTAGRAM_APP_SECRET")
-      || env("INSTGRAM_CLIENT_SECRET")
-      || env("META_APP_SECRET");
-  }
-
   return env("META_APP_SECRET");
 }
  
