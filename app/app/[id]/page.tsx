@@ -50,6 +50,7 @@ interface Account {
   color: string;
   connected: boolean;
   lastSync: string;
+  manualAccountUrl?: string;
 }
 
 interface PlatformConnection {
@@ -58,6 +59,15 @@ interface PlatformConnection {
   account_name: string;
   last_synced_at: string | null;
   connected: boolean;
+}
+
+interface ManualLink {
+  id: string;
+  connection_id: string;
+  type: "account" | "post";
+  url: string;
+  title: string | null;
+  created_at: string | null;
 }
 
 interface DbPost {
@@ -93,7 +103,8 @@ interface Post {
   shares?: number;
   saves?: number;
   status: "opublikowany" | "zaplanowany" | "analiza";
-  source: "import" | "created_in_app" | "scheduled_in_app";
+  source: "import" | "manual_link" | "created_in_app" | "scheduled_in_app";
+  url?: string;
   ai: string;
 }
 
@@ -282,13 +293,45 @@ function mapDbPost(post: DbPost): Post {
     comments: post.comments ?? 0,
     shares: post.shares ?? 0,
     saves: post.saves ?? 0,
+    url: post.url || undefined,
     status: "opublikowany",
     source: "import",
     ai: post.ai_summary || "Prawdziwy rekord pobrany z API. Analiza AI pojawi się po przeliczeniu wyników.",
   };
 }
 
-function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost[]) {
+function titleFromManualUrl(url: string, platform: Platform) {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/^\/|\/$/g, "");
+    const lastPart = path.split("/").filter(Boolean).pop();
+    if (lastPart) return `${getPlatformName(platform)}: ${decodeURIComponent(lastPart).slice(0, 70)}`;
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return url.slice(0, 80);
+  }
+}
+
+function mapManualLink(link: ManualLink, platform: Platform): Post {
+  return {
+    id: `manual-${link.id}`,
+    title: link.title || titleFromManualUrl(link.url, platform),
+    date: formatDbDate(link.created_at),
+    type: "Link ręczny",
+    score: 0,
+    reach: "0",
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    saves: 0,
+    url: link.url,
+    status: "analiza",
+    source: "manual_link",
+    ai: "Link dodany ręcznie. AI może użyć go jako kontekstu, ale metryki pozostają 0 do czasu pobrania danych z API.",
+  };
+}
+
+function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost[], manualLinks: ManualLink[] = []) {
   const byPlatform = emptyPostsByPlatform();
   const connectionPlatform = new Map(connections.map((connection) => [connection.id, connection.platform]));
 
@@ -298,12 +341,28 @@ function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost
     byPlatform[platform].push(mapDbPost(dbPost));
   });
 
+  manualLinks
+    .filter((link) => link.type === "post")
+    .forEach((link) => {
+      const platform = connectionPlatform.get(link.connection_id);
+      if (!platform) return;
+      byPlatform[platform].push(mapManualLink(link, platform));
+    });
+
   return byPlatform;
 }
 
-function mergeConnections(accounts: Account[], connections: PlatformConnection[], postsByPlatform: Record<Platform, Post[]>) {
+function mergeConnections(
+  accounts: Account[],
+  connections: PlatformConnection[],
+  postsByPlatform: Record<Platform, Post[]>,
+  manualLinks: ManualLink[] = []
+) {
   return accounts.map((account) => {
     const connection = connections.find((item) => item.platform === account.id);
+    const accountLink = connection
+      ? manualLinks.find((link) => link.connection_id === connection.id && link.type === "account")
+      : null;
 
     if (!connection) {
       return {
@@ -318,6 +377,7 @@ function mergeConnections(accounts: Account[], connections: PlatformConnection[]
         reach: "0",
         bestFormat: "Brak danych",
         aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
+        manualAccountUrl: undefined,
       };
     }
 
@@ -326,6 +386,7 @@ function mergeConnections(accounts: Account[], connections: PlatformConnection[]
       connected: true,
       handle: connection.account_name || account.name,
       lastSync: formatLastSync(connection.last_synced_at),
+      manualAccountUrl: accountLink?.url,
     };
 
     return {
@@ -522,21 +583,36 @@ export default function AppWorkspacePage() {
               return;
             }
 
-            supabase
-              .schema("contentiq")
-              .from("posts")
-              .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
-              .in("connection_id", connectionIds)
-              .order("published_at", { ascending: false })
-              .then(({ data: postRows, error: postsError }) => {
-                if (postsError) {
-                  console.error("Posts load error:", postsError.message);
-                }
+            Promise.all([
+              supabase
+                .schema("contentiq")
+                .from("posts")
+                .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
+                .in("connection_id", connectionIds)
+                .order("published_at", { ascending: false }),
+              supabase
+                .schema("contentiq")
+                .from("manual_links")
+                .select("id, connection_id, type, url, title, created_at")
+                .in("connection_id", connectionIds)
+                .order("created_at", { ascending: false }),
+            ]).then(([postsResult, linksResult]) => {
+              if (postsResult.error) {
+                console.error("Posts load error:", postsResult.error.message);
+              }
+              if (linksResult.error) {
+                console.error("Manual links load error:", linksResult.error.message);
+              }
 
-                const nextPosts = buildPostsByPlatform(connections, (postRows || []) as DbPost[]);
-                setPostsByPlatform(nextPosts);
-                setAccounts(mergeConnections(ACCOUNTS, connections, nextPosts));
-              });
+              const manualLinks = (linksResult.data || []) as ManualLink[];
+              const nextPosts = buildPostsByPlatform(
+                connections,
+                (postsResult.data || []) as DbPost[],
+                manualLinks
+              );
+              setPostsByPlatform(nextPosts);
+              setAccounts(mergeConnections(ACCOUNTS, connections, nextPosts, manualLinks));
+            });
           });
       })
       .catch((error) => {
@@ -1164,6 +1240,24 @@ export default function AppWorkspacePage() {
                       <div style={{ fontSize: 13, color: css.muted }}>
                         {activeAccount.handle}
                       </div>
+
+                      {activeAccount.manualAccountUrl && (
+                        <a
+                          href={activeAccount.manualAccountUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: "inline-flex",
+                            marginTop: 8,
+                            color: activeAccount.color,
+                            fontSize: 12,
+                            fontWeight: 900,
+                            textDecoration: "none",
+                          }}
+                        >
+                          Otwórz profil ↗
+                        </a>
+                      )}
                     </div>
 
                     <div className="ciq-account-metrics" style={st.accountMetrics}>
@@ -1240,6 +1334,24 @@ export default function AppWorkspacePage() {
                             {post.title}
                           </div>
 
+                          {post.url && (
+                            <a
+                              href={post.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                marginTop: 7,
+                                color: activeAccount.color,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                textDecoration: "none",
+                              }}
+                            >
+                              Otwórz link ↗
+                            </a>
+                          )}
+
                           <div style={st.postMeta}>
                             {metrics.map(([label, value]) => (
                               <span
@@ -1263,7 +1375,9 @@ export default function AppWorkspacePage() {
                                 ? "Zaplanowany w aplikacji"
                                 : post.source === "created_in_app"
                                   ? "Utworzony w aplikacji"
-                                  : "Import / API"}
+                                  : post.source === "manual_link"
+                                    ? "Link ręczny"
+                                    : "Import / API"}
                             </span>
 
                             <span
@@ -1400,6 +1514,24 @@ export default function AppWorkspacePage() {
                             >
                               {post.title}
                             </div>
+
+                            {post.url && (
+                              <a
+                                href={post.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  marginTop: 6,
+                                  color: account.color,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  textDecoration: "none",
+                                }}
+                              >
+                                Otwórz link ↗
+                              </a>
+                            )}
 
                             <div
                               style={{ ...st.miniPostMeta, color: css.muted }}

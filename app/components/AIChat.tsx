@@ -47,14 +47,19 @@ export default function AIChat({
       const { data: ws } = await supabase.schema("contentiq").from("workspaces").select("id,name").eq("slug", workspaceId).single();
       if (!ws?.id) return;
 
-      const [{ data: connections }, { data: posts }, { data: bv }, { data: drafts }] = await Promise.all([
-        supabase.schema("contentiq").from("platform_connections").select("platform,account_name,last_synced_at,connected").eq("workspace_id", ws.id).eq("connected", true),
+      const [{ data: connections }, { data: posts }, { data: manualLinks }, { data: bv }, { data: drafts }] = await Promise.all([
+        supabase.schema("contentiq").from("platform_connections").select("id,platform,account_name,last_synced_at,connected").eq("workspace_id", ws.id).eq("connected", true),
         supabase.schema("contentiq").from("posts").select("title,post_type,published_at,reach,impressions,likes,comments,shares,saves,ai_score").in("connection_id",
           (await supabase.schema("contentiq").from("platform_connections").select("id").eq("workspace_id", ws.id)).data?.map(c => c.id) || []
         ).order("published_at", { ascending: false }).limit(30),
+        supabase.schema("contentiq").from("manual_links").select("connection_id,type,url,title,created_at").in("connection_id",
+          (await supabase.schema("contentiq").from("platform_connections").select("id").eq("workspace_id", ws.id)).data?.map(c => c.id) || []
+        ).order("created_at", { ascending: false }).limit(50),
         supabase.schema("contentiq").from("brand_voice").select("*").eq("workspace_id", ws.id).single(),
         supabase.schema("contentiq").from("content_drafts").select("title,content_type,ai_score,status,created_at").eq("workspace_id", ws.id).order("created_at", { ascending: false }).limit(10),
       ]);
+
+      const connectionName = new Map((connections || []).map(c => [c.id, `${c.platform}: ${c.account_name || c.platform}`]));
 
       const ctx = `
 WORKSPACE: ${ws.name}
@@ -64,6 +69,9 @@ ${(connections || []).map(c => `- ${c.platform}: ${c.account_name} (ostatni sync
 
 OSTATNIE POSTY (${(posts || []).length} rekordów):
 ${(posts || []).slice(0, 15).map(p => `- [${p.post_type || "post"}] "${p.title?.slice(0, 60) || "bez tytułu"}" | reach: ${p.reach || 0} | likes: ${p.likes || 0} | comments: ${p.comments || 0} | AI score: ${p.ai_score || 0} | data: ${p.published_at ? new Date(p.published_at).toLocaleDateString("pl") : "?"}`).join("\n")}
+
+RECZNE LINKI (${(manualLinks || []).length}):
+${(manualLinks || []).map(l => `- ${connectionName.get(l.connection_id) || l.connection_id} | ${l.type === "account" ? "profil" : "post"} | ${l.title || "bez tytulu"} | ${l.url}`).join("\n")}
 
 ${bv.data ? `BRAND VOICE:
 - Ton: ${bv.data.tone || "nieokreślony"}
