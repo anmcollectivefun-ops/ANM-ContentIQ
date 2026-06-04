@@ -1096,7 +1096,7 @@ export default function ShortStudio({
       if (updateError) throw new Error(updateError.message);
 
       setVideoStatus("template_ready");
-      showToast("✓ Zapisano szablon shorta dla wybranych platform");
+      showToast("✓ Zapisano propozycję posta w Szablonach short");
     } catch (err) {
       setVideoError(
         explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
@@ -1450,7 +1450,24 @@ export default function ShortStudio({
               )}
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Platforma szablonu</SectionLabel>
+                <SectionLabel color={css.aiText}>Platformy treści i zapisu szablonu</SectionLabel>
+
+                <div
+                  style={{
+                    marginBottom: 8,
+                    borderRadius: 12,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.aiBgSoft,
+                    color: css.text,
+                    padding: "9px 10px",
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  Wybierz kanały, pod które AI ma dopasować opis, hook, hashtagi i
+                  CTA. Te same platformy decydują też, w której grupie pojawi się
+                  zapisany szablon shorta.
+                </div>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {SHORT_PLATFORMS.map((item) => (
@@ -1482,15 +1499,16 @@ export default function ShortStudio({
                     lineHeight: 1.55,
                   }}
                 >
-                  To pole prowadzi AI. Wpisz cel posta, odbiorcę, CTA, link albo
-                  konkretny przekaz. Bez sugestii AI bazuje głównie na napisach i
-                  może zgadywać intencję filmu.
+                  To pole jest briefem dla AI. Wpisz cel posta, odbiorcę, CTA, link
+                  albo konkretny przekaz. Bez sugestii AI bazuje głównie na napisach
+                  i klatkach, więc może dobrze opisać film, ale nie trafić w intencję
+                  Twojej publikacji.
                 </div>
 
                 <textarea
                   value={videoAnalysisNotes}
                   onChange={(event) => setVideoAnalysisNotes(event.target.value)}
-                  placeholder="Np. przygotuj opis sprzedażowy, mocny hook, CTA do obserwowania i hashtagi pod wybrane platformy."
+                  placeholder="Np. napisz post o aplikacji eventowej ANM Collective. Zachęć do kliknięcia linku i pokaż, że ułatwia planowanie wesel, 18. urodzin i eventów."
                   style={{
                     width: "100%",
                     minHeight: 78,
