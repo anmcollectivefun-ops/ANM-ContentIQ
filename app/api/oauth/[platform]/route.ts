@@ -29,7 +29,8 @@ const PLATFORM_CONFIG: Record<string, {
   tiktok: {
     authUrl: "https://www.tiktok.com/v2/auth/authorize/",
     clientIdEnv: "TIKTOK_CLIENT_KEY",
-    scope: "user.info.basic,video.list,video.upload,video.publish",
+    scope: "user.info.basic",
+    analyticsScope: "user.info.basic,video.list",
   },
   youtube: {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
@@ -88,6 +89,10 @@ function getMetaConfigId(platform: string, mode: string) {
       || env("META_LOGIN_CONFIG_ID");
   }
 
+  if (platform === "facebook" && env("FACEBOOK_USE_LOGIN_CONFIG") !== "1") {
+    return "";
+  }
+
   if (mode === "analytics") {
     return env("FACEBOOK_LOGIN_ANALYTICS_CONFIG_ID");
   }
@@ -97,6 +102,24 @@ function getMetaConfigId(platform: string, mode: string) {
 }
 
 function getOAuthScope(platform: string, config: { scope: string; analyticsScope?: string }, mode: string) {
+  if (platform === "tiktok") {
+    const scopes = new Set(["user.info.basic"]);
+
+    if (env("TIKTOK_ENABLE_VIDEO_LIST") === "1" || mode === "analytics") {
+      scopes.add("video.list");
+    }
+
+    if (env("TIKTOK_ENABLE_UPLOAD") === "1" || env("TIKTOK_ENABLE_PUBLISHING") === "1") {
+      scopes.add("video.upload");
+    }
+
+    if (env("TIKTOK_ENABLE_DIRECT_PUBLISH") === "1" || env("TIKTOK_ENABLE_PUBLISHING") === "1") {
+      scopes.add("video.publish");
+    }
+
+    return Array.from(scopes).join(",");
+  }
+
   if (isMetaPlatform(platform) && mode === "analytics") {
     return config.analyticsScope || config.scope;
   }
