@@ -18,8 +18,9 @@ function normalizeAspectRatio(format?: string) {
   return "1:1";
 }
 
+// 1. POPRAWKA: Zmiana domyślnego modelu na oficjalny model graficzny Imagen 3
 function getImageModel() {
-  return process.env.GOOGLE_GENAI_IMAGE_MODEL?.trim() || "gemini-2.5-flash-image";
+  return process.env.GOOGLE_GENAI_IMAGE_MODEL?.trim() || "imagen-3.0-generate-002";
 }
 
 function getApiKey(body: GenerateImageBody) {
@@ -37,7 +38,7 @@ function normalizeGoogleError(error: unknown) {
     return {
       status: 429,
       message:
-        "Google Gemini odrzucił generowanie obrazu z powodu limitu quota. Włącz billing albo zwiększ limit dla modelu Gemini 2.5 Flash Image w Google AI Studio / Google Cloud. Możesz też użyć własnego API key z aktywnym limitem.",
+        "Google AI Studio odrzucił generowanie obrazu z powodu limitu quota. Włącz billing albo zwiększ limit dla modelu Imagen 3 w Google AI Studio / Google Cloud. Możesz też użyć własnego API key z aktywnym limitem.",
       raw,
     };
   }
@@ -88,62 +89,40 @@ export async function POST(req: Request) {
 
     const finalPrompt = `
 Wygeneruj grafikę contentową zgodnie z opisem.
-
-PROMPT:
-${prompt}
-
-NEGATIVE PROMPT:
-${negativePrompt || "brak"}
-
-Wymagania:
-- estetyczna grafika do social media,
-- wysoka jakość,
-- czytelna kompozycja,
-- bez zniekształconych twarzy i dłoni,
-- jeśli pojawia się tekst, powinien być możliwie czytelny,
-- dopasuj kompozycję do formatu ${aspectRatio}.
+PROMPT: ${prompt}
+${negativePrompt ? `NEGATIVE PROMPT: ${negativePrompt}` : ""}
 `.trim();
 
-    const response = await ai.models.generateContent({
+    // 2. POPRAWKA: Zmiana metody z generateContent na dedykowane generateImages
+    const response = await ai.models.generateImages({
       model,
-      contents: finalPrompt,
+      prompt: finalPrompt,
       config: {
-        responseModalities: ["TEXT", "IMAGE"],
+        numberOfImages: 1,
+        outputMimeType: "image/png",
+        aspectRatio: aspectRatio, // Przekazujemy format bezpośrednio do konfiguracji Imagen 3
       },
     });
 
-    const parts: Array<{
-      text?: string;
-      inlineData?: {
-        data?: string;
-        mimeType?: string;
+    // 3. POPRAWKA: Dostosowanie parsowania odpowiedzi do struktury zwracanej przez generateImages
+    const generatedImages = response.generatedImages || [];
+
+    const images = generatedImages.map((img, index) => {
+      const mimeType = "image/png";
+      const base64 = img.image?.imageBytes || "";
+
+      return {
+        id: `image-${index + 1}`,
+        mimeType,
+        base64,
+        dataUrl: `data:${mimeType};base64,${base64}`,
       };
-    }> = response.candidates?.[0]?.content?.parts || [];
-
-    const images = parts
-      .filter((part) => part.inlineData?.data)
-      .map((part, index) => {
-        const mimeType = part.inlineData?.mimeType || "image/png";
-        const base64 = part.inlineData?.data || "";
-
-        return {
-          id: `image-${index + 1}`,
-          mimeType,
-          base64,
-          dataUrl: `data:${mimeType};base64,${base64}`,
-        };
-      });
-
-    const text = parts
-      .filter((part) => part.text)
-      .map((part) => part.text)
-      .join("\n");
+    });
 
     if (images.length === 0) {
       return NextResponse.json(
         {
           error: "Google nie zwrócił obrazu.",
-          text,
         },
         { status: 502 }
       );
@@ -154,7 +133,7 @@ Wymagania:
       provider: "google",
       model,
       aspectRatio,
-      text,
+      text: `Wygenerowano pomyślnie format ${aspectRatio}`,
       images,
     });
   } catch (error) {
