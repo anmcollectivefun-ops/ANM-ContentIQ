@@ -221,6 +221,20 @@ function normalizeVideoAnalysis(value: Partial<ShortVideoAnalysis>): ShortVideoA
   };
 }
 
+function explainSupabaseVideoError(message: string) {
+  if (
+    message.includes("permission denied for table short_video_uploads") ||
+    message.includes("row-level security policy")
+  ) {
+    return (
+      "Supabase blokuje zapis filmu. Uruchom SQL z pliku " +
+      "supabase/short_studio_rls_fix.sql, żeby nadać uprawnienia i polityki RLS dla Short Studio."
+    );
+  }
+
+  return message;
+}
+
 function getScoreColor(score: number) {
   if (score >= 80) return "#22c55e";
   if (score >= 60) return "#f59e0b";
@@ -732,7 +746,7 @@ export default function ShortStudio({
       return record;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setVideoError(message);
+      setVideoError(explainSupabaseVideoError(message));
       throw err;
     } finally {
       setUploadingVideo(false);
@@ -802,7 +816,9 @@ export default function ShortStudio({
 
       showToast("✓ AI przygotowało analizę filmu");
     } catch (err) {
-      setVideoError(err instanceof Error ? err.message : String(err));
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setAnalyzingVideo(false);
     }
@@ -844,7 +860,9 @@ export default function ShortStudio({
       setVideoPreviewUrl("");
       showToast("✓ Usunięto plik tymczasowy i rekord z bazy");
     } catch (err) {
-      setVideoError(err instanceof Error ? err.message : String(err));
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setDeletingVideo(false);
     }
@@ -906,7 +924,9 @@ export default function ShortStudio({
       setVideoStatus("template_ready");
       showToast("✓ Zapisano szablon shorta z filmu");
     } catch (err) {
-      setVideoError(err instanceof Error ? err.message : String(err));
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
     } finally {
       setSavingTemplate(false);
     }

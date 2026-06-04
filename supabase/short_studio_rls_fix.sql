@@ -86,3 +86,15 @@ create policy "contentiq_temp_videos_delete" on storage.objects
 grant usage on schema contentiq to anon, authenticated;
 grant select, insert, update, delete on all tables in schema contentiq to authenticated;
 grant usage, select on all sequences in schema contentiq to authenticated;
+
+-- Explicit grants for projects where these tables were created after older grants.
+grant select, insert, update, delete on table contentiq.short_video_uploads to authenticated;
+grant select, insert, update, delete on table contentiq.short_templates to authenticated;
+grant select on table contentiq.workspaces to authenticated;
+
+-- Keep future tables in this schema usable by authenticated users too.
+alter default privileges in schema contentiq
+  grant select, insert, update, delete on tables to authenticated;
+
+alter default privileges in schema contentiq
+  grant usage, select on sequences to authenticated;
