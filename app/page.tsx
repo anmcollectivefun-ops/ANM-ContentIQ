@@ -58,6 +58,8 @@ export default function LandingPage() {
             <a href="#business" className="hover:text-white">Dla firm</a>
             <Link href="/privacy" className="hover:text-white">Polityka prywatności</Link>
             <Link href="/terms" className="hover:text-white">Regulamin</Link>
+            <Link href="/contact" className="hover:text-white">Contact</Link>
+            <Link href="/delete-data" className="hover:text-white">Delete Data</Link>
             <Link href="/login" className="rounded-full bg-white px-5 py-2 font-semibold text-[#070816]">
               Zaloguj
             </Link>
@@ -207,6 +209,8 @@ export default function LandingPage() {
           <Link href="/" className="hover:text-white">Strona główna</Link>
           <Link href="/privacy" className="hover:text-white">Polityka prywatności</Link>
           <Link href="/terms" className="hover:text-white">Regulamin</Link>
+          <Link href="/contact" className="hover:text-white">Contact</Link>
+          <Link href="/delete-data" className="hover:text-white">Delete Data</Link>
         </div>
       </footer>
     </main>

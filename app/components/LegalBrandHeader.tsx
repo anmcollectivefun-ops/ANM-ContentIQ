@@ -13,6 +13,8 @@ export function LegalBrandHeader() {
 
       <nav className="legal-brand__nav" aria-label="Legal navigation">
         <Link href="/">Strona główna</Link>
+        <Link href="/contact">Contact</Link>
+        <Link href="/delete-data">Delete Data</Link>
         <Link href="/privacy">Polityka prywatności</Link>
         <Link href="/terms">Regulamin</Link>
       </nav>

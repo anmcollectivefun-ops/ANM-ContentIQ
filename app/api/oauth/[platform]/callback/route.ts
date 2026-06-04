@@ -15,8 +15,40 @@ interface StateData {
   nonce: string;
 }
 
+interface MetaPage {
+  id: string;
+  name: string;
+}
+
+type MetaPermission = {
+  permission?: string;
+  status?: string;
+};
+
+type MetaDiagnostics = {
+  reason: string;
+  user: unknown;
+  permissions: unknown;
+  tokenDebug: unknown;
+  grantedScopes: string[];
+  requiredScopes: string[];
+  missingScopes: string[];
+  pagesReturned: MetaPage[];
+  pagesRaw: unknown;
+};
+
+const META_REQUIRED_SCOPES: Record<string, string[]> = {
+  facebook: ["pages_show_list", "pages_read_engagement"],
+  instagram: ["pages_show_list", "pages_read_engagement", "instagram_basic", "instagram_manage_insights"],
+};
+
 function env(name: string) {
   return process.env[name]?.trim() || "";
+}
+
+async function fetchMetaJson(url: string) {
+  const res = await fetch(url);
+  return res.json().catch(() => null);
 }
 
 function getMetaAppId(platform: string) {
@@ -213,6 +245,104 @@ async function fetchAccountInfo(
  
   return { account_id: "unknown", account_name: platform };
 }
+
+async function fetchMetaPagesRaw(token: string) {
+  return fetchMetaJson(
+    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name&access_token=${token}`
+  );
+}
+
+function normalizeMetaPages(data: unknown): MetaPage[] {
+  const pages = (data as { data?: Array<{ id?: string; name?: string }> } | null)?.data || [];
+  return pages
+    .filter((page) => page.id && page.name)
+    .map((page) => ({ id: page.id as string, name: page.name as string }));
+}
+
+async function fetchMetaTokenDiagnostics(
+  platform: string,
+  token: string,
+  pagesRaw: unknown,
+  pagesReturned: MetaPage[],
+  reason: string,
+): Promise<MetaDiagnostics> {
+  const requiredScopes = META_REQUIRED_SCOPES[platform] || [];
+  const user = await fetchMetaJson(`https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${token}`);
+  const permissions = await fetchMetaJson(`https://graph.facebook.com/v19.0/me/permissions?access_token=${token}`);
+  const appId = getMetaAppId(platform);
+  const appSecret = getMetaAppSecret(platform);
+  const tokenDebug = appId && appSecret
+    ? await fetchMetaJson(`https://graph.facebook.com/debug_token?input_token=${token}&access_token=${appId}|${appSecret}`)
+    : { error: "Missing META_APP_ID or META_APP_SECRET for debug_token" };
+  const grantedFromPermissions = (((permissions as { data?: MetaPermission[] } | null)?.data || [])
+    .filter((item) => item.status === "granted")
+    .map((item) => item.permission)
+    .filter(Boolean)) as string[];
+  const grantedFromDebug = (((tokenDebug as { data?: { scopes?: string[] } } | null)?.data?.scopes || [])
+    .filter(Boolean)) as string[];
+  const grantedScopes = Array.from(new Set([...grantedFromPermissions, ...grantedFromDebug])).sort();
+  const missingScopes = requiredScopes.filter((scope) => !grantedScopes.includes(scope));
+
+  return {
+    reason,
+    user,
+    permissions,
+    tokenDebug,
+    grantedScopes,
+    requiredScopes,
+    missingScopes,
+    pagesReturned,
+    pagesRaw,
+  };
+}
+
+async function logMetaTokenDiagnostics(
+  platform: string,
+  token: string,
+  pagesRaw: unknown,
+  pagesReturned: MetaPage[],
+  reason: string,
+) {
+  const diagnostics = await fetchMetaTokenDiagnostics(platform, token, pagesRaw, pagesReturned, reason);
+  console.error(`[Meta OAuth diagnostics][${platform}]`, JSON.stringify(diagnostics, null, 2));
+  return diagnostics;
+}
+
+async function fetchMetaPages(platform: string, token: string): Promise<MetaPage[]> {
+  const data = await fetchMetaPagesRaw(token);
+
+  if ((data as { error?: { message?: string } } | null)?.error) {
+    await logMetaTokenDiagnostics(platform, token, data, [], "/me/accounts error");
+    throw new Error(`Meta pages error: ${(data as { error: { message?: string } }).error.message}`);
+  }
+
+  const pages = normalizeMetaPages(data);
+  const expectedPageId = env("FACEBOOK_PAGE_ID") || env("META_EXPECTED_FACEBOOK_PAGE_ID");
+  const expectedPageName = env("FACEBOOK_PAGE_NAME") || "ANM Collective";
+  const expectedPageMissing = platform === "facebook"
+    && (
+      (expectedPageId && !pages.some((page) => page.id === expectedPageId))
+      || (!!expectedPageName && !pages.some((page) => page.name.toLowerCase() === expectedPageName.toLowerCase()))
+    );
+
+  if (!pages.length || expectedPageMissing) {
+    await logMetaTokenDiagnostics(
+      platform,
+      token,
+      data,
+      pages,
+      !pages.length
+        ? "/me/accounts returned no pages"
+        : `Expected page ${expectedPageId || expectedPageName} missing from /me/accounts`,
+    );
+  }
+
+  return pages;
+}
+
+function encodeMetaPending(data: Record<string, unknown>) {
+  return Buffer.from(JSON.stringify(data)).toString("base64url");
+}
  
 function getRedirectUri(req: NextRequest, platform: string) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
@@ -313,12 +443,44 @@ export async function GET(
       throw new Error(`Nieobsługiwana platforma: ${platform}`);
     }
  
-    const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
     const workspaceUuid = await getWorkspaceId(supabase, state.workspace_id, user.id);
  
     const expiresAt = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
+
+    if (platform === "instagram" || platform === "facebook") {
+      const pages = await fetchMetaPages(platform, tokenData.access_token);
+
+      if (!pages.length) {
+        throw new Error("Meta nie zwróciła żadnych Facebook Pages w /me/accounts. Sprawdź pages_show_list, granted scopes i pages returned w logach Vercel.");
+      }
+
+      const redirectTo = state.workspace_id
+        ? `/app/${state.workspace_id}/settings?select_meta_page=${platform}`
+        : `/app/settings?select_meta_page=${platform}`;
+      const response = NextResponse.redirect(new URL(redirectTo, req.url));
+
+      response.cookies.set("ciq_meta_page_selection", encodeMetaPending({
+        user_id: user.id,
+        platform,
+        workspace_slug: state.workspace_id,
+        workspace_id: workspaceUuid,
+        access_token: tokenData.access_token,
+        token_expires_at: expiresAt,
+        pages,
+      }), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: true,
+        path: "/",
+        maxAge: 10 * 60,
+      });
+
+      return response;
+    }
+
+    const accountInfo = await fetchAccountInfo(platform, tokenData.access_token);
  
     // Sprawdź czy już istnieje połączenie dla tej platformy w tym workspace
     const { data: existing } = await supabase

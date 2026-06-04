@@ -25,6 +25,11 @@ interface ManualLink {
   title: string | null;
 }
 
+interface MetaSelectablePage {
+  id: string;
+  name: string;
+}
+
 const PLATFORM_META = {
   instagram: { label: "Instagram", color: "#E1306C", gradient: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)", desc: "Reels, posty, karuzele — zasięgi, wyświetlenia, zapisy", icon: "IG", type: "oauth" as const, accountPlaceholder: "https://instagram.com/twojekonto", postPlaceholder: "https://instagram.com/p/ABC123" },
   facebook:  { label: "Facebook",  color: "#1877F2", gradient: "linear-gradient(135deg,#1877F2,#0d5fd8)", desc: "Strony firmowe, posty, statystyki i zasięg organiczny", icon: "FB", type: "oauth" as const, accountPlaceholder: "https://facebook.com/twojastrona", postPlaceholder: "https://facebook.com/twojastrona/posts/123" },
@@ -223,6 +228,9 @@ export default function IntegrationsPage() {
   const [blogSaving, setBlogSaving] = useState(false);
   const [spotifyShowId, setSpotifyShowId] = useState("");
   const [spotifySaving, setSpotifySaving] = useState(false);
+  const [metaPages, setMetaPages] = useState<MetaSelectablePage[]>([]);
+  const [metaPlatform, setMetaPlatform] = useState<Platform | null>(null);
+  const [metaSelecting, setMetaSelecting] = useState("");
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok });
@@ -262,8 +270,19 @@ export default function IntegrationsPage() {
     const error = searchParams.get("error");
     const account = searchParams.get("account");
     const detail = searchParams.get("detail");
+    const selectMetaPage = searchParams.get("select_meta_page") as Platform | null;
     if (connected) showToast(`✓ ${account || connected} podłączono pomyślnie`);
     if (error) showToast(detail || "Błąd autoryzacji — spróbuj ponownie", false);
+    if (selectMetaPage === "facebook" || selectMetaPage === "instagram") {
+      setMetaPlatform(selectMetaPage);
+      fetch("/api/oauth/meta-page")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.error) throw new Error(data.error);
+          setMetaPages(data.pages || []);
+        })
+        .catch((err) => showToast(err instanceof Error ? err.message : String(err), false));
+    }
   }, [searchParams]);
 
   useEffect(() => { load(); }, [workspaceId]);
@@ -346,6 +365,27 @@ export default function IntegrationsPage() {
     setSpotifySaving(false);
   }
 
+  async function selectMetaPage(pageId: string) {
+    setMetaSelecting(pageId);
+    try {
+      const res = await fetch("/api/oauth/meta-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ page_id: pageId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Nie udało się zapisać strony Meta");
+      showToast(`✓ Wybrano stronę dla ${metaPlatform === "instagram" ? "Instagram" : "Facebook"}`);
+      setMetaPages([]);
+      setMetaPlatform(null);
+      await load();
+      window.history.replaceState(null, "", `/app/${workspaceId}/settings`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : String(err), false);
+    }
+    setMetaSelecting("");
+  }
+
   function getConn(platform: Platform) {
     return connections.find(c => c.platform === platform);
   }
@@ -371,6 +411,33 @@ export default function IntegrationsPage() {
       {toast && (
         <div style={{ position: "fixed", top: 20, right: 20, zIndex: 200, padding: "12px 20px", borderRadius: 12, background: toast.ok ? "#052e16" : "#450a0a", color: toast.ok ? "#22c55e" : "#ef4444", fontSize: 13, border: `1px solid ${toast.ok ? "#166534" : "#991b1b"}`, boxShadow: "0 8px 32px rgba(0,0,0,.5)", maxWidth: 380, lineHeight: 1.5 }}>
           {toast.msg}
+        </div>
+      )}
+
+      {metaPlatform && metaPages.length > 0 && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ width: "min(520px, 100%)", borderRadius: 18, background: "#0d1829", border: "1px solid #1e3250", boxShadow: "0 24px 80px rgba(0,0,0,.55)", padding: 22 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#4E8FD4", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>
+              Wybór strony Meta
+            </div>
+            <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, fontWeight: 400, color: "#e8f0ff", marginBottom: 8 }}>
+              Wybierz Facebook Page
+            </h2>
+            <p style={{ fontSize: 13, color: "#6b8aaa", lineHeight: 1.6, marginBottom: 16 }}>
+              Nie wybieramy portfolio biznesowego. Źródłem prawdy jest konkretna strona z /me/accounts.
+              Dla Instagrama aplikacja pobierze Instagram Business Account podpięty do wybranej strony.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {metaPages.map((page) => (
+                <button key={page.id} onClick={() => selectMetaPage(page.id)} disabled={!!metaSelecting}
+                  style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid #1e3250", background: "#060d18", color: "#e8f0ff", cursor: "pointer", fontFamily: "inherit", opacity: metaSelecting && metaSelecting !== page.id ? 0.5 : 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{page.name}</div>
+                  <div style={{ fontSize: 11, color: "#6b8aaa", marginTop: 3 }}>Page ID: {page.id}</div>
+                  {metaSelecting === page.id && <div style={{ fontSize: 11, color: "#4E8FD4", marginTop: 6 }}>Zapisuję...</div>}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
