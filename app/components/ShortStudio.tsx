@@ -55,6 +55,7 @@ type ApiResponse = {
 };
 
 type StudioMode = "idea" | "video";
+type ShortAiProvider = "gemini" | "deepseek";
 
 type VideoUploadRecord = {
   id: string;
@@ -530,10 +531,12 @@ export default function ShortStudio({
   const [analyzingVideo, setAnalyzingVideo] = useState(false);
   const [deletingVideo, setDeletingVideo] = useState(false);
   const [videoError, setVideoError] = useState("");
+  const [shortAiProvider, setShortAiProvider] = useState<ShortAiProvider>("gemini");
 
   const topicRef = useRef<HTMLTextAreaElement>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const contextRef = useRef<HTMLTextAreaElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const css: Record<string, string> = dark
     ? {
@@ -753,6 +756,74 @@ export default function ShortStudio({
     }
   }
 
+  async function captureVideoFrames() {
+    const video = videoRef.current;
+    if (!video || !videoPreviewUrl) return [];
+    const activeVideo = video;
+
+    const waitForEvent = (eventName: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          cleanup();
+          reject(new Error(`Nie udało się odczytać klatki video: ${eventName}.`));
+        }, 2500);
+
+        function cleanup() {
+          window.clearTimeout(timeout);
+          activeVideo.removeEventListener(eventName, onEvent);
+          activeVideo.removeEventListener("error", onError);
+        }
+
+        function onEvent() {
+          cleanup();
+          resolve();
+        }
+
+        function onError() {
+          cleanup();
+          reject(new Error("Błąd odczytu pliku video."));
+        }
+
+        activeVideo.addEventListener(eventName, onEvent, { once: true });
+        activeVideo.addEventListener("error", onError, { once: true });
+      });
+
+    if (video.readyState < 1) {
+      await waitForEvent("loadedmetadata");
+    }
+
+    const duration = Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration
+      : 1;
+    const times = [0.8, duration * 0.45, Math.max(duration - 0.8, duration * 0.8)]
+      .map((time) => Math.min(Math.max(time, 0.1), Math.max(duration - 0.1, 0.1)));
+
+    const canvas = document.createElement("canvas");
+    const width = Math.min(video.videoWidth || 720, 720);
+    const height = Math.round(width * ((video.videoHeight || 1280) / (video.videoWidth || 720)));
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return [];
+
+    const frames: string[] = [];
+    const originalTime = video.currentTime;
+    const wasPaused = video.paused;
+    video.pause();
+
+    for (const time of times) {
+      video.currentTime = time;
+      await waitForEvent("seeked");
+      ctx.drawImage(video, 0, 0, width, height);
+      frames.push(canvas.toDataURL("image/jpeg", 0.78));
+    }
+
+    video.currentTime = originalTime;
+    if (!wasPaused) void video.play().catch(() => undefined);
+
+    return frames;
+  }
+
   async function analyzeVideo() {
     if (!videoFile && !videoUpload) {
       setVideoError("Najpierw wybierz plik video.");
@@ -763,6 +834,10 @@ export default function ShortStudio({
     setVideoError("");
 
     try {
+      const frameDataUrls = await captureVideoFrames().catch((err) => {
+        console.warn("Nie udało się pobrać klatek video:", err);
+        return [] as string[];
+      });
       const upload = videoUpload || (await uploadVideoTemp());
 
       const res = await fetch("/api/shorts/analyze-video", {
@@ -778,6 +853,8 @@ export default function ShortStudio({
           signed_url: upload.signed_url,
           file_name: upload.file_name,
           mime_type: upload.mime_type,
+          frame_data_urls: frameDataUrls,
+          ai_provider: shortAiProvider,
         }),
       });
 
@@ -1319,6 +1396,50 @@ ${videoAnalysis.hashtags.join(" ")}`
                 opis, analiza AI i link do posta po publikacji.
               </p>
 
+              <div style={{ marginBottom: 12 }}>
+                <SectionLabel color={css.aiText}>Silnik analizy</SectionLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    {
+                      id: "gemini" as ShortAiProvider,
+                      label: "Gemini",
+                      note: "klatki + napisy",
+                    },
+                    {
+                      id: "deepseek" as ShortAiProvider,
+                      label: "DeepSeek",
+                      note: "tekst + strategia",
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setShortAiProvider(item.id)}
+                      style={{
+                        borderRadius: 13,
+                        border: `1px solid ${
+                          shortAiProvider === item.id ? css.aiBorder : css.border
+                        }`,
+                        background:
+                          shortAiProvider === item.id ? css.aiBgSoft : css.surfaceSoft,
+                        color: shortAiProvider === item.id ? css.aiText : css.muted,
+                        padding: "10px 12px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <span style={{ display: "block", fontSize: 12, fontWeight: 900 }}>
+                        {item.label}
+                      </span>
+                      <span style={{ display: "block", fontSize: 10, marginTop: 3 }}>
+                        {item.note}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <input
                 type="file"
                 accept="video/mp4,video/quicktime,video/webm"
@@ -1356,6 +1477,7 @@ ${videoAnalysis.hashtags.join(" ")}`
 
                   {videoPreviewUrl && (
                     <video
+                      ref={videoRef}
                       src={videoPreviewUrl}
                       controls
                       style={{
