@@ -20,7 +20,7 @@ type CreativeAssetType =
 
 type CreativeFormat = "1:1" | "4:5" | "9:16" | "16:9";
 
-type ProviderMode = "anm" | "own";
+type ProviderMode = "anm" | "huggingface" | "own";
 
 type CreativeStyle =
   | "realistyczny"
@@ -159,7 +159,7 @@ export default function CreativeStudio({
   workspaceId?: string;
 }) {
   const supabase = createClient();
-  const [providerMode, setProviderMode] = useState<ProviderMode>("anm");
+  const [providerMode, setProviderMode] = useState<ProviderMode>("huggingface");
   const [userApiKey, setUserApiKey] = useState("");
   const [platform, setPlatform] = useState<CreativePlatform>("instagram");
   const [assetType, setAssetType] = useState<CreativeAssetType>("post");
@@ -336,7 +336,7 @@ export default function CreativeStudio({
 
     try {
       if (item.providerMode === "own" && !userApiKey.trim()) {
-        throw new Error("Wklej własny Google Gemini API key albo przełącz źródło generowania na ANM AI.");
+        throw new Error("Wklej własny Google API key albo przełącz źródło generowania na Hugging Face albo Google z env.");
       }
 
       const response = await fetch("/api/generate-image", {
@@ -516,7 +516,29 @@ export default function CreativeStudio({
                   fontFamily: "inherit",
                 }}
               >
-                ANM AI
+                Google / Gemini
+              </button>
+
+              <button
+                type="button"
+                className="creative-pill"
+                onClick={() => setProviderMode("huggingface")}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: `1.5px solid ${
+                    providerMode === "huggingface" ? "#FFB000" : css.border
+                  }`,
+                  background:
+                    providerMode === "huggingface" ? "#FFB00018" : "transparent",
+                  color: providerMode === "huggingface" ? "#FFB000" : css.muted,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Hugging Face FLUX
               </button>
 
               <button
@@ -554,9 +576,11 @@ export default function CreativeStudio({
                 lineHeight: 1.6,
               }}
             >
-              {providerMode === "anm"
-                ? "Tryb ANM AI używa klucza Google ustawionego w zmiennych środowiskowych aplikacji."
-                : "Tryb własny API key użyje Twojego klucza tylko do tego jednego żądania."}
+              {providerMode === "huggingface"
+                ? "Darmowy wariant przez Hugging Face Serverless Inference API. Wymaga HF_TOKEN w env."
+                : providerMode === "anm"
+                  ? "Tryb Google / Gemini używa klucza Google ustawionego w zmiennych środowiskowych aplikacji."
+                  : "Tryb własny API key użyje Twojego klucza tylko do tego jednego żądania."}
             </div>
 
             {providerMode === "own" && (
@@ -1137,7 +1161,7 @@ export default function CreativeStudio({
                           lineHeight: 1.6,
                         }}
                       >
-                        Provider: {item.providerMode === "anm" ? "ANM AI" : "Własny API key"}
+                        Provider: {item.providerMode === "huggingface" ? "Hugging Face FLUX" : item.providerMode === "anm" ? "Google / Gemini" : "Własny API key"}
                       </div>
                     </div>
                   </div>
