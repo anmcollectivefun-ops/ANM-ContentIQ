@@ -397,15 +397,6 @@ function SectionLabel({
   children: React.ReactNode;
   color: string;
 }) {
-  const canGenerate =
-    selectedPlatforms.length > 0 &&
-    Boolean(
-      topic.trim() ||
-        videoAnalysis?.detected_topic?.trim() ||
-        videoAnalysis?.title?.trim() ||
-        videoAnalysis?.hook?.trim()
-    );
-
   return (
     <div
       style={{
@@ -563,6 +554,15 @@ export default function ShortStudio({
       .map((id) => getPlatformInfo(id)?.shortName || id)
       .join(", ");
   }, [selectedPlatforms]);
+
+  const canGenerate =
+    selectedPlatforms.length > 0 &&
+    Boolean(
+      topic.trim() ||
+        videoAnalysis?.detected_topic?.trim() ||
+        videoAnalysis?.title?.trim() ||
+        videoAnalysis?.hook?.trim()
+    );
 
   useEffect(() => {
     return () => {
@@ -939,9 +939,7 @@ ${videoAnalysis.hashtags.join(" ")}`
           : "",
       ]
         .filter(Boolean)
-        .join("
-
-");
+        .join("\n\n");
 
     if (!generationTopic) {
       setError("Wpisz temat albo najpierw przeanalizuj film AI.");
