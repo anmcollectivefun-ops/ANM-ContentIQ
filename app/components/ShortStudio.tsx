@@ -54,7 +54,6 @@ type ApiResponse = {
   error?: string;
 };
 
-type StudioMode = "idea" | "video";
 type ShortAiProvider = "gemini" | "deepseek";
 
 type VideoUploadRecord = {
@@ -498,8 +497,6 @@ export default function ShortStudio({
   workspaceId?: string;
 }) {
   const supabase = createClient();
-  const [studioMode, setStudioMode] = useState<StudioMode>("idea");
-
   const [selectedPlatforms, setSelectedPlatforms] = useState<ShortPlatform[]>([
     "tiktok",
     "instagram_reels",
@@ -532,6 +529,8 @@ export default function ShortStudio({
   const [deletingVideo, setDeletingVideo] = useState(false);
   const [videoError, setVideoError] = useState("");
   const [shortAiProvider, setShortAiProvider] = useState<ShortAiProvider>("gemini");
+  const [videoAnalysisNotes, setVideoAnalysisNotes] = useState("");
+  const [videoReferenceUrl, setVideoReferenceUrl] = useState("");
 
   const topicRef = useRef<HTMLTextAreaElement>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
@@ -601,6 +600,20 @@ export default function ShortStudio({
 
       return [...prev, platform];
     });
+  }
+
+  function updateVideoAnalysisField<K extends keyof ShortVideoAnalysis>(
+    field: K,
+    value: ShortVideoAnalysis[K]
+  ) {
+    setVideoAnalysis((current) =>
+      current
+        ? {
+            ...current,
+            [field]: value,
+          }
+        : current
+    );
   }
 
   async function copyResult() {
@@ -855,6 +868,8 @@ export default function ShortStudio({
           mime_type: upload.mime_type,
           frame_data_urls: frameDataUrls,
           ai_provider: shortAiProvider,
+          custom_user_notes: videoAnalysisNotes,
+          reference_url: videoReferenceUrl,
         }),
       });
 
@@ -984,7 +999,13 @@ export default function ShortStudio({
             on_screen_text: videoAnalysis.on_screen_text,
             shots: [],
             thumbnail_text: videoAnalysis.hook,
-            ai_summary: `${videoAnalysis.template_summary}\n\n${videoAnalysis.visual_summary}`.trim(),
+            ai_summary: [
+              videoAnalysis.template_summary,
+              videoAnalysis.visual_summary,
+              videoReferenceUrl.trim() ? `Link roboczy: ${videoReferenceUrl.trim()}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
             video_storage_path: videoUpload.storage_path,
             video_public_url: videoUpload.public_url || videoUpload.signed_url,
             status: "template_ready",
@@ -996,7 +1017,15 @@ export default function ShortStudio({
       await supabase
         .schema("contentiq")
         .from("short_video_uploads")
-        .update({ status: "template_ready" })
+        .update({
+          status: "template_ready",
+          ai_transcript: videoAnalysis.transcript,
+          ai_visual_summary: videoAnalysis.visual_summary,
+          ai_detected_topic: videoAnalysis.detected_topic,
+          ai_suggested_hook: videoAnalysis.hook,
+          ai_suggested_caption: videoAnalysis.caption,
+          ai_suggested_hashtags: videoAnalysis.hashtags,
+        })
         .eq("id", videoUpload.id);
 
       setVideoStatus("template_ready");
@@ -1337,40 +1366,22 @@ ${videoAnalysis.hashtags.join(" ")}`
 
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 8,
               marginBottom: 16,
+              padding: "10px 12px",
+              borderRadius: 14,
+              border: `1px solid ${css.border}`,
+              background: css.surfaceSoft,
+              color: css.muted,
+              fontSize: 12,
+              lineHeight: 1.6,
             }}
           >
-            {[
-              { id: "idea" as StudioMode, label: "Pomysł → shorty" },
-              { id: "video" as StudioMode, label: "Film → analiza AI" },
-            ].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setStudioMode(item.id)}
-                style={{
-                  borderRadius: 14,
-                  border: `1px solid ${
-                    studioMode === item.id ? css.aiBorder : css.border
-                  }`,
-                  background: studioMode === item.id ? css.aiBg : css.surfaceSoft,
-                  color: studioMode === item.id ? css.aiText : css.muted,
-                  padding: "11px 12px",
-                  fontSize: 12,
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
+            Analiza filmu i generowanie z pomysłu są rozdzielone. Możesz najpierw
+            przygotować pakiet publikacyjny z video, a niżej niezależnie tworzyć
+            warianty shortów z pomysłu albo z poprawionej analizy.
           </div>
 
-          {studioMode === "video" && (
+          {true && (
             <div
               style={{
                 marginBottom: 16,
@@ -1493,6 +1504,49 @@ ${videoAnalysis.hashtags.join(" ")}`
                 </div>
               )}
 
+              <div style={{ marginTop: 12 }}>
+                <SectionLabel color={css.aiText}>Sugestie do analizy AI</SectionLabel>
+                <textarea
+                  value={videoAnalysisNotes}
+                  onChange={(event) => setVideoAnalysisNotes(event.target.value)}
+                  placeholder="Np. przygotuj opis sprzedażowy, podkreśl planer, wyciągnij napisy z filmu, zaproponuj mocny hook i CTA do obserwowania."
+                  style={{
+                    width: "100%",
+                    minHeight: 86,
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    lineHeight: 1.65,
+                  }}
+                />
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <SectionLabel color={css.aiText}>Link opcjonalny</SectionLabel>
+                <input
+                  value={videoReferenceUrl}
+                  onChange={(event) => setVideoReferenceUrl(event.target.value)}
+                  placeholder="Np. link do produktu, landing page albo posta referencyjnego"
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                  }}
+                />
+              </div>
+
               <div
                 style={{
                   display: "grid",
@@ -1571,38 +1625,168 @@ ${videoAnalysis.hashtags.join(" ")}`
                     gap: 10,
                   }}
                 >
-                  <ResultBox label="Wynik AI" css={css} accent>
-                    <h3
-                      style={{
-                        margin: "0 0 8px",
-                        color: css.text,
-                        fontSize: 18,
-                      }}
-                    >
-                      {videoAnalysis.title}
-                    </h3>
+                  <ResultBox label="Pakiet publikacyjny AI - edytowalny" css={css} accent>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div>
+                        <SectionLabel color={css.aiText}>Temat posta</SectionLabel>
+                        <input
+                          value={videoAnalysis.detected_topic || videoAnalysis.title}
+                          onChange={(event) => {
+                            updateVideoAnalysisField("detected_topic", event.target.value);
+                            updateVideoAnalysisField("title", event.target.value);
+                          }}
+                          style={{
+                            width: "100%",
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
 
-                    <p
-                      style={{
-                        margin: "0 0 8px",
-                        color: css.text,
-                        fontSize: 12,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {videoAnalysis.visual_summary}
-                    </p>
+                      <div>
+                        <SectionLabel color={css.aiText}>Hook</SectionLabel>
+                        <textarea
+                          value={videoAnalysis.hook}
+                          onChange={(event) =>
+                            updateVideoAnalysisField("hook", event.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            minHeight: 64,
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
 
-                    <p
-                      style={{
-                        margin: 0,
-                        color: css.muted,
-                        fontSize: 12,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      Hook: {videoAnalysis.hook}
-                    </p>
+                      <div>
+                        <SectionLabel color={css.aiText}>Opis posta</SectionLabel>
+                        <textarea
+                          value={videoAnalysis.caption}
+                          onChange={(event) =>
+                            updateVideoAnalysisField("caption", event.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            minHeight: 104,
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            lineHeight: 1.65,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <SectionLabel color={css.aiText}>Hashtagi</SectionLabel>
+                        <input
+                          value={videoAnalysis.hashtags.join(" ")}
+                          onChange={(event) =>
+                            updateVideoAnalysisField(
+                              "hashtags",
+                              event.target.value
+                                .split(/[\s,]+/)
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                            )
+                          }
+                          placeholder="#short #reels #content"
+                          style={{
+                            width: "100%",
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+
+                      <div className="short-two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        <div>
+                          <SectionLabel color={css.aiText}>Opis wizualny</SectionLabel>
+                          <textarea
+                            value={videoAnalysis.visual_summary}
+                            onChange={(event) =>
+                              updateVideoAnalysisField("visual_summary", event.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              minHeight: 112,
+                              borderRadius: 12,
+                              border: `1px solid ${css.aiBorder}`,
+                              background: css.surface,
+                              color: css.text,
+                              padding: 11,
+                              fontFamily: "inherit",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <SectionLabel color={css.aiText}>Transkrypcja / napisy</SectionLabel>
+                          <textarea
+                            value={videoAnalysis.transcript}
+                            onChange={(event) =>
+                              updateVideoAnalysisField("transcript", event.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              minHeight: 112,
+                              borderRadius: 12,
+                              border: `1px solid ${css.aiBorder}`,
+                              background: css.surface,
+                              color: css.text,
+                              padding: 11,
+                              fontFamily: "inherit",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {videoReferenceUrl.trim() && (
+                        <div
+                          style={{
+                            borderRadius: 12,
+                            border: `1px solid ${css.border}`,
+                            background: css.surface,
+                            color: css.muted,
+                            padding: 10,
+                            fontSize: 12,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          Link do dodania w poście lub notatkach: {videoReferenceUrl}
+                        </div>
+                      )}
+                    </div>
                   </ResultBox>
 
                   <button

@@ -14,6 +14,8 @@ type AnalyzeVideoBody = {
   mime_type?: string;
   frame_data_urls?: string[];
   ai_provider?: "deepseek" | "gemini";
+  custom_user_notes?: string;
+  reference_url?: string;
 };
 
 const ALLOWED_VIDEO_TYPES = new Set([
@@ -151,6 +153,17 @@ function getDataUrlParts(dataUrl: string) {
 }
 
 function buildVideoAnalysisPrompt(body: AnalyzeVideoBody) {
+  const userContext = [
+    body.custom_user_notes?.trim()
+      ? `Dodatkowe sugestie użytkownika: ${body.custom_user_notes.trim()}`
+      : "",
+    body.reference_url?.trim()
+      ? `Link referencyjny lub kontekstowy: ${body.reference_url.trim()}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   return `
 Przeanalizuj short video dla aplikacji ANM ContentIQ na podstawie przesłanych klatek obrazu.
 
@@ -158,6 +171,7 @@ Dane pliku:
 - upload_id: ${body.upload_id}
 - file_name: ${body.file_name}
 - mime_type: ${body.mime_type}
+${userContext ? `\n${userContext}` : ""}
 
 Zasady:
 - Opisz tylko to, co realnie widać na klatkach.
@@ -215,6 +229,16 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
 
 async function analyzeWithDeepSeek(body: AnalyzeVideoBody, frames: string[]) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
+  const userContext = [
+    body.custom_user_notes?.trim()
+      ? `Dodatkowe sugestie użytkownika: ${body.custom_user_notes.trim()}`
+      : "",
+    body.reference_url?.trim()
+      ? `Link referencyjny lub kontekstowy: ${body.reference_url.trim()}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   if (!apiKey) {
     console.warn("Brak klucza API dla DeepSeek. Uruchamiam fallback.");
@@ -246,7 +270,7 @@ Dane pliku:
 
 W visual_summary jasno napisz, że DeepSeek nie analizuje klatek, i zaproponuj użytkownikowi przełączenie na Gemini w celu wykonania OCR napisów i analizy wizualnej.
 
-${outputSchemaText()}
+${userContext ? `${userContext}\n\n` : ""}${outputSchemaText()}
         `.trim(),
       },
     ],
