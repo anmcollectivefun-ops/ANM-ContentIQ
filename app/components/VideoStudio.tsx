@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type VideoPlatform = "tiktok" | "instagram" | "youtube";
+type VideoPlatform = "youtube" | "tiktok" | "facebook" | "instagram" | "linkedin";
 
 type VideoGoal =
   | "zasięg"
@@ -50,6 +50,14 @@ interface VideoBrief {
   caption: string;
   hashtags: string[];
   thumbnail_text: string;
+  thumbnail_prompt?: string;
+  seo_keywords?: string[];
+  chapters?: {
+    time: string;
+    title: string;
+  }[];
+  pinned_comment?: string;
+  publish_checklist?: string[];
   retention_tips: string[];
   production_checklist: string[];
   estimated_score: number;
@@ -76,15 +84,15 @@ const PLATFORMS: {
   },
   {
     id: "instagram",
-    name: "Instagram Reels",
+    name: "Instagram Video",
     color: "#E1306C",
-    label: "Reels",
+    label: "IG",
   },
   {
     id: "youtube",
-    name: "YouTube Shorts",
+    name: "YouTube",
     color: "#FF0033",
-    label: "Shorts",
+    label: "YT",
   },
 ];
 
@@ -110,7 +118,7 @@ const FORMATS: VideoFormat[] = [
   "Reakcja na trend",
 ];
 
-const DURATIONS = [15, 20, 30, 45, 60];
+const DURATIONS = [180, 300, 600, 900, 1200, 1800];
 
 function getScoreColor(score: number) {
   if (score >= 80) return "#22c55e";
@@ -353,10 +361,10 @@ export default function VideoStudio({
 }) {
   const supabase = createClient();
 
-  const [platform, setPlatform] = useState<VideoPlatform>("tiktok");
+  const [platform, setPlatform] = useState<VideoPlatform>("youtube");
   const [goal, setGoal] = useState<VideoGoal>("zasięg");
   const [format, setFormat] = useState<VideoFormat>("3 błędy");
-  const [duration, setDuration] = useState(30);
+  const [duration, setDuration] = useState(600);
   const [topic, setTopic] = useState("");
   const [brandContext, setBrandContext] = useState("");
 

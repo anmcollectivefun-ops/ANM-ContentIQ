@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -11,12 +11,12 @@ type ShortPlatform =
   | "linkedin_video";
 
 type ShortGoal =
-  | "zasięg"
+  | "zasiÄ™g"
   | "edukacja"
-  | "sprzedaż"
+  | "sprzedaĹĽ"
   | "lead"
-  | "społeczność"
-  | "eksperckość";
+  | "spoĹ‚ecznoĹ›Ä‡"
+  | "eksperckoĹ›Ä‡";
 
 type ShortVariant = {
   platform: ShortPlatform;
@@ -146,24 +146,24 @@ const SHORT_PLATFORMS: {
 ];
 
 const GOALS: ShortGoal[] = [
-  "zasięg",
+  "zasiÄ™g",
   "edukacja",
-  "sprzedaż",
+  "sprzedaĹĽ",
   "lead",
-  "społeczność",
-  "eksperckość",
+  "spoĹ‚ecznoĹ›Ä‡",
+  "eksperckoĹ›Ä‡",
 ];
 
 const FORMATS = [
-  "3 błędy",
-  "3 wskazówki",
+  "3 bĹ‚Ä™dy",
+  "3 wskazĂłwki",
   "Mit vs prawda",
   "Przed / po",
   "Mini tutorial",
   "POV",
   "Case study w 30 sekund",
-  "Lista narzędzi",
-  "Problem → rozwiązanie",
+  "Lista narzÄ™dzi",
+  "Problem â†’ rozwiÄ…zanie",
   "Reakcja na trend",
 ];
 
@@ -228,7 +228,7 @@ function explainSupabaseVideoError(message: string) {
   ) {
     return (
       "Supabase blokuje zapis filmu. Uruchom SQL z pliku " +
-      "supabase/short_studio_rls_fix.sql, żeby nadać uprawnienia i polityki RLS dla Short Studio."
+      "supabase/short_studio_rls_fix.sql, ĹĽeby nadaÄ‡ uprawnienia i polityki RLS dla Short Studio."
     );
   }
 
@@ -249,7 +249,7 @@ function formatResultAsText(result: ShortResult) {
   return `
 ${result.idea_title}
 
-GŁÓWNY KĄT:
+GĹĂ“WNY KÄ„T:
 ${result.main_angle}
 
 AI PODSUMOWANIE:
@@ -262,7 +262,7 @@ ${result.variants
 ${variant.platform_name}
 Score: ${variant.score}/100
 Format: ${variant.format}
-Długość: ${variant.duration_seconds}s
+DĹ‚ugoĹ›Ä‡: ${variant.duration_seconds}s
 
 Hook:
 ${variant.hook}
@@ -270,7 +270,7 @@ ${variant.hook}
 Scenariusz:
 ${variant.script}
 
-Ujęcia:
+UjÄ™cia:
 ${variant.shots
   .map(
     (shot) =>
@@ -325,7 +325,7 @@ function buildPrompt({
     .join(", ");
 
   return `
-Jesteś ekspertem od short video: TikTok, Instagram Reels, Facebook Reels, YouTube Shorts i LinkedIn Video.
+JesteĹ› ekspertem od short video: TikTok, Instagram Reels, Facebook Reels, YouTube Shorts i LinkedIn Video.
 
 Twoje zadanie:
 Z jednej idei przygotuj osobne warianty short video na wskazane platformy.
@@ -339,13 +339,13 @@ ${goal}
 Preferowany format:
 ${format}
 
-Preferowana długość:
+Preferowana dĹ‚ugoĹ›Ä‡:
 ${duration} sekund
 
 Temat / idea:
 ${topic}
 
-Materiał źródłowy / istniejący content:
+MateriaĹ‚ ĹşrĂłdĹ‚owy / istniejÄ…cy content:
 ${sourceContent || "brak"}
 
 Kontekst marki / styl komunikacji:
@@ -353,27 +353,27 @@ ${brandContext || "brak"}
 
 Zasady:
 - nie kopiuj tego samego scenariusza 1:1 na wszystkie platformy,
-- TikTok: mocny hook, szybkie tempo, naturalny styl, prosty język,
-- Instagram Reels: wizualność, emocje, zapis/udostępnienia, teksty na ekranie,
-- Facebook Reels: prostszy przekaz, społeczność, praktyczny temat,
-- YouTube Shorts: jasny tytuł, szybka wartość, retencja, miniatura,
-- LinkedIn Video: eksperckość, konkret, B2B, mniej trendowo, bardziej merytorycznie,
-- każdy wariant ma mieć hook, scenariusz, ujęcia, napisy, opis, hashtagi, miniaturę i notatkę publikacyjną.
+- TikTok: mocny hook, szybkie tempo, naturalny styl, prosty jÄ™zyk,
+- Instagram Reels: wizualnoĹ›Ä‡, emocje, zapis/udostÄ™pnienia, teksty na ekranie,
+- Facebook Reels: prostszy przekaz, spoĹ‚ecznoĹ›Ä‡, praktyczny temat,
+- YouTube Shorts: jasny tytuĹ‚, szybka wartoĹ›Ä‡, retencja, miniatura,
+- LinkedIn Video: eksperckoĹ›Ä‡, konkret, B2B, mniej trendowo, bardziej merytorycznie,
+- kaĹĽdy wariant ma mieÄ‡ hook, scenariusz, ujÄ™cia, napisy, opis, hashtagi, miniaturÄ™ i notatkÄ™ publikacyjnÄ….
 
-Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
+ZwrĂłÄ‡ dokĹ‚adnie taki JSON, bez markdown i bez komentarzy:
 
 {
-  "idea_title": "tytuł głównej idei",
-  "main_angle": "główny kąt komunikacji",
-  "ai_summary": "krótkie podsumowanie AI",
+  "idea_title": "tytuĹ‚ gĹ‚Ăłwnej idei",
+  "main_angle": "gĹ‚Ăłwny kÄ…t komunikacji",
+  "ai_summary": "krĂłtkie podsumowanie AI",
   "variants": [
     {
       "platform": "tiktok",
       "platform_name": "TikTok",
       "duration_seconds": 30,
-      "format": "3 błędy",
+      "format": "3 bĹ‚Ä™dy",
       "hook": "hook 0-2 sekundy",
-      "script": "pełny scenariusz do powiedzenia",
+      "script": "peĹ‚ny scenariusz do powiedzenia",
       "shots": [
         {
           "time": "0-2s",
@@ -389,17 +389,17 @@ Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
       ],
       "caption": "opis posta",
       "hashtags": ["#hashtag1", "#hashtag2"],
-      "thumbnail_text": "tekst na miniaturę",
-      "publishing_notes": "krótka wskazówka publikacyjna dla tej platformy",
+      "thumbnail_text": "tekst na miniaturÄ™",
+      "publishing_notes": "krĂłtka wskazĂłwka publikacyjna dla tej platformy",
       "score": 85
     }
   ],
   "cross_platform_notes": [
-    "wniosek porównawczy między platformami"
+    "wniosek porĂłwnawczy miÄ™dzy platformami"
   ]
 }
 
-W JSON zwróć warianty tylko dla tych platform:
+W JSON zwrĂłÄ‡ warianty tylko dla tych platform:
 ${selectedPlatforms.join(", ")}
   `.trim();
 }
@@ -503,8 +503,8 @@ export default function ShortStudio({
     "youtube_shorts",
   ]);
 
-  const [goal, setGoal] = useState<ShortGoal>("zasięg");
-  const [format, setFormat] = useState("3 błędy");
+  const [goal, setGoal] = useState<ShortGoal>("zasiÄ™g");
+  const [format, setFormat] = useState("3 bĹ‚Ä™dy");
   const [duration, setDuration] = useState(30);
   const [topic, setTopic] = useState("");
   const [sourceContent, setSourceContent] = useState("");
@@ -527,6 +527,7 @@ export default function ShortStudio({
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [analyzingVideo, setAnalyzingVideo] = useState(false);
   const [deletingVideo, setDeletingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
   const [videoError, setVideoError] = useState("");
   const [shortAiProvider, setShortAiProvider] = useState<ShortAiProvider>("gemini");
   const [videoAnalysisNotes, setVideoAnalysisNotes] = useState("");
@@ -649,7 +650,7 @@ export default function ShortStudio({
       .single();
 
     if (error || !created?.id) {
-      throw new Error(error?.message || "Nie udało się utworzyć przestrzeni.");
+      throw new Error(error?.message || "Nie udaĹ‚o siÄ™ utworzyÄ‡ przestrzeni.");
     }
 
     return created.id as string;
@@ -663,6 +664,7 @@ export default function ShortStudio({
 
   function handleVideoFileChange(file: File | null) {
     setVideoError("");
+    setVideoProgress(0);
     setVideoAnalysis(null);
     setResult(null);
 
@@ -678,13 +680,13 @@ export default function ShortStudio({
 
     if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
       setVideoFile(null);
-      setVideoError("Zły format pliku. Dozwolone: MP4, MOV i WebM.");
+      setVideoError("ZĹ‚y format pliku. Dozwolone: MP4, MOV i WebM.");
       return;
     }
 
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
       setVideoFile(null);
-      setVideoError("Plik jest za duży. Maksymalny rozmiar to 100 MB.");
+      setVideoError("Plik jest za duĹĽy. Maksymalny rozmiar to 100 MB.");
       return;
     }
 
@@ -697,6 +699,7 @@ export default function ShortStudio({
 
     setUploadingVideo(true);
     setVideoError("");
+    setVideoProgress(8);
 
     try {
       const wsId = await getOrCreateWorkspaceUuid();
@@ -713,14 +716,15 @@ export default function ShortStudio({
           upsert: false,
         });
 
-      if (uploadError) throw new Error(`Błąd uploadu: ${uploadError.message}`);
+      if (uploadError) throw new Error(`BĹ‚Ä…d uploadu: ${uploadError.message}`);
+      setVideoProgress(45);
 
       const { data: signedData, error: signedError } = await supabase.storage
         .from(TEMP_VIDEO_BUCKET)
         .createSignedUrl(path, 60 * 60);
 
       if (signedError) {
-        console.warn("Nie udało się utworzyć signed URL:", signedError.message);
+        console.warn("Nie udaĹ‚o siÄ™ utworzyÄ‡ signed URL:", signedError.message);
       }
 
       const { data: uploadRow, error: insertError } = await supabase
@@ -742,7 +746,7 @@ export default function ShortStudio({
 
       if (insertError || !uploadRow) {
         await supabase.storage.from(TEMP_VIDEO_BUCKET).remove([path]);
-        throw new Error(insertError?.message || "Błąd zapisu uploadu w Supabase.");
+        throw new Error(insertError?.message || "BĹ‚Ä…d zapisu uploadu w Supabase.");
       }
 
       const record: VideoUploadRecord = {
@@ -759,6 +763,7 @@ export default function ShortStudio({
 
       setVideoUpload(record);
       setVideoStatus("uploaded_temp");
+      setVideoProgress(60);
       return record;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -778,7 +783,7 @@ export default function ShortStudio({
       new Promise<void>((resolve, reject) => {
         const timeout = window.setTimeout(() => {
           cleanup();
-          reject(new Error(`Nie udało się odczytać klatki video: ${eventName}.`));
+          reject(new Error(`Nie udaĹ‚o siÄ™ odczytaÄ‡ klatki video: ${eventName}.`));
         }, 2500);
 
         function cleanup() {
@@ -794,7 +799,7 @@ export default function ShortStudio({
 
         function onError() {
           cleanup();
-          reject(new Error("Błąd odczytu pliku video."));
+          reject(new Error("BĹ‚Ä…d odczytu pliku video."));
         }
 
         activeVideo.addEventListener(eventName, onEvent, { once: true });
@@ -845,13 +850,15 @@ export default function ShortStudio({
 
     setAnalyzingVideo(true);
     setVideoError("");
+    setVideoProgress(videoUpload ? 62 : 12);
 
     try {
       const frameDataUrls = await captureVideoFrames().catch((err) => {
-        console.warn("Nie udało się pobrać klatek video:", err);
+        console.warn("Nie udaĹ‚o siÄ™ pobraÄ‡ klatek video:", err);
         return [] as string[];
       });
       const upload = videoUpload || (await uploadVideoTemp());
+      setVideoProgress(70);
 
       const res = await fetch("/api/shorts/analyze-video", {
         method: "POST",
@@ -874,15 +881,17 @@ export default function ShortStudio({
       });
 
       const json = await res.json();
+      setVideoProgress(88);
 
       if (!res.ok || json.error) {
-        const details = json.details ? ` Szczegóły: ${json.details}` : "";
-        throw new Error(`${json.error || "Błąd AI podczas analizy filmu."}${details}`);
+        const details = json.details ? ` SzczegĂłĹ‚y: ${json.details}` : "";
+        throw new Error(`${json.error || "BĹ‚Ä…d AI podczas analizy filmu."}${details}`);
       }
 
       const analysis = normalizeVideoAnalysis(json);
       setVideoAnalysis(analysis);
       setVideoStatus("analyzed");
+      setVideoProgress(100);
       setTopic(analysis.detected_topic || analysis.title || topic);
       setSourceContent(
         [
@@ -907,7 +916,7 @@ export default function ShortStudio({
         })
         .eq("id", upload.id);
 
-      showToast("✓ AI przygotowało analizę filmu");
+      showToast("âś“ AI przygotowaĹ‚o analizÄ™ filmu");
     } catch (err) {
       setVideoError(
         explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
@@ -947,11 +956,12 @@ export default function ShortStudio({
       setVideoUpload(null);
       setVideoAnalysis(null);
       setVideoStatus("deleted_local");
+      setVideoProgress(0);
       setResult(null);
 
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
       setVideoPreviewUrl("");
-      showToast("✓ Usunięto plik tymczasowy i rekord z bazy");
+      showToast("âś“ UsuniÄ™to plik tymczasowy i rekord z bazy");
     } catch (err) {
       setVideoError(
         explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
@@ -1029,7 +1039,7 @@ export default function ShortStudio({
         .eq("id", videoUpload.id);
 
       setVideoStatus("template_ready");
-      showToast("✓ Zapisano szablon shorta z filmu");
+      showToast("âś“ Zapisano szablon shorta z filmu");
     } catch (err) {
       setVideoError(
         explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
@@ -1103,7 +1113,7 @@ ${videoAnalysis.hashtags.join(" ")}`
       const json = (await res.json()) as ApiResponse;
 
       if (!res.ok || json.error) {
-        setError(json.error || "Błąd API.");
+        setError(json.error || "BĹ‚Ä…d API.");
         return;
       }
 
@@ -1126,7 +1136,7 @@ ${videoAnalysis.hashtags.join(" ")}`
     } catch (err) {
       console.error(err);
       setError(
-        "AI nie zwróciło poprawnego JSON. Spróbuj jeszcze raz albo skróć opis."
+        "AI nie zwrĂłciĹ‚o poprawnego JSON. SprĂłbuj jeszcze raz albo skrĂłÄ‡ opis."
       );
     } finally {
       setLoading(false);
@@ -1167,7 +1177,7 @@ ${videoAnalysis.hashtags.join(" ")}`
 
       if (insertError) throw new Error(insertError.message);
 
-      showToast("✓ Zapisano Short Studio jako szkic");
+      showToast("âś“ Zapisano Short Studio jako szkic");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1246,7 +1256,7 @@ ${videoAnalysis.hashtags.join(" ")}`
         setVideoStatus("template_ready");
       }
 
-      showToast("✓ Zapisano Short Studio jako szablon");
+      showToast("âś“ Zapisano Short Studio jako szablon");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1349,7 +1359,7 @@ ${videoAnalysis.hashtags.join(" ")}`
               fontWeight: 400,
             }}
           >
-            Jedna idea, wiele shortów
+            Jedna idea, wiele shortĂłw
           </h2>
 
           <p
@@ -1376,9 +1386,9 @@ ${videoAnalysis.hashtags.join(" ")}`
               lineHeight: 1.6,
             }}
           >
-            Analiza filmu i generowanie z pomysłu są rozdzielone. Możesz najpierw
-            przygotować pakiet publikacyjny z video, a niżej niezależnie tworzyć
-            warianty shortów z pomysłu albo z poprawionej analizy.
+            Analiza filmu i generowanie z pomysĹ‚u sÄ… rozdzielone. MoĹĽesz najpierw
+            przygotowaÄ‡ pakiet publikacyjny z video, a niĹĽej niezaleĹĽnie tworzyÄ‡
+            warianty shortĂłw z pomysĹ‚u albo z poprawionej analizy.
           </div>
 
           {true && (
@@ -1403,8 +1413,8 @@ ${videoAnalysis.hashtags.join(" ")}`
                   lineHeight: 1.7,
                 }}
               >
-                Film jest przechowywany tymczasowo i zostanie usunięty po
-                publikacji lub wygaśnięciu. Do bazy trafiają tylko metadane,
+                Film jest przechowywany tymczasowo i zostanie usuniÄ™ty po
+                publikacji lub wygaĹ›niÄ™ciu. Do bazy trafiajÄ… tylko metadane,
                 opis, analiza AI i link do posta po publikacji.
               </p>
 
@@ -1509,7 +1519,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                 <textarea
                   value={videoAnalysisNotes}
                   onChange={(event) => setVideoAnalysisNotes(event.target.value)}
-                  placeholder="Np. przygotuj opis sprzedażowy, podkreśl planer, wyciągnij napisy z filmu, zaproponuj mocny hook i CTA do obserwowania."
+                  placeholder="Np. przygotuj opis sprzedaĹĽowy, podkreĹ›l planer, wyciÄ…gnij napisy z filmu, zaproponuj mocny hook i CTA do obserwowania."
                   style={{
                     width: "100%",
                     minHeight: 86,
@@ -1576,7 +1586,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                   }}
                 >
                   {uploadingVideo
-                    ? "Uploaduję film..."
+                    ? "UploadujÄ™ film..."
                     : analyzingVideo
                       ? "AI analizuje film..."
                       : "Przeanalizuj film AI"}
@@ -1600,7 +1610,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                       fontFamily: "inherit",
                     }}
                   >
-                    {deletingVideo ? "Usuwam..." : "Usuń plik tymczasowy"}
+                    {deletingVideo ? "Usuwam..." : "UsuĹ„ plik tymczasowy"}
                   </button>
                 )}
               </div>
@@ -1615,6 +1625,50 @@ ${videoAnalysis.hashtags.join(" ")}`
               >
                 Status: <strong style={{ color: css.aiText }}>{videoStatus}</strong>
               </div>
+
+              {(uploadingVideo || analyzingVideo || videoProgress > 0) && (
+                <div style={{ marginTop: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      color: css.muted,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span>
+                      {uploadingVideo
+                        ? "Upload filmu"
+                        : analyzingVideo
+                          ? "Analiza AI"
+                          : videoProgress >= 100
+                            ? "Gotowe"
+                            : "Przygotowanie"}
+                    </span>
+                    <span>{Math.round(videoProgress)}%</span>
+                  </div>
+                  <div
+                    style={{
+                      height: 7,
+                      borderRadius: 999,
+                      background: css.surfaceSoft,
+                      border: `1px solid ${css.border}`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, videoProgress))}%`,
+                        height: "100%",
+                        background: css.aiText,
+                        transition: "width .25s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               {videoAnalysis && (
                 <div
@@ -1783,7 +1837,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                             lineHeight: 1.6,
                           }}
                         >
-                          Link do dodania w poście lub notatkach: {videoReferenceUrl}
+                          Link do dodania w poĹ›cie lub notatkach: {videoReferenceUrl}
                         </div>
                       )}
                     </div>
@@ -1808,7 +1862,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                   >
                     {savingTemplate
                       ? "Zapisuję..."
-                      : "Zapisz jako szablon shorta"}
+                      : "Zapisz opis filmu jako propozycję posta"}
                   </button>
                 </div>
               )}
@@ -1890,7 +1944,7 @@ ${videoAnalysis.hashtags.join(" ")}`
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Długość bazowa</SectionLabel>
+            <SectionLabel color={css.muted}>DĹ‚ugoĹ›Ä‡ bazowa</SectionLabel>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {LENGTHS.map((item) => (
@@ -1914,7 +1968,7 @@ ${videoAnalysis.hashtags.join(" ")}`
               ref={topicRef}
               value={topic}
               onChange={(event) => setTopic(event.target.value)}
-              placeholder="np. Dlaczego firmy nie powinny kopiować tego samego contentu na wszystkie platformy"
+              placeholder="np. Dlaczego firmy nie powinny kopiowaÄ‡ tego samego contentu na wszystkie platformy"
               style={{
                 width: "100%",
                 minHeight: 112,
@@ -1933,14 +1987,14 @@ ${videoAnalysis.hashtags.join(" ")}`
 
           <div style={{ marginBottom: 16 }}>
             <SectionLabel color={css.muted}>
-              Materiał źródłowy, opcjonalnie
+              MateriaĹ‚ ĹşrĂłdĹ‚owy, opcjonalnie
             </SectionLabel>
 
             <textarea
               ref={sourceRef}
               value={sourceContent}
               onChange={(event) => setSourceContent(event.target.value)}
-              placeholder="Możesz wkleić post z LinkedIna, opis bloga albo szkic tekstu, który AI ma przerobić na shorty."
+              placeholder="MoĹĽesz wkleiÄ‡ post z LinkedIna, opis bloga albo szkic tekstu, ktĂłry AI ma przerobiÄ‡ na shorty."
               style={{
                 width: "100%",
                 minHeight: 92,
@@ -1964,7 +2018,7 @@ ${videoAnalysis.hashtags.join(" ")}`
               ref={contextRef}
               value={brandContext}
               onChange={(event) => setBrandContext(event.target.value)}
-              placeholder="np. marka ekspercka B2B, ton prosty i konkretny, odbiorcy: właściciele firm i marketerzy."
+              placeholder="np. marka ekspercka B2B, ton prosty i konkretny, odbiorcy: wĹ‚aĹ›ciciele firm i marketerzy."
               style={{
                 width: "100%",
                 minHeight: 82,
@@ -2005,7 +2059,7 @@ ${videoAnalysis.hashtags.join(" ")}`
               fontFamily: "inherit",
             }}
           >
-            {loading ? "AI tworzy treści..." : "✦ Wygeneruj treści z filmu / pomysłu"}
+            {loading ? "AI tworzy treĹ›ci..." : "âś¦ Wygeneruj treĹ›ci z filmu / pomysĹ‚u"}
           </button>
 
           {error && (
@@ -2029,7 +2083,196 @@ ${videoAnalysis.hashtags.join(" ")}`
         <div>
 
 
-          {!result && !loading && (
+          {videoAnalysis && !result && !loading && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px solid ${css.aiBorder}`,
+                background: css.aiBg,
+                padding: 20,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <SectionLabel color={css.aiText}>Wynik analizy filmu AI</SectionLabel>
+
+              <ResultBox label="Temat posta" css={css} accent>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 24,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {videoAnalysis.detected_topic || videoAnalysis.title}
+                </h3>
+              </ResultBox>
+
+              <ResultBox label="Hook" css={css}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 17,
+                    lineHeight: 1.5,
+                    fontWeight: 900,
+                  }}
+                >
+                  {videoAnalysis.hook || "AI nie zwróciło hooka. Dopisz go ręcznie po lewej w edycji analizy."}
+                </p>
+              </ResultBox>
+
+              <ResultBox label="Opis do posta" css={css}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 13,
+                    lineHeight: 1.8,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {videoAnalysis.caption || "Brak opisu. Możesz go dopisać w edytowalnym pakiecie po lewej."}
+                </p>
+              </ResultBox>
+
+              <ResultBox label="Hashtagi" css={css}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {safeArray(videoAnalysis.hashtags).length > 0 ? (
+                    safeArray(videoAnalysis.hashtags).map((tag, index) => (
+                      <span
+                        key={`${tag}-${index}`}
+                        style={{
+                          color: css.aiText,
+                          background: `${css.aiText}18`,
+                          borderRadius: 999,
+                          padding: "5px 9px",
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ color: css.muted, fontSize: 12 }}>
+                      Brak hashtagów w odpowiedzi AI.
+                    </span>
+                  )}
+                </div>
+              </ResultBox>
+
+              {videoError && (
+                <div
+                  style={{
+                    background: "#ef444414",
+                    border: "1px solid #ef444440",
+                    color: "#ef4444",
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {videoError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={saveAnalyzedVideoTemplate}
+                disabled={savingTemplate}
+                style={{
+                  marginTop: "auto",
+                  borderRadius: 14,
+                  border: `1px solid ${css.aiBorder}`,
+                  background: dark ? "#ffffff" : "#111111",
+                  color: dark ? "#050505" : "#ffffff",
+                  padding: "12px 14px",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: savingTemplate ? "not-allowed" : "pointer",
+                  opacity: savingTemplate ? 0.6 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                {savingTemplate
+                  ? "Zapisuję..."
+                  : "Zapisz jako propozycję posta"}
+              </button>
+            </div>
+          )}
+
+          {!videoAnalysis && !result && !loading && (uploadingVideo || analyzingVideo || videoProgress > 0) && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px solid ${css.aiBorder}`,
+                background: css.aiBg,
+                display: "grid",
+                placeItems: "center",
+                padding: 28,
+                textAlign: "center",
+              }}
+            >
+              <div style={{ width: "100%", maxWidth: 420 }}>
+                <SectionLabel color={css.aiText}>Status pracy AI</SectionLabel>
+                <h3
+                  style={{
+                    fontFamily: "'DM Serif Display', serif",
+                    fontSize: 28,
+                    fontWeight: 400,
+                    margin: "0 0 10px",
+                    color: css.text,
+                  }}
+                >
+                  {uploadingVideo
+                    ? "Uploaduję film..."
+                    : analyzingVideo
+                      ? "AI analizuje film..."
+                      : "Przygotowuję wynik..."}
+                </h3>
+
+                <div
+                  style={{
+                    height: 9,
+                    borderRadius: 999,
+                    background: css.surfaceSoft,
+                    border: `1px solid ${css.border}`,
+                    overflow: "hidden",
+                    marginTop: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(0, videoProgress))}%`,
+                      height: "100%",
+                      background: css.aiText,
+                      transition: "width .25s ease",
+                    }}
+                  />
+                </div>
+
+                <p
+                  style={{
+                    color: css.muted,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    margin: "12px 0 0",
+                  }}
+                >
+                  {Math.round(videoProgress)}% · nie zamykaj tej zakładki, film i
+                  klatki są przygotowywane do analizy.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!videoAnalysis && !result && !loading && !(uploadingVideo || analyzingVideo || videoProgress > 0) && (
             <div
               style={{
                 minHeight: 520,
@@ -2044,7 +2287,7 @@ ${videoAnalysis.hashtags.join(" ")}`
             >
               <div>
                 <div style={{ fontSize: 48, opacity: 0.18, marginBottom: 12 }}>
-                  ⊞
+                  âŠž
                 </div>
 
                 <h3
@@ -2056,7 +2299,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                     color: css.text,
                   }}
                 >
-                  Warianty shortów pojawią się tutaj
+                  Wynik analizy filmu albo scenariusz pojawi się tutaj
                 </h3>
 
                 <p
@@ -2068,8 +2311,8 @@ ${videoAnalysis.hashtags.join(" ")}`
                     margin: 0,
                   }}
                 >
-                  Zamiast jednego scenariusza AI przygotuje osobne wersje pod
-                  każdą platformę.
+                  Po uploadzie zobaczysz tu opis posta, hook i hashtagi. Po
+                  wygenerowaniu pomysłu zobaczysz warianty scenariusza.
                 </p>
               </div>
             </div>
@@ -2147,7 +2390,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                     lineHeight: 1.6,
                   }}
                 >
-                  Kąt: {result.main_angle}
+                  KÄ…t: {result.main_angle}
                 </p>
               </ResultBox>
 
@@ -2198,7 +2441,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                             marginTop: 3,
                           }}
                         >
-                          {variant.format} · {variant.duration_seconds}s
+                          {variant.format} Â· {variant.duration_seconds}s
                         </div>
                       </div>
 
@@ -2225,7 +2468,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                             lineHeight: 1.45,
                           }}
                         >
-                          “{variant.hook}”
+                          â€ś{variant.hook}â€ť
                         </p>
                       </ResultBox>
 
@@ -2255,7 +2498,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                           gap: 10,
                         }}
                       >
-                        <ResultBox label="Ujęcia" css={css}>
+                        <ResultBox label="UjÄ™cia" css={css}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                             {safeArray(variant.shots).map((shot, index) => (
                               <div
@@ -2453,7 +2696,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                     fontFamily: "inherit",
                   }}
                 >
-                  {copied ? "✓ Skopiowano" : "Kopiuj całość"}
+                  {copied ? "âś“ Skopiowano" : "Kopiuj caĹ‚oĹ›Ä‡"}
                 </button>
 
                 <button
@@ -2514,7 +2757,7 @@ ${videoAnalysis.hashtags.join(" ")}`
                       fontWeight: 800,
                     }}
                   >
-                    Surowa odpowiedź AI
+                    Surowa odpowiedĹş AI
                   </summary>
 
                   <pre
