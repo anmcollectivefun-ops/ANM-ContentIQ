@@ -3,6 +3,35 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  BarChart3,
+  Bot,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Clapperboard,
+  FileText,
+  GitCompareArrows,
+  Home,
+  ImagePlus,
+  Layers3,
+  Library,
+  LogOut,
+  MessageCircle,
+  Moon,
+  PenLine,
+  PlugZap,
+  ScrollText,
+  Settings,
+  Shield,
+  Sparkles,
+  Sun,
+  Video,
+  WandSparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ContentStudio from "@/app/components/ContentStudio";
 import Schedule from "@/app/components/Schedule";
@@ -136,13 +165,13 @@ interface Insight {
 interface NavTab {
   id: TabId;
   label: string;
-  icon: string;
+  icon: NavIconName;
 }
 
 interface NavGroup {
   id: "stats" | "creation" | "templateLibrary" | "ai" | "settings";
   title: string;
-  icon: string;
+  icon: NavIconName;
   tabs: NavTab[];
 }
 
@@ -163,54 +192,54 @@ const PLANNED_CONTENT: PlannedContent[] = [];
 const NAV_GROUPS: NavGroup[] = [
   {
     id: "stats",
-    title: "Statystyki",
-    icon: "Stats",
+    title: "Analiza",
+    icon: "groupStats",
     tabs: [
-      { id: "accounts", label: "Podsumowanie kont", icon: "Konta" },
-      { id: "content", label: "Podsumowanie contentu", icon: "Posty" },
-      { id: "compare", label: "Porównanie contentu", icon: "Por." },
+      { id: "accounts", label: "Podsumowanie kont", icon: "accounts" },
+      { id: "content", label: "Podsumowanie contentu", icon: "content" },
+      { id: "compare", label: "Porównanie contentu", icon: "compare" },
     ],
   },
   {
     id: "creation",
-    title: "Tworzenie treści",
-    icon: "Studio",
+    title: "Tworzenie",
+    icon: "groupCreation",
     tabs: [
-      { id: "studio", label: "Content Studio", icon: "Text" },
-      { id: "video", label: "Video Studio", icon: "Video" },
-      { id: "shorts", label: "Short Studio", icon: "Short" },
-      { id: "creative", label: "Creative Studio", icon: "Graf." },
-      { id: "calendar", label: "Harmonogram", icon: "Plan" },
+      { id: "studio", label: "Content Studio", icon: "studio" },
+      { id: "video", label: "Video Studio", icon: "video" },
+      { id: "shorts", label: "Short Studio", icon: "shorts" },
+      { id: "creative", label: "Creative Studio", icon: "creative" },
+      { id: "calendar", label: "Harmonogram", icon: "calendar" },
     ],
   },
   {
     id: "templateLibrary",
     title: "Szablony",
-    icon: "Baza",
+    icon: "groupTemplates",
     tabs: [
-      { id: "templatesContent", label: "Szablony contentu", icon: "Text" },
-      { id: "templatesVideo", label: "Szablony video", icon: "Video" },
-      { id: "templatesShort", label: "Szablony short", icon: "Short" },
-      { id: "templatesCreative", label: "Szablony creative", icon: "Graf." },
+      { id: "templatesContent", label: "Szablony contentu", icon: "templatesContent" },
+      { id: "templatesVideo", label: "Szablony video", icon: "templatesVideo" },
+      { id: "templatesShort", label: "Szablony short", icon: "templatesShort" },
+      { id: "templatesCreative", label: "Szablony creative", icon: "templatesCreative" },
     ],
   },
   {
     id: "ai",
     title: "AI",
-    icon: "AI",
+    icon: "groupAi",
     tabs: [
-      { id: "chat", label: "AI Chat", icon: "CH" },
-      { id: "brand", label: "Brand Voice", icon: "Styl" },
-      { id: "partner", label: "AI Partner", icon: "AI+" },
+      { id: "chat", label: "AI Chat", icon: "chat" },
+      { id: "brand", label: "Brand Voice", icon: "brand" },
+      { id: "partner", label: "AI Partner", icon: "partner" },
     ],
   },
   {
     id: "settings",
-    title: "Ustawienia",
-    icon: "Admin",
+    title: "System",
+    icon: "groupSettings",
     tabs: [
-      { id: "integrations", label: "Integracje", icon: "API" },
-      { id: "settings", label: "Ustawienia", icon: "Set" },
+      { id: "integrations", label: "Integracje", icon: "integrations" },
+      { id: "settings", label: "Ustawienia", icon: "settings" },
     ],
   },
 ];
@@ -305,7 +334,47 @@ const SOCIAL_ICONS: Record<Platform, string> = {
   blog: "✎",
   spotify: "◉",
 };
+const NAV_ICONS = {
+  accounts: Layers3,
+  content: FileText,
+  compare: GitCompareArrows,
+  calendar: CalendarDays,
+  studio: PenLine,
+  video: Video,
+  shorts: Clapperboard,
+  creative: ImagePlus,
+  templates: Library,
+  templatesContent: FileText,
+  templatesVideo: Video,
+  templatesShort: Clapperboard,
+  templatesCreative: ImagePlus,
+  partner: Bot,
+  brand: WandSparkles,
+  chat: MessageCircle,
+  integrations: PlugZap,
+  settings: Settings,
 
+  groupStats: BarChart3,
+  groupCreation: PenLine,
+  groupTemplates: Library,
+  groupAi: Sparkles,
+  groupSettings: Settings,
+} satisfies Record<string, LucideIcon>;
+
+type NavIconName = keyof typeof NAV_ICONS;
+
+function IconView({
+  name,
+  size = 17,
+  strokeWidth = 2.1,
+}: {
+  name: NavIconName;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const Icon = NAV_ICONS[name];
+  return <Icon size={size} strokeWidth={strokeWidth} />;
+}
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function formatLastSync(value: string | null) {
@@ -896,188 +965,274 @@ export default function AppWorkspacePage() {
       >
         {/* ───────────────── SIDEBAR ───────────────── */}
         <aside
-          className="ciq-sidebar"
+  className="ciq-sidebar"
+  style={{
+    ...st.sidebar,
+    background: css.sidebar,
+    borderRight: `1px solid ${css.border}`,
+    boxShadow: css.sidebarShadow,
+  }}
+>
+  <Link
+    href="/app/contentiq"
+    style={{
+      ...st.sidebarLogo,
+      borderBottom: `1px solid ${css.border}`,
+    }}
+    aria-label="ANM ContentIQ"
+  >
+    <img
+      src="/ANM_ContentIQ_.JPG"
+      alt="ANM ContentIQ app icon"
+      style={{
+        ...st.logoMark,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        boxShadow: css.logoShadow,
+      }}
+    />
+
+    {!sidebarCollapsed && (
+      <div>
+        <div
           style={{
-            ...st.sidebar,
-            background: css.sidebar,
-            borderRight: `1px solid ${css.border}`,
+            ...st.logoName,
+            fontFamily: "'DM Serif Display', serif",
+            color: css.text,
           }}
         >
-          <Link href="/app/contentiq" style={st.sidebarLogo} aria-label="ANM ContentIQ">
-            <img
-              src="/ANM_ContentIQ_.JPG"
-              alt="ANM ContentIQ app icon"
-              style={{
-                ...st.logoMark,
-                background: css.surface,
-                border: `1px solid ${css.border}`,
-              }}
-            />
+          ANM ContentIQ
+        </div>
 
-            {!sidebarCollapsed && (
-            <div>
-              <div
-                style={{
-                  ...st.logoName,
-                  fontFamily: "'DM Serif Display', serif",
-                  color: css.text,
-                }}
-              >
-                ANM ContentIQ
-              </div>
+        <div style={{ ...st.logoSub, color: css.muted }}>
+          Centrum contentu i AI
+        </div>
+      </div>
+    )}
+  </Link>
 
-              <div style={{ ...st.logoSub, color: css.muted }}>
-                Centrum contentu
-              </div>
-            </div>
-            )}
-          </Link>
+  <div style={{ padding: sidebarCollapsed ? "14px 12px 10px" : "14px 16px 10px" }}>
+    <button
+      onClick={() => setSidebarCollapsed((current) => !current)}
+      style={{
+        ...st.collapseButton,
+        background: css.sidebarButton,
+        border: `1px solid ${css.border}`,
+        color: css.muted,
+        justifyContent: sidebarCollapsed ? "center" : "space-between",
+      }}
+      title={sidebarCollapsed ? "Rozwiń menu" : "Zwiń menu"}
+    >
+      {sidebarCollapsed ? (
+        <ChevronsRight size={17} />
+      ) : (
+        <>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <ChevronsLeft size={16} />
+            Zwiń menu
+          </span>
+          <span style={{ fontSize: 10, opacity: 0.65 }}>⌘</span>
+        </>
+      )}
+    </button>
+  </div>
 
-          <div style={{ padding: sidebarCollapsed ? "0 12px 10px" : "0 16px 10px" }}>
+  <nav
+    className="ciq-nav"
+    style={{
+      ...st.nav,
+      padding: sidebarCollapsed ? "6px 10px" : "8px 10px 12px",
+    }}
+  >
+    {sidebarCollapsed ? (
+      <div style={st.collapsedNavGrid}>
+        {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
+          const isActive = activeTab === tab.id;
+
+          return (
             <button
-              onClick={() => setSidebarCollapsed((current) => !current)}
+              key={tab.id}
+              onClick={() => openTab(tab.id)}
+              className="ciq-nav-tab"
+              title={tab.label}
               style={{
-                ...st.collapseButton,
-                background: css.surface,
-                border: `1px solid ${css.border}`,
-                color: css.muted,
-                justifyContent: sidebarCollapsed ? "center" : "space-between",
+                ...st.collapsedNavButton,
+                background: isActive ? css.activeBg : css.sidebarButton,
+                color: isActive ? css.activeText : css.muted,
+                border: `1px solid ${isActive ? css.accentBorder : css.border}`,
+                boxShadow: isActive ? css.activeShadow : "none",
               }}
-              title={sidebarCollapsed ? "Rozwin menu" : "Zwin menu"}
             >
-              <span>{sidebarCollapsed ? "Menu" : "Zwin menu"}</span>
-              {!sidebarCollapsed && <span>{"<"}</span>}
+              <IconView name={tab.icon} size={19} />
             </button>
-          </div>
-
-          <nav
-            className="ciq-nav"
+          );
+        })}
+      </div>
+    ) : (
+      NAV_GROUPS.map((group) => (
+        <div key={group.id} style={st.navGroup}>
+          <button
+            onClick={() => toggleNavGroup(group.id)}
             style={{
-              ...st.nav,
-              padding: sidebarCollapsed ? "4px 10px" : "8px 0",
+              ...st.navGroupHeader,
+              color: css.groupText,
+              background: "transparent",
             }}
           >
-            {sidebarCollapsed ? (
-              <div style={st.collapsedNavGrid}>
-                {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => openTab(tab.id)}
-                    className="ciq-nav-tab"
-                    title={tab.label}
-                    style={{
-                      ...st.collapsedNavButton,
-                      background: activeTab === tab.id ? css.activeBg : css.surface,
-                      color: activeTab === tab.id ? css.text : css.muted,
-                      border: `1px solid ${activeTab === tab.id ? css.accentBorder : css.border}`,
-                    }}
-                  >
-                    {tab.icon}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              NAV_GROUPS.map((group) => (
-                <div key={group.id} style={st.navGroup}>
-                  <button
-                    onClick={() => toggleNavGroup(group.id)}
-                    style={{
-                      ...st.navGroupHeader,
-                      color: css.muted,
-                      background: "transparent",
-                    }}
-                  >
-                    <span style={{ ...st.navGroupIcon, color: css.text }}>{group.icon}</span>
-                    <span>{group.title}</span>
-                    <span style={{ marginLeft: "auto" }}>
-                      {openNavGroups[group.id] ? "-" : "+"}
-                    </span>
-                  </button>
-
-                  {openNavGroups[group.id] && group.tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => openTab(tab.id)}
-                      className="ciq-nav-tab"
-                      style={{
-                        ...st.navTab,
-                        background: activeTab === tab.id ? css.activeBg : "transparent",
-                        color: activeTab === tab.id ? css.text : css.muted,
-                        fontWeight: activeTab === tab.id ? 900 : 700,
-                        borderLeft:
-                          activeTab === tab.id
-                            ? `3px solid ${css.accent}`
-                            : "3px solid transparent",
-                      }}
-                    >
-                      <span
-                        style={{
-                          ...st.navIcon,
-                          background: activeTab === tab.id ? css.logoBg : css.surface,
-                          color: activeTab === tab.id ? css.logoText : css.muted,
-                          border: `1px solid ${activeTab === tab.id ? css.accentBorder : css.border}`,
-                        }}
-                      >
-                        {tab.icon}
-                      </span>
-                      <span>{tab.label}</span>
-                    </button>
-                  ))}
-                </div>
-              ))
-            )}
-          </nav>
-
-          <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
-            <div
+            <span
               style={{
-                ...st.legalLinks,
-                borderTop: `1px solid ${css.border}`,
-                paddingTop: sidebarCollapsed ? 8 : 10,
-              }}
-            >
-              {sidebarCollapsed ? (
-                <>
-                  <Link href="/privacy" title="Polityka prywatności" style={{ ...st.legalIconLink, color: css.muted, border: `1px solid ${css.border}` }}>P</Link>
-                  <Link href="/terms" title="Regulamin" style={{ ...st.legalIconLink, color: css.muted, border: `1px solid ${css.border}` }}>R</Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/privacy" style={{ ...st.legalTextLink, color: css.muted }}>Polityka prywatności</Link>
-                  <Link href="/terms" style={{ ...st.legalTextLink, color: css.muted }}>Regulamin</Link>
-                </>
-              )}
-            </div>
-
-            <button
-              onClick={toggleTheme}
-              style={{
-                ...st.themeToggle,
-                background: css.surface,
+                ...st.navGroupIcon,
+                background: css.groupIconBg,
+                color: css.groupIconText,
                 border: `1px solid ${css.border}`,
-                color: css.muted,
               }}
             >
-              {sidebarCollapsed ? (dark ? "J" : "C") : (dark ? "Jasny tryb" : "Ciemny tryb")}
-            </button>
+              <IconView name={group.icon} size={15} />
+            </span>
 
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
-              style={{
-                ...st.signoutBtn,
-                color: "#ef4444",
-                background: "#ef444414",
-                border: "1px solid #ef444440",
-              }}
-            >
-              {sidebarCollapsed ? "WY" : (signingOut ? "Wylogowywanie..." : "Wyloguj")}
-            </button>
-          </div>
-        </aside>
+            <span>{group.title}</span>
+
+            <span style={{ marginLeft: "auto", display: "inline-flex", opacity: 0.7 }}>
+              {openNavGroups[group.id] ? (
+                <ChevronDown size={15} />
+              ) : (
+                <ChevronRight size={15} />
+              )}
+            </span>
+          </button>
+
+          {openNavGroups[group.id] &&
+            group.tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => openTab(tab.id)}
+                  className="ciq-nav-tab"
+                  style={{
+                    ...st.navTab,
+                    background: isActive ? css.activeBg : "transparent",
+                    color: isActive ? css.activeText : css.muted,
+                    fontWeight: isActive ? 900 : 700,
+                    border: `1px solid ${isActive ? css.accentBorder : "transparent"}`,
+                    boxShadow: isActive ? css.activeShadow : "none",
+                  }}
+                >
+                  <span
+                    style={{
+                      ...st.navIcon,
+                      background: isActive ? css.logoBg : css.sidebarButton,
+                      color: isActive ? css.logoText : css.muted,
+                      border: `1px solid ${isActive ? css.accentBorder : css.border}`,
+                    }}
+                  >
+                    <IconView name={tab.icon} size={16} />
+                  </span>
+
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+        </div>
+      ))
+    )}
+  </nav>
+
+  <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
+    <div
+      style={{
+        ...st.legalLinks,
+        borderTop: `1px solid ${css.border}`,
+        paddingTop: sidebarCollapsed ? 8 : 10,
+      }}
+    >
+      {sidebarCollapsed ? (
+        <>
+          <Link
+            href="/privacy"
+            title="Polityka prywatności"
+            style={{
+              ...st.legalIconLink,
+              color: css.muted,
+              border: `1px solid ${css.border}`,
+              background: css.sidebarButton,
+            }}
+          >
+            <Shield size={15} />
+          </Link>
+
+          <Link
+            href="/terms"
+            title="Regulamin"
+            style={{
+              ...st.legalIconLink,
+              color: css.muted,
+              border: `1px solid ${css.border}`,
+              background: css.sidebarButton,
+            }}
+          >
+            <ScrollText size={15} />
+          </Link>
+        </>
+      ) : (
+        <>
+          <Link href="/privacy" style={{ ...st.legalTextLink, color: css.muted }}>
+            <Shield size={14} />
+            Polityka prywatności
+          </Link>
+
+          <Link href="/terms" style={{ ...st.legalTextLink, color: css.muted }}>
+            <ScrollText size={14} />
+            Regulamin
+          </Link>
+        </>
+      )}
+    </div>
+
+    <button
+      onClick={toggleTheme}
+      style={{
+        ...st.themeToggle,
+        background: css.sidebarButton,
+        border: `1px solid ${css.border}`,
+        color: css.muted,
+      }}
+    >
+      {sidebarCollapsed ? (
+        dark ? <Sun size={16} /> : <Moon size={16} />
+      ) : (
+        <>
+          {dark ? <Sun size={16} /> : <Moon size={16} />}
+          {dark ? "Jaśniejszy tryb" : "Ciemniejszy tryb"}
+        </>
+      )}
+    </button>
+
+    <button
+      onClick={handleSignOut}
+      disabled={signingOut}
+      style={{
+        ...st.signoutBtn,
+        color: "#ef4444",
+        background: "#ef444414",
+        border: "1px solid #ef444440",
+      }}
+    >
+      {sidebarCollapsed ? (
+        <LogOut size={16} />
+      ) : (
+        <>
+          <LogOut size={16} />
+          {signingOut ? "Wylogowywanie..." : "Wyloguj"}
+        </>
+      )}
+    </button>
+  </div>
+</aside>
 
         {/* ───────────────── MAIN ───────────────── */}
-        <div style={{ ...st.mainArea, background: css.bg }}>
+ <div style={{ ...st.mainArea, background: css.bg }}>
           <header
             className="ciq-topbar"
             style={{
@@ -1137,8 +1292,8 @@ export default function AppWorkspacePage() {
           </header>
 
           <div style={st.content}>
-            {/* ================= PODSUMOWANIE KONT ================= */}
-            {activeTab === "accounts" && !activeAccount && (
+ {/* ================= PODSUMOWANIE KONT ================= */}
+ {activeTab === "accounts" && !activeAccount && (
               <div>
                 <div className="ciq-summary-grid" style={st.summaryGrid}>
                   <div
@@ -1396,16 +1551,16 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= SZCZEGÓŁY KONTA ================= */}
-            {activeTab === "brand" && (
+ {/* ================= SZCZEGÓŁY KONTA ================= */}
+ {activeTab === "brand" && (
               <BrandVoice dark={dark} workspaceId={workspaceId} />
             )}
 
-            {activeTab === "chat" && (
+ {activeTab === "chat" && (
               <AIChat dark={dark} workspaceId={workspaceId} />
             )}
 
-            {activeTab === "accounts" && activeAccount && (
+ {activeTab === "accounts" && activeAccount && (
               <div>
                 <button
                   onClick={() => setActiveAccount(null)}
@@ -1651,8 +1806,8 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= PODSUMOWANIE CONTENTU ================= */}
-            {activeTab === "content" && (
+ {/* ================= PODSUMOWANIE CONTENTU ================= */}
+   {activeTab === "content" && (
               <div>
                 <div
                   style={{
@@ -1793,8 +1948,8 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= PORÓWNANIE CONTENTU ================= */}
-            {activeTab === "compare" && (
+ {/* ================= PORÓWNANIE CONTENTU ================= */}
+ {activeTab === "compare" && (
               <div>
                 <div
                   style={{
@@ -1919,13 +2074,13 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= HARMONOGRAM ================= */}
-          {activeTab === "calendar" && (
+ {/* ================= HARMONOGRAM ================= */}
+   {activeTab === "calendar" && (
   <Schedule dark={dark} workspaceId={workspaceId} />
 )}
 
-            {/* ================= CONTENT STUDIO ================= */}
-            {activeTab === "studio" && (
+ {/* ================= CONTENT STUDIO ================= */}
+ {activeTab === "studio" && (
               <div>
                 <div
                   style={{
@@ -2063,8 +2218,8 @@ export default function AppWorkspacePage() {
     <CreativeStudio dark={dark} workspaceId={workspaceId} />
   </div>
 )}
-            {/* ================= SZABLONY ================= */}
-            {activeTab in TEMPLATE_VIEWS && (
+ {/* ================= SZABLONY ================= */}
+ {activeTab in TEMPLATE_VIEWS && (
               <div>
                 <div
                   style={{
@@ -2102,10 +2257,10 @@ export default function AppWorkspacePage() {
                   onOpenStudio={() => setActiveTab(TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].targetTab)}
                 />
               </div>
-            )}
+  )}
 
-            {/* ================= AI PARTNER ================= */}
-            {activeTab === "partner" && (
+ {/* ================= AI PARTNER ================= */}
+ {activeTab === "partner" && (
               <div>
                 <div
                   style={{
@@ -2139,10 +2294,10 @@ export default function AppWorkspacePage() {
 
                 <AIPartner dark={dark} workspaceId={workspaceId} />
               </div>
-            )}
+    )}
 
-            {/* ================= INTEGRACJE ================= */}
-            {activeTab === "integrations" && (
+ {/* ================= INTEGRACJE ================= */}
+ {activeTab === "integrations" && (
               <div className="ciq-integrations-grid" style={st.integrationsGrid}>
                 {INTEGRATIONS.map((integration) => (
                   <div
@@ -2187,8 +2342,8 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
-            {/* ================= USTAWIENIA ================= */}
-            {activeTab === "settings" && (
+ {/* ================= USTAWIENIA ================= */}
+   {activeTab === "settings" && (
               <div className="ciq-settings-grid" style={st.settingsGrid}>
                 <div
                   style={{
@@ -2255,42 +2410,68 @@ export default function AppWorkspacePage() {
 // ─── THEME VARS ───────────────────────────────────────────────────────────────
 
 const darkVars = {
-  bg: "#050505",
-  sidebar: "#080808",
-  surface: "#111111",
-  text: "#F5F5F5",
-  muted: "#9CA3AF",
-  border: "#27272A",
-  accent: "#E5E7EB",
-  activeBg: "#18181B",
-  hoverBg: "#1F1F22",
-  accentBorder: "#52525B",
-  aiBg: "#0C1117",
-  aiBgSoft: "#101820",
-  aiBorder: "#1E3A4C",
-  aiText: "#7DD3FC",
-  liveSoft: "#0B0B0C",
-  logoBg: "#F5F5F5",
-  logoText: "#050505",
+  bg: "#111318",
+  sidebar: "#171A21",
+  surface: "#1E222B",
+  text: "#F4F5F7",
+  muted: "#A7ADB8",
+  border: "#2C313D",
+
+  accent: "#8FB7FF",
+  activeBg: "#253044",
+  hoverBg: "#242A35",
+  accentBorder: "#456EA8",
+  activeText: "#FFFFFF",
+
+  groupText: "#C8CED8",
+  groupIconBg: "#222834",
+  groupIconText: "#BFD3FF",
+
+  sidebarButton: "#202631",
+  sidebarShadow: "8px 0 30px rgba(0,0,0,0.18)",
+  activeShadow: "0 10px 26px rgba(63, 103, 160, 0.20)",
+  logoShadow: "0 10px 28px rgba(0,0,0,0.20)",
+
+  aiBg: "#172337",
+  aiBgSoft: "#1C2A3D",
+  aiBorder: "#315E8E",
+  aiText: "#8FD7FF",
+
+  liveSoft: "#1A1D25",
+  logoBg: "#EAF2FF",
+  logoText: "#101827",
 };
 
 const lightVars = {
-  bg: "#F6F6F6",
-  sidebar: "#FFFFFF",
+  bg: "#EEF1F5",
+  sidebar: "#F8FAFC",
   surface: "#FFFFFF",
-  text: "#111111",
-  muted: "#71717A",
-  border: "#E4E4E7",
-  accent: "#111111",
-  activeBg: "#F4F4F5",
-  hoverBg: "#F4F4F5",
-  accentBorder: "#A1A1AA",
-  aiBg: "#F0F9FF",
-  aiBgSoft: "#F8FCFF",
-  aiBorder: "#BAE6FD",
-  aiText: "#0284C7",
-  liveSoft: "#FAFAFA",
-  logoBg: "#111111",
+  text: "#1B1F27",
+  muted: "#667085",
+  border: "#D9DEE7",
+
+  accent: "#315E8E",
+  activeBg: "#E8F1FF",
+  hoverBg: "#EEF4FC",
+  accentBorder: "#AFC8E8",
+  activeText: "#152033",
+
+  groupText: "#596273",
+  groupIconBg: "#EEF3FA",
+  groupIconText: "#315E8E",
+
+  sidebarButton: "#F0F4F8",
+  sidebarShadow: "8px 0 28px rgba(15,23,42,0.06)",
+  activeShadow: "0 10px 24px rgba(49, 94, 142, 0.12)",
+  logoShadow: "0 10px 20px rgba(15,23,42,0.08)",
+
+  aiBg: "#EAF6FF",
+  aiBgSoft: "#F3FAFF",
+  aiBorder: "#B9DCF5",
+  aiText: "#156B9D",
+
+  liveSoft: "#F6F8FB",
+  logoBg: "#1B1F27",
   logoText: "#FFFFFF",
 };
 
