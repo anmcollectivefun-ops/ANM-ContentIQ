@@ -353,7 +353,18 @@ export default function CreativeStudio({
         }),
       });
 
-      const json = (await response.json()) as GenerateImageResponse;
+      const rawResponse = await response.text();
+      let json: GenerateImageResponse;
+
+      try {
+        json = rawResponse ? (JSON.parse(rawResponse) as GenerateImageResponse) : {};
+      } catch {
+        throw new Error(
+          rawResponse
+            ? `API generowania zwróciło odpowiedź inną niż JSON: ${rawResponse.slice(0, 300)}`
+            : `API generowania zwróciło pustą odpowiedź. Sprawdź logi Vercel dla /api/generate-image.`
+        );
+      }
 
       if (!response.ok || json.error) {
         throw new Error(json.error || "Nie udało się wygenerować obrazu.");
