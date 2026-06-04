@@ -4,6 +4,25 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import {
+  AlertCircle,
+  ArrowLeft,
+  BriefcaseBusiness,
+  Camera,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Globe,
+  Link2,
+  MessageCircle,
+  Music,
+  Plus,
+  Radio,
+  RefreshCw,
+  Video,
+  X,
+} from "lucide-react";
 
 type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog" | "spotify";
 
@@ -31,13 +50,13 @@ interface MetaSelectablePage {
 }
 
 const PLATFORM_META = {
-  instagram: { label: "Instagram", color: "#E1306C", gradient: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)", desc: "Reels, posty, karuzele — zasięgi, wyświetlenia, zapisy", icon: "IG", type: "oauth" as const, accountPlaceholder: "https://instagram.com/twojekonto", postPlaceholder: "https://instagram.com/p/ABC123" },
-  facebook:  { label: "Facebook",  color: "#1877F2", gradient: "linear-gradient(135deg,#1877F2,#0d5fd8)", desc: "Strony firmowe, posty, statystyki i zasięg organiczny", icon: "FB", type: "oauth" as const, accountPlaceholder: "https://facebook.com/twojastrona", postPlaceholder: "https://facebook.com/twojastrona/posts/123" },
-  linkedin:  { label: "LinkedIn",  color: "#0A66C2", gradient: "linear-gradient(135deg,#0A66C2,#084fa0)", desc: "Profil i strony firmowe — posty eksperckie, B2B leady", icon: "LI", type: "oauth" as const, accountPlaceholder: "https://linkedin.com/company/twojafirma", postPlaceholder: "https://linkedin.com/posts/activity-123" },
-  tiktok:    { label: "TikTok",    color: "#00C4CC", gradient: "linear-gradient(135deg,#010101,#69C9D0)", desc: "Filmy, statystyki wyświetleń, completion rate i wyniki", icon: "TT", type: "oauth" as const, accountPlaceholder: "https://tiktok.com/@twojekonto", postPlaceholder: "https://tiktok.com/@konto/video/123" },
-  youtube:   { label: "YouTube",   color: "#FF0000", gradient: "linear-gradient(135deg,#FF0000,#cc0000)", desc: "Kanał, filmy, Shorts — wyświetlenia, retencja, kliknięcia", icon: "YT", type: "oauth" as const, accountPlaceholder: "https://youtube.com/@twojkanal", postPlaceholder: "https://youtube.com/watch?v=ABC123" },
-  spotify:   { label: "Spotify",   color: "#1DB954", gradient: "linear-gradient(135deg,#1DB954,#158a3e)", desc: "Podcasty, odcinki, słuchalność i completion rate", icon: "SP", type: "oauth" as const, accountPlaceholder: "https://open.spotify.com/show/TWOJEID", postPlaceholder: "https://open.spotify.com/episode/ABC123" },
-  blog:      { label: "Blog / WordPress", color: "#22C55E", gradient: "linear-gradient(135deg,#22C55E,#16a34a)", desc: "Artykuły, SEO, czas na stronie i konwersje organiczne", icon: "BL", type: "manual" as const, accountPlaceholder: "https://twojblog.pl", postPlaceholder: "https://twojblog.pl/artykul/tytul" },
+  instagram: { label: "Instagram", color: "#E1306C", gradient: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)", desc: "Reels, posty, karuzele — zasięgi, wyświetlenia, zapisy", icon: Camera, type: "oauth" as const, accountPlaceholder: "https://instagram.com/twojekonto", postPlaceholder: "https://instagram.com/p/ABC123" },
+  facebook:  { label: "Facebook",  color: "#1877F2", gradient: "linear-gradient(135deg,#1877F2,#0d5fd8)", desc: "Strony firmowe, posty, statystyki i zasięg organiczny", icon: MessageCircle, type: "oauth" as const, accountPlaceholder: "https://facebook.com/twojastrona", postPlaceholder: "https://facebook.com/twojastrona/posts/123" },
+  linkedin:  { label: "LinkedIn",  color: "#0A66C2", gradient: "linear-gradient(135deg,#0A66C2,#084fa0)", desc: "Profil i strony firmowe — posty eksperckie, B2B leady", icon: BriefcaseBusiness, type: "oauth" as const, accountPlaceholder: "https://linkedin.com/company/twojafirma", postPlaceholder: "https://linkedin.com/posts/activity-123" },
+  tiktok:    { label: "TikTok",    color: "#00C4CC", gradient: "linear-gradient(135deg,#010101,#69C9D0)", desc: "Filmy, statystyki wyświetleń, completion rate i wyniki", icon: Radio, type: "oauth" as const, accountPlaceholder: "https://tiktok.com/@twojekonto", postPlaceholder: "https://tiktok.com/@konto/video/123" },
+  youtube:   { label: "YouTube",   color: "#FF0000", gradient: "linear-gradient(135deg,#FF0000,#cc0000)", desc: "Kanał, filmy, Shorts — wyświetlenia, retencja, kliknięcia", icon: Video, type: "oauth" as const, accountPlaceholder: "https://youtube.com/@twojkanal", postPlaceholder: "https://youtube.com/watch?v=ABC123" },
+  spotify:   { label: "Spotify",   color: "#1DB954", gradient: "linear-gradient(135deg,#1DB954,#158a3e)", desc: "Podcasty, odcinki, słuchalność i completion rate", icon: Music, type: "oauth" as const, accountPlaceholder: "https://open.spotify.com/show/TWOJEID", postPlaceholder: "https://open.spotify.com/episode/ABC123" },
+  blog:      { label: "Blog / WordPress", color: "#22C55E", gradient: "linear-gradient(135deg,#22C55E,#16a34a)", desc: "Artykuły, SEO, czas na stronie i konwersje organiczne", icon: Globe, type: "manual" as const, accountPlaceholder: "https://twojblog.pl", postPlaceholder: "https://twojblog.pl/artykul/tytul" },
 };
 
 const PLATFORMS = Object.keys(PLATFORM_META) as Platform[];
@@ -146,13 +165,13 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   if (loading) return null;
 
   return (
-    <div style={{ marginTop: 12, padding: "14px", borderRadius: 10, background: "#060d18", border: "1px solid #1a2740" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: meta.color, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
-        ⊕ Linki do konta i postów
+    <div style={{ marginTop: 16, padding: "16px", borderRadius: 12, background: "#0b1324", border: "1px solid #1e2e4d" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: meta.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+        <Link2 size={14} /> Linki do konta i postów
       </div>
       {error && (
-        <div style={{ marginBottom: 10, padding: "8px 10px", borderRadius: 7, background: "#450a0a", border: "1px solid #991b1b", color: "#ef4444", fontSize: 11, lineHeight: 1.5 }}>
-          {error}
+        <div style={{ marginBottom: 12, padding: "10px", borderRadius: 8, background: "#450a0a", border: "1px solid #991b1b", color: "#fca5a5", fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
+          <AlertCircle size={14} /> {error}
         </div>
       )}
 
@@ -181,8 +200,8 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
               {link.url}
             </div>
             <button onClick={() => deleteLink(link.id)} disabled={deleting === link.id}
-              style={{ padding: "3px 8px", borderRadius: 5, background: "transparent", border: "1px solid #ef444430", color: "#ef4444", fontSize: 10, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>
-              {deleting === link.id ? "..." : "✕"}
+              style={{ padding: "3px 8px", borderRadius: 5, background: "transparent", border: "1px solid #ef444430", color: "#ef4444", fontSize: 10, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {deleting === link.id ? <RefreshCw size={12} className="spin" /> : <X size={12} />}
             </button>
           </div>
         ))}
@@ -194,14 +213,16 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
               placeholder={meta.postPlaceholder}
               style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 11, fontFamily: "monospace", outline: "none" }} />
             <button onClick={addPostLink} disabled={saving || !newPostUrl.trim()}
-              style={{ padding: "7px 12px", borderRadius: 7, background: "#1a2740", color: "#6b8aaa", border: "1px solid #2a3a52", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: saving || !newPostUrl.trim() ? 0.5 : 1 }}>
-              + Dodaj
+              style={{ padding: "7px 12px", borderRadius: 7, background: "#1a2740", color: "#6b8aaa", border: "1px solid #2a3a52", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: saving || !newPostUrl.trim() ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <Plus size={14} /> Dodaj
             </button>
           </div>
         )}
 
         {postLinks.length >= 5 && (
-          <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 6 }}>Limit 5 linków osiągnięty. Usuń jeden żeby dodać nowy.</div>
+          <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <AlertCircle size={12} /> Limit 5 linków osiągnięty. Usuń jeden żeby dodać nowy.
+          </div>
         )}
       </div>
     </div>
@@ -391,49 +412,52 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#060d18", fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: "#e8f0ff" }}>
+    <div style={{ minHeight: "100vh", background: "#090d16", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "#f8fafc" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
-        .card{transition:transform .18s cubic-bezier(.22,.68,0,1.2),box-shadow .18s}
-        .card:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(0,0,0,.4)}
-        .btn{transition:opacity .15s,transform .15s;cursor:pointer;font-family:inherit}
-        .btn:hover{opacity:.82}
+        .card{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+        .card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.15)!important;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+        .btn{transition:all .15s ease;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+        .btn:hover{filter:brightness(1.14);opacity:.95}
         .btn:active{transform:scale(.97)}
-        input{outline:none;font-family:inherit}
-        input:focus{border-color:#818cf8!important}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .fade{animation:fadeUp .32s ease forwards}
+        input{outline:none;font-family:inherit;transition:border-color .15s ease}
+        input:focus{border-color:#3b82f6!important;box-shadow:0 0 0 1px #3b82f6}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        .fade{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) forwards}
         @keyframes spin{to{transform:rotate(360deg)}}
-        .spin{animation:spin .7s linear infinite;display:inline-block}
+        .spin{animation:spin .8s linear infinite;display:inline-block}
       `}</style>
 
       {toast && (
-        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 200, padding: "12px 20px", borderRadius: 12, background: toast.ok ? "#052e16" : "#450a0a", color: toast.ok ? "#22c55e" : "#ef4444", fontSize: 13, border: `1px solid ${toast.ok ? "#166534" : "#991b1b"}`, boxShadow: "0 8px 32px rgba(0,0,0,.5)", maxWidth: 380, lineHeight: 1.5 }}>
-          {toast.msg}
+        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 200, padding: "14px 20px", borderRadius: 12, background: toast.ok ? "#062f17" : "#450a0a", color: toast.ok ? "#4ade80" : "#fca5a5", fontSize: 13, fontWeight: 500, border: `1px solid ${toast.ok ? "#14532d" : "#7f1d1d"}`, boxShadow: "0 10px 40px rgba(0,0,0,.6)", maxWidth: 420, lineHeight: 1.45, display: "flex", alignItems: "center", gap: 10 }}>
+          {toast.ok ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          <div>{toast.msg}</div>
         </div>
       )}
 
       {metaPlatform && metaPages.length > 0 && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(0,0,0,.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ width: "min(520px, 100%)", borderRadius: 18, background: "#0d1829", border: "1px solid #1e3250", boxShadow: "0 24px 80px rgba(0,0,0,.55)", padding: 22 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#4E8FD4", textTransform: "uppercase", letterSpacing: ".12em", marginBottom: 8 }}>
-              Wybór strony Meta
+        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(3,7,18,.8)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ width: "min(540px, 100%)", borderRadius: 16, background: "#0f172a", border: "1px solid #334155", boxShadow: "0 25px 50px -12px rgba(0,0,0,.7)", padding: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 }}>
+              Konfiguracja Meta OAuth
             </div>
-            <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, fontWeight: 400, color: "#e8f0ff", marginBottom: 8 }}>
-              Wybierz Facebook Page
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#f8fafc", marginBottom: 10 }}>
+              Wybierz powiązaną stronę Facebook
             </h2>
-            <p style={{ fontSize: 13, color: "#6b8aaa", lineHeight: 1.6, marginBottom: 16 }}>
-              Nie wybieramy portfolio biznesowego. Źródłem prawdy jest konkretna strona z /me/accounts.
-              Dla Instagrama aplikacja pobierze Instagram Business Account podpięty do wybranej strony.
+            <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.55, marginBottom: 20 }}>
+              Wskaż konkretną stronę zwróconą przez /me/accounts. Dla Instagrama aplikacja automatycznie pobierze konto profesjonalne podpięte do tej strony.
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
               {metaPages.map((page) => (
                 <button key={page.id} onClick={() => selectMetaPage(page.id)} disabled={!!metaSelecting}
-                  style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1px solid #1e3250", background: "#060d18", color: "#e8f0ff", cursor: "pointer", fontFamily: "inherit", opacity: metaSelecting && metaSelecting !== page.id ? 0.5 : 1 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{page.name}</div>
-                  <div style={{ fontSize: 11, color: "#6b8aaa", marginTop: 3 }}>Page ID: {page.id}</div>
-                  {metaSelecting === page.id && <div style={{ fontSize: 11, color: "#4E8FD4", marginTop: 6 }}>Zapisuję...</div>}
+                  className="btn"
+                  style={{ textAlign: "left", width: "100%", padding: 14, borderRadius: 10, border: "1px solid #1e293b", background: "#070a13", color: "#f8fafc", cursor: "pointer", fontFamily: "inherit", opacity: metaSelecting && metaSelecting !== page.id ? 0.5 : 1, flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{page.name}</span>
+                    {metaSelecting === page.id && <RefreshCw size={14} className="spin" style={{ color: "#3b82f6" }} />}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>Page ID: {page.id}</div>
                 </button>
               ))}
             </div>
@@ -441,33 +465,34 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      <div style={{ borderBottom: "1px solid #1a2740", background: "rgba(6,13,24,0.96)", backdropFilter: "blur(12px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 24px", height: 58, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ borderBottom: "1px solid #1e293b", background: "rgba(9,13,22,.86)", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 1040, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <Link href={`/app/${workspaceId}`} className="btn"
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 9, border: "1px solid #1e3250", background: "#0f1d2e", color: "#6b8aaa", fontSize: 12, textDecoration: "none", fontWeight: 500 }}>
-              ← Wróć
+              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #1e293b", background: "#131926", color: "#94a3b8", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>
+              <ArrowLeft size={15} /> Panel główny
             </Link>
-            <div style={{ width: 1, height: 20, background: "#1a2740" }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#e8f0ff" }}>Integracje API</div>
+            <div style={{ width: 1, height: 24, background: "#1e293b" }} />
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#f8fafc", letterSpacing: ".01em" }}>Ustawienia połączeń</div>
           </div>
           <button className="btn" onClick={syncAllNow} disabled={syncAll || loading || connections.length === 0}
-            style={{ padding: "8px 18px", borderRadius: 9, background: "#4E8FD4", color: "#fff", border: "none", fontSize: 12, fontWeight: 600, opacity: syncAll || connections.length === 0 ? 0.5 : 1 }}>
-            {syncAll ? <><span className="spin">↻</span> Synchronizuję...</> : "↻ Odśwież wszystkie"}
+            style={{ padding: "8px 16px", borderRadius: 8, background: "#3b82f6", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, opacity: syncAll || connections.length === 0 ? 0.5 : 1 }}>
+            <RefreshCw size={14} className={syncAll ? "spin" : ""} />
+            {syncAll ? "Synchronizowanie..." : "Odśwież wszystko"}
           </button>
         </div>
       </div>
 
-      <main style={{ maxWidth: 920, margin: "0 auto", padding: "32px 24px 80px" }}>
-        <div style={{ marginBottom: 36 }} className="fade">
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#4E8FD4", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 10 }}>⊕ Centrum połączeń</div>
-          <h1 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 34, fontWeight: 400, letterSpacing: "-0.02em", color: "#e8f0ff", marginBottom: 10 }}>Podłączone platformy</h1>
-          <p style={{ fontSize: 13, color: "#4a6480", lineHeight: 1.7, maxWidth: 580 }}>
+      <main style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 24px 80px" }}>
+        <div style={{ marginBottom: 40 }} className="fade">
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Centrum połączeń</div>
+          <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.02em", color: "#f8fafc", marginBottom: 10 }}>Integracje z platformami</h1>
+          <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.65, maxWidth: 680 }}>
             Połącz konta przez OAuth. Możesz też dodać link do profilu i do 5 konkretnych postów per platforma — dane pojawią się w sekcji Porównanie contentu.
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(450px, 1fr))", gap: 20 }}>
           {PLATFORMS.map((platform, idx) => {
             const meta = PLATFORM_META[platform];
             const connection = getConn(platform);
@@ -475,38 +500,41 @@ export default function IntegrationsPage() {
             const isSyncing = syncing === connection?.id;
             const isDisconnecting = disconnecting === connection?.id;
             const isExpanded = expanded === platform;
+            const PlatformIcon = meta.icon;
 
             return (
-              <div key={platform} className="card fade" style={{ animationDelay: `${idx * 0.04}s`, background: "#0d1829", border: `1px solid ${isConnected ? meta.color + "40" : "#1a2740"}`, borderRadius: 16, overflow: "hidden" }}>
-                <div style={{ height: 3, background: isConnected ? meta.gradient : "#1a2740" }} />
+              <div key={platform} className="card fade" style={{ animationDelay: `${idx * 0.03}s`, background: "#111827", border: `1px solid ${isConnected ? "rgba(59,130,246,.22)" : "#1f2937"}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                <div style={{ height: 4, background: isConnected ? meta.gradient : "#1f2937" }} />
 
-                <div style={{ padding: "18px 20px" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.color + "20", border: `1px solid ${meta.color}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: meta.color, flexShrink: 0 }}>
-                        {meta.icon}
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: isConnected ? meta.color + "18" : "#1f2937", border: `1px solid ${isConnected ? meta.color + "35" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center", color: isConnected ? meta.color : "#94a3b8", flexShrink: 0 }}>
+                        <PlatformIcon size={20} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#e8f0ff" }}>{meta.label}</div>
-                        {isConnected && <div style={{ fontSize: 11, color: "#4a6480", marginTop: 1 }}>{connection.account_name}</div>}
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc" }}>{meta.label}</div>
+                        {isConnected && <div style={{ fontSize: 12, color: "#64748b", marginTop: 1, fontWeight: 500 }}>{connection.account_name}</div>}
                       </div>
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: isConnected ? "#22c55e18" : "#f59e0b15", color: isConnected ? "#22c55e" : "#f59e0b", textTransform: "uppercase", letterSpacing: "0.06em", flexShrink: 0 }}>
-                      {isConnected ? "● Aktywne" : "Niepołączone"}
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 20, background: isConnected ? "rgba(34,197,94,.1)" : "rgba(245,158,11,.08)", color: isConnected ? "#4ade80" : "#fbbf24", textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0 }}>
+                      {isConnected ? "Aktywne" : "Niepołączone"}
                     </span>
                   </div>
 
-                  <p style={{ fontSize: 11, color: "#3d5473", lineHeight: 1.6, marginBottom: 12 }}>{meta.desc}</p>
+                  <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.55, marginBottom: 16 }}>{meta.desc}</p>
 
                   {isConnected && (
-                    <div style={{ padding: "8px 10px", borderRadius: 8, background: "#060d18", border: "1px solid #1a2740", marginBottom: 12 }}>
+                    <div style={{ padding: "10px 12px", borderRadius: 10, background: "#070a13", border: "1px solid #1e293b", marginBottom: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
-                          <div style={{ fontSize: 10, color: "#3d5473", marginBottom: 2 }}>Ostatnia synchronizacja</div>
-                          <div style={{ fontSize: 12, color: "#6b8aaa", fontWeight: 500 }}>{formatSync(connection.last_synced_at)}</div>
+                          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".02em" }}>Ostatnia synchronizacja</div>
+                          <div style={{ fontSize: 12, color: "#cbd5e1", fontWeight: 700 }}>{formatSync(connection.last_synced_at)}</div>
                         </div>
                         {isExpiring(connection.token_expires_at) && (
-                          <span style={{ fontSize: 10, color: "#f59e0b", background: "#f59e0b15", padding: "3px 8px", borderRadius: 6 }}>⚠ Token wygasa</span>
+                          <span style={{ fontSize: 11, color: "#fbbf24", background: "rgba(245,158,11,.1)", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                            <AlertCircle size={12} /> Token wygasa
+                          </span>
                         )}
                       </div>
                     </div>
@@ -543,28 +571,29 @@ export default function IntegrationsPage() {
                     </div>
                   )}
 
-                  <div style={{ display: "flex", gap: 8, marginBottom: isConnected ? 10 : 0 }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: "auto", marginBottom: isConnected ? 12 : 0 }}>
                     {isConnected ? (
                       <>
                         <button className="btn" onClick={() => syncOne(connection)} disabled={isSyncing}
-                          style={{ flex: 1, padding: "9px", borderRadius: 9, background: meta.color + "18", border: `1px solid ${meta.color}40`, color: meta.color, fontSize: 12, fontWeight: 600, opacity: isSyncing ? 0.6 : 1 }}>
-                          {isSyncing ? <><span className="spin">↻</span> Sync...</> : "↻ Sync teraz"}
+                          style={{ flex: 1, padding: "10px", borderRadius: 8, background: "rgba(59,130,246,.1)", border: "1px solid rgba(59,130,246,.22)", color: "#3b82f6", fontSize: 13, fontWeight: 700, opacity: isSyncing ? 0.6 : 1 }}>
+                          <RefreshCw size={14} className={isSyncing ? "spin" : ""} /> {isSyncing ? "Pobieranie..." : "Synchronizuj"}
                         </button>
                         <button className="btn" onClick={() => window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`}
-                          style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #1a2740", background: "transparent", color: "#4a6480", fontSize: 11 }}>
-                          ↑ Nowe
+                          title="Zreautoryzuj profil"
+                          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#64748b", fontSize: 11 }}>
+                          <ExternalLink size={14} />
                         </button>
                         <button className="btn" onClick={() => disconnect(connection)} disabled={isDisconnecting}
-                          style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #ef444430", background: "#ef444410", color: "#ef4444", fontSize: 11, fontWeight: 600, opacity: isDisconnecting ? 0.6 : 1 }}>
-                          {isDisconnecting ? "..." : "✕"}
+                          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,.22)", background: "rgba(239,68,68,.05)", color: "#ef4444", fontSize: 11, fontWeight: 700, opacity: isDisconnecting ? 0.6 : 1 }}>
+                          {isDisconnecting ? <RefreshCw size={14} className="spin" /> : <X size={14} />}
                         </button>
                       </>
                     ) : (
                       <button className="btn"
                         onClick={() => { if (meta.type === "oauth") window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`; else saveBlog(); }}
                         disabled={platform === "blog" && blogSaving}
-                        style={{ flex: 1, padding: "10px", borderRadius: 9, background: meta.color, color: "#fff", border: "none", fontSize: 12, fontWeight: 700, opacity: blogSaving ? 0.6 : 1 }}>
-                        {platform === "blog" ? (blogSaving ? "Łączę..." : "Połącz blog") : `+ Połącz ${meta.label}`}
+                        style={{ width: "100%", padding: "10px", borderRadius: 8, background: meta.color, color: "#fff", border: "none", fontSize: 13, fontWeight: 800, opacity: blogSaving ? 0.6 : 1 }}>
+                        {platform === "blog" ? (blogSaving ? "Łączę..." : "Połącz blog") : <><Plus size={14} /> Połącz z {meta.label}</>}
                       </button>
                     )}
                   </div>
@@ -572,9 +601,9 @@ export default function IntegrationsPage() {
                   {isConnected && (
                     <>
                       <button className="btn" onClick={() => setExpanded(isExpanded ? null : platform)}
-                        style={{ width: "100%", padding: "7px", borderRadius: 8, border: `1px dashed ${isExpanded ? meta.color + "60" : "#1a2740"}`, background: isExpanded ? meta.color + "08" : "transparent", color: isExpanded ? meta.color : "#3d5473", fontSize: 11, fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                        <span style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform .2s", display: "inline-block" }}>▾</span>
-                        {isExpanded ? "Ukryj linki" : "⊕ Dodaj linki do postów i konta"}
+                        style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px dashed ${isExpanded ? meta.color + "60" : "#1e293b"}`, background: isExpanded ? meta.color + "08" : "transparent", color: isExpanded ? meta.color : "#64748b", fontSize: 12, fontWeight: 600 }}>
+                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {isExpanded ? "Ukryj linki" : "Zarządzaj wpisami i linkami profilu"}
                       </button>
                       {isExpanded && <ManualLinksPanel connection={connection} />}
                     </>
@@ -585,9 +614,11 @@ export default function IntegrationsPage() {
           })}
         </div>
 
-        <div style={{ marginTop: 48, paddingTop: 24, borderTop: "1px solid #1a2740", display: "flex", justifyContent: "center", gap: 24 }}>
-          <a href="https://contentiq.anmcollective.fun/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#3d5473", textDecoration: "none" }}>Polityka prywatności</a>
-          <a href="https://contentiq.anmcollective.fun/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#3d5473", textDecoration: "none" }}>Regulamin</a>
+        <div style={{ marginTop: 64, paddingTop: 24, borderTop: "1px solid #1e293b", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 28 }}>
+          <a href="https://contentiq.anmcollective.fun/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Polityka prywatności</a>
+          <a href="https://contentiq.anmcollective.fun/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Regulamin</a>
+          <a href="https://contentiq.anmcollective.fun/contact" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Contact</a>
+          <a href="https://contentiq.anmcollective.fun/delete-data" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Delete Data</a>
         </div>
       </main>
     </div>
