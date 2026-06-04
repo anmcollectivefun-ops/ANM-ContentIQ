@@ -113,27 +113,27 @@ function fallbackAnalysis(fileName: string, hasFrames: boolean) {
     transcript: "",
     detected_topic: title || "short video",
     hook: "Zatrzymaj uwagę w pierwszych 2 sekundach najmocniejszym kadrem z filmu.",
-    caption: "Nowy short z materiału video. Doprecyzuj opis po obejrzeniu filmu.",
+    caption: "Opisz w sugestiach, jaki cel ma mie? post, a AI przygotuje gotow? tre?? publikacji z CTA i hashtagami.",
     hashtags: ["#short", "#video", "#content"],
     on_screen_text: [{ time: "0-2s", text: "Najmocniejszy hook filmu" }],
     platform_recommendations: [
       {
         platform: "tiktok",
-        caption: "Krótki, naturalny opis z mocnym początkiem.",
+        caption: "Masz gotowy film? Zamie? go w post, kt?ry m?wi odbiorcy, co zyska i dlaczego warto klikn?? link lub zostawi? reakcj?.",
         hook: "Zobacz to przed publikacją kolejnego shorta.",
         hashtags: ["#tiktok", "#short", "#content"],
         publishing_notes: "Postaw na szybkie cięcie i jasny tekst na ekranie.",
       },
       {
         platform: "instagram_reels",
-        caption: "Opis pod Reels z akcentem na zapisanie i udostępnienie.",
+        caption: "Poka? warto?? filmu w pierwszym zdaniu, dodaj prosty CTA i zach?? do zapisania albo sprawdzenia linku.",
         hook: "Ten kadr może zatrzymać scrollowanie.",
         hashtags: ["#reels", "#instagram", "#content"],
         publishing_notes: "Dodaj estetyczną okładkę i 2-3 czytelne napisy.",
       },
       {
         platform: "youtube_shorts",
-        caption: "Opis pod YouTube Shorts z prostym tytułem i wartością.",
+        caption: "U?yj opisu jak mini landing page: problem, korzy??, co dalej i jasne wezwanie do dzia?ania.",
         hook: "Najważniejsza rzecz w tym shortcie.",
         hashtags: ["#shorts", "#youtube", "#video"],
         publishing_notes: "Tytuł powinien jasno mówić, co widz dostaje.",
@@ -155,7 +155,7 @@ function getDataUrlParts(dataUrl: string) {
 function buildVideoAnalysisPrompt(body: AnalyzeVideoBody) {
   const userContext = [
     body.custom_user_notes?.trim()
-      ? `Dodatkowe sugestie użytkownika: ${body.custom_user_notes.trim()}`
+      ? `Dodatkowe sugestie u?ytkownika: ${body.custom_user_notes.trim()}`
       : "",
     body.reference_url?.trim()
       ? `Link referencyjny lub kontekstowy: ${body.reference_url.trim()}`
@@ -165,7 +165,7 @@ function buildVideoAnalysisPrompt(body: AnalyzeVideoBody) {
     .join("\n");
 
   return `
-Przeanalizuj short video dla aplikacji ANM ContentIQ na podstawie przesłanych klatek obrazu.
+Przeanalizuj short video dla aplikacji ANM ContentIQ na podstawie klatek obrazu, napis?w widocznych na ekranie i sugestii u?ytkownika.
 
 Dane pliku:
 - upload_id: ${body.upload_id}
@@ -173,11 +173,28 @@ Dane pliku:
 - mime_type: ${body.mime_type}
 ${userContext ? `\n${userContext}` : ""}
 
-Zasady:
-- Opisz tylko to, co realnie widać na klatkach.
-- Wyciągnij napisy i tekst na ekranie (OCR), jeśli są widoczne.
-- Jeśli widać fragment twarzy, przedmiot, planner, biurko, aplikację, ręce, napisy albo kolory, nazwij je konkretnie.
-- Przygotuj dedykowane opisy i warianty publikacyjne dla platform społecznościowych (tiktok, instagram_reels, youtube_shorts, facebook_reels, linkedin_video).
+Najwa?niejsza zasada:
+Pole "caption" NIE jest opisem technicznym filmu. To ma by? gotowy tekst posta do publikacji pod filmem.
+Ma zach?ca? odbiorc? do klikni?cia, zapisania, komentarza, wej?cia w link albo wykonania akcji wskazanej w sugestiach u?ytkownika.
+
+?r?d?a tre?ci:
+- Najpierw czytaj napisy i tekst na ekranie. To jest g??wny sens filmu.
+- Klatki wykorzystuj tylko jako kontekst pomocniczy: klimat, osoby, produkt, ekran, miejsce.
+- Je?eli napisy s? urwane, odtw?rz sens ostro?nie i napisz w "transcript", co uda?o si? odczyta?.
+- Je?eli u?ytkownik poda? sugestie, potraktuj je jako brief marketingowy i dopasuj do nich hook, caption, CTA oraz hashtagi.
+
+Co zwr?ci?:
+- "visual_summary": kr?tka notatka techniczna dla u?ytkownika, co wida? w filmie. Nie u?ywaj jej jako posta.
+- "transcript": odczytane napisy / tekst z filmu.
+- "detected_topic": temat biznesowy/contentowy, nie opis kadru.
+- "hook": mocne zdanie otwieraj?ce post.
+- "caption": gotowy opis posta: naturalny, marketingowy, zach?caj?cy, z CTA. Je?li jest link referencyjny, wspomnij o klikni?ciu/sprawdzeniu linku.
+- "hashtags": praktyczne hashtagi pod publikacj?.
+- "platform_recommendations": osobne wersje caption/hook pod TikTok, Instagram Reels, YouTube Shorts, Facebook Reels i LinkedIn Video.
+
+Przyk?ad r??nicy:
+?le: "Wideo pokazuje dwie osoby przy biurku i tablet graficzny."
+Dobrze: "Planujesz event, wesele albo 18. urodziny? ANM Collective tworzy narz?dzie, kt?re pomaga ogarn?? zaproszenia, harmonogram i komunikacj? w jednym miejscu. Sprawd?, jak ?atwiej zaplanowa? wydarzenie bez chaosu."
   `.trim();
 }
 

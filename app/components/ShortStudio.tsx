@@ -1,70 +1,627 @@
 ﻿"use client";
 
-import React, { useState, useRef, type CSSProperties } from "react";
-import { 
-  UploadCloud, 
-  Video, 
-  Sparkles, 
-  Trash2, 
-  Eraser, 
-  BookmarkPlus, 
-  Loader2, 
-  Bot, 
-  Link as LinkIcon 
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type ShortStudioProps = {
-  dark?: boolean;
-  workspaceId?: string;
+type ShortPlatform =
+  | "tiktok"
+  | "instagram_reels"
+  | "facebook_reels"
+  | "youtube_shorts"
+  | "linkedin_video";
+
+type ShortGoal =
+  | "zasiÄ™g"
+  | "edukacja"
+  | "sprzedaĹĽ"
+  | "lead"
+  | "spoĹ‚ecznoĹ›Ä‡"
+  | "eksperckoĹ›Ä‡";
+
+type ShortVariant = {
+  platform: ShortPlatform;
+  platform_name: string;
+  duration_seconds: number;
+  format: string;
+  hook: string;
+  script: string;
+  shots: {
+    time: string;
+    scene: string;
+    action: string;
+  }[];
+  on_screen_text: {
+    time: string;
+    text: string;
+  }[];
+  caption: string;
+  hashtags: string[];
+  thumbnail_text: string;
+  publishing_notes: string;
+  score: number;
 };
 
-// Zmienne kolorów zależne od motywu
-const getColors = (dark: boolean) => ({
-  bg: dark ? "#050505" : "#F6F6F6",
-  surface: dark ? "#111111" : "#FFFFFF",
-  surfaceSoft: dark ? "#0B0B0C" : "#FAFAFA",
-  text: dark ? "#F5F5F5" : "#111111",
-  muted: dark ? "#9CA3AF" : "#71717A",
-  border: dark ? "#27272A" : "#E4E4E7",
-  accent: dark ? "#E5E7EB" : "#111111",
-  aiBg: dark ? "#0C1117" : "#F0F9FF",
-  aiBgSoft: dark ? "#101820" : "#F8FCFF",
-  aiBorder: dark ? "#1E3A4C" : "#BAE6FD",
-  aiText: dark ? "#7DD3FC" : "#0284C7",
-  danger: "#ef4444",
-  dangerBg: dark ? "#451a1a" : "#fef2f2",
-  success: "#22c55e",
-});
+type ShortResult = {
+  idea_title: string;
+  main_angle: string;
+  ai_summary: string;
+  variants: ShortVariant[];
+  cross_platform_notes: string[];
+};
 
-export default function ShortStudio({ dark = true, workspaceId = "contentiq" }: ShortStudioProps) {
-  const css = getColors(dark);
+type ApiResponse = {
+  answer?: string;
+  error?: string;
+};
+
+type ShortAiProvider = "gemini" | "deepseek";
+
+type VideoUploadRecord = {
+  id: string;
+  workspace_id: string;
+  storage_path: string;
+  public_url: string | null;
+  signed_url: string | null;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  status: ShortVideoStatus;
+};
+
+type ShortVideoStatus =
+  | "uploaded_temp"
+  | "analyzed"
+  | "template_ready"
+  | "publishing"
+  | "published_external"
+  | "deleted_local"
+  | "expired";
+
+type ShortVideoAnalysis = {
+  title: string;
+  visual_summary: string;
+  transcript: string;
+  detected_topic: string;
+  hook: string;
+  caption: string;
+  hashtags: string[];
+  on_screen_text: {
+    time: string;
+    text: string;
+  }[];
+  platform_recommendations: {
+    platform: ShortPlatform;
+    caption: string;
+    hook: string;
+    hashtags: string[];
+    publishing_notes: string;
+  }[];
+  template_summary: string;
+};
+
+const TEMP_VIDEO_BUCKET = "contentiq-temp-videos";
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+
+const SHORT_PLATFORMS: {
+  id: ShortPlatform;
+  name: string;
+  shortName: string;
+  color: string;
+}[] = [
+  {
+    id: "tiktok",
+    name: "TikTok",
+    shortName: "TikTok",
+    color: "#ffffff",
+  },
+  {
+    id: "instagram_reels",
+    name: "Instagram Reels",
+    shortName: "Reels",
+    color: "#E1306C",
+  },
+  {
+    id: "facebook_reels",
+    name: "Facebook Reels",
+    shortName: "FB Reels",
+    color: "#1877F2",
+  },
+  {
+    id: "youtube_shorts",
+    name: "YouTube Shorts",
+    shortName: "Shorts",
+    color: "#FF0033",
+  },
+  {
+    id: "linkedin_video",
+    name: "LinkedIn Video",
+    shortName: "LinkedIn",
+    color: "#0A66C2",
+  },
+];
+
+const GOALS: ShortGoal[] = [
+  "zasiÄ™g",
+  "edukacja",
+  "sprzedaĹĽ",
+  "lead",
+  "spoĹ‚ecznoĹ›Ä‡",
+  "eksperckoĹ›Ä‡",
+];
+
+const FORMATS = [
+  "3 bĹ‚Ä™dy",
+  "3 wskazĂłwki",
+  "Mit vs prawda",
+  "Przed / po",
+  "Mini tutorial",
+  "POV",
+  "Case study w 30 sekund",
+  "Lista narzÄ™dzi",
+  "Problem â†’ rozwiÄ…zanie",
+  "Reakcja na trend",
+];
+
+const LENGTHS = [15, 20, 30, 45, 60];
+
+function cleanJsonAnswer(answer: string) {
+  return answer
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+function safeArray<T>(value: T[] | undefined | null): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function safeFileName(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+  const base = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+
+  return `${base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72) || "short-video"}${extension}`;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function normalizeVideoAnalysis(value: Partial<ShortVideoAnalysis>): ShortVideoAnalysis {
+  return {
+    title: value.title || "Analiza short video",
+    visual_summary: value.visual_summary || "",
+    transcript: value.transcript || "",
+    detected_topic: value.detected_topic || value.title || "",
+    hook: value.hook || "",
+    caption: value.caption || "",
+    hashtags: safeArray(value.hashtags),
+    on_screen_text: safeArray(value.on_screen_text),
+    platform_recommendations: safeArray(value.platform_recommendations).map((item) => ({
+      platform: item.platform,
+      caption: item.caption || "",
+      hook: item.hook || "",
+      hashtags: safeArray(item.hashtags),
+      publishing_notes: item.publishing_notes || "",
+    })),
+    template_summary: value.template_summary || "",
+  };
+}
+
+function explainSupabaseVideoError(message: string) {
+  if (
+    message.includes("permission denied for table short_video_uploads") ||
+    message.includes("row-level security policy")
+  ) {
+    return (
+      "Supabase blokuje zapis filmu. Uruchom SQL z pliku " +
+      "supabase/short_studio_rls_fix.sql, ĹĽeby nadaÄ‡ uprawnienia i polityki RLS dla Short Studio."
+    );
+  }
+
+  return message;
+}
+
+function getScoreColor(score: number) {
+  if (score >= 80) return "#22c55e";
+  if (score >= 60) return "#f59e0b";
+  return "#ef4444";
+}
+
+function getPlatformInfo(platform: ShortPlatform) {
+  return SHORT_PLATFORMS.find((item) => item.id === platform);
+}
+
+function formatResultAsText(result: ShortResult) {
+  return `
+${result.idea_title}
+
+GĹĂ“WNY KÄ„T:
+${result.main_angle}
+
+AI PODSUMOWANIE:
+${result.ai_summary}
+
+WARIANTY:
+${result.variants
+  .map(
+    (variant) => `
+${variant.platform_name}
+Score: ${variant.score}/100
+Format: ${variant.format}
+DĹ‚ugoĹ›Ä‡: ${variant.duration_seconds}s
+
+Hook:
+${variant.hook}
+
+Scenariusz:
+${variant.script}
+
+UjÄ™cia:
+${variant.shots
+  .map(
+    (shot) =>
+      `- ${shot.time}: ${shot.scene}\n  Akcja: ${shot.action}`
+  )
+  .join("\n")}
+
+Teksty na ekranie:
+${variant.on_screen_text
+  .map((item) => `- ${item.time}: ${item.text}`)
+  .join("\n")}
+
+Opis:
+${variant.caption}
+
+Hashtagi:
+${variant.hashtags.join(" ")}
+
+Miniatura:
+${variant.thumbnail_text}
+
+Notatka publikacyjna:
+${variant.publishing_notes}
+`
+  )
+  .join("\n\n")}
+
+WNIOSKI CROSS-PLATFORM:
+${result.cross_platform_notes.map((item) => `- ${item}`).join("\n")}
+  `.trim();
+}
+
+function buildPrompt({
+  topic,
+  sourceContent,
+  selectedPlatforms,
+  goal,
+  format,
+  duration,
+  brandContext,
+}: {
+  topic: string;
+  sourceContent: string;
+  selectedPlatforms: ShortPlatform[];
+  goal: ShortGoal;
+  format: string;
+  duration: number;
+  brandContext: string;
+}) {
+  const platformNames = selectedPlatforms
+    .map((id) => getPlatformInfo(id)?.name || id)
+    .join(", ");
+
+  return `
+JesteĹ› ekspertem od short video: TikTok, Instagram Reels, Facebook Reels, YouTube Shorts i LinkedIn Video.
+
+Twoje zadanie:
+Z jednej idei przygotuj osobne warianty short video na wskazane platformy.
+
+Platformy:
+${platformNames}
+
+Cel:
+${goal}
+
+Preferowany format:
+${format}
+
+Preferowana dĹ‚ugoĹ›Ä‡:
+${duration} sekund
+
+Temat / idea:
+${topic}
+
+MateriaĹ‚ ĹşrĂłdĹ‚owy / istniejÄ…cy content:
+${sourceContent || "brak"}
+
+Kontekst marki / styl komunikacji:
+${brandContext || "brak"}
+
+Zasady:
+- nie kopiuj tego samego scenariusza 1:1 na wszystkie platformy,
+- TikTok: mocny hook, szybkie tempo, naturalny styl, prosty jÄ™zyk,
+- Instagram Reels: wizualnoĹ›Ä‡, emocje, zapis/udostÄ™pnienia, teksty na ekranie,
+- Facebook Reels: prostszy przekaz, spoĹ‚ecznoĹ›Ä‡, praktyczny temat,
+- YouTube Shorts: jasny tytuĹ‚, szybka wartoĹ›Ä‡, retencja, miniatura,
+- LinkedIn Video: eksperckoĹ›Ä‡, konkret, B2B, mniej trendowo, bardziej merytorycznie,
+- kaĹĽdy wariant ma mieÄ‡ hook, scenariusz, ujÄ™cia, napisy, opis, hashtagi, miniaturÄ™ i notatkÄ™ publikacyjnÄ….
+
+ZwrĂłÄ‡ dokĹ‚adnie taki JSON, bez markdown i bez komentarzy:
+
+{
+  "idea_title": "tytuĹ‚ gĹ‚Ăłwnej idei",
+  "main_angle": "gĹ‚Ăłwny kÄ…t komunikacji",
+  "ai_summary": "krĂłtkie podsumowanie AI",
+  "variants": [
+    {
+      "platform": "tiktok",
+      "platform_name": "TikTok",
+      "duration_seconds": 30,
+      "format": "3 bĹ‚Ä™dy",
+      "hook": "hook 0-2 sekundy",
+      "script": "peĹ‚ny scenariusz do powiedzenia",
+      "shots": [
+        {
+          "time": "0-2s",
+          "scene": "co widzimy",
+          "action": "co robi osoba / co pokazuje ekran"
+        }
+      ],
+      "on_screen_text": [
+        {
+          "time": "0-2s",
+          "text": "tekst na ekranie"
+        }
+      ],
+      "caption": "opis posta",
+      "hashtags": ["#hashtag1", "#hashtag2"],
+      "thumbnail_text": "tekst na miniaturÄ™",
+      "publishing_notes": "krĂłtka wskazĂłwka publikacyjna dla tej platformy",
+      "score": 85
+    }
+  ],
+  "cross_platform_notes": [
+    "wniosek porĂłwnawczy miÄ™dzy platformami"
+  ]
+}
+
+W JSON zwrĂłÄ‡ warianty tylko dla tych platform:
+${selectedPlatforms.join(", ")}
+  `.trim();
+}
+
+function SectionLabel({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 900,
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        color,
+        marginBottom: 8,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Pill({
+  active,
+  children,
+  onClick,
+  color,
+  css,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+  color: string;
+  css: Record<string, string>;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "7px 12px",
+        borderRadius: 10,
+        border: `1.5px solid ${active ? color : css.border}`,
+        background: active ? `${color}18` : "transparent",
+        color: active ? color : css.muted,
+        fontSize: 11,
+        fontWeight: 800,
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ResultBox({
+  label,
+  children,
+  css,
+  accent = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  css: Record<string, string>;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        background: accent ? css.aiBg : css.surface,
+        border: `1px solid ${accent ? css.aiBorder : css.border}`,
+        borderRadius: 16,
+        padding: 15,
+      }}
+    >
+      <SectionLabel color={accent ? css.aiText : css.accent}>
+        {label}
+      </SectionLabel>
+      {children}
+    </div>
+  );
+}
+
+export default function ShortStudio({
+  dark = true,
+  workspaceId = "contentiq",
+}: {
+  dark?: boolean;
+  workspaceId?: string;
+}) {
   const supabase = createClient();
+  const [selectedPlatforms, setSelectedPlatforms] = useState<ShortPlatform[]>([
+    "tiktok",
+    "instagram_reels",
+    "youtube_shorts",
+  ]);
 
-  // --- STATE: WIDEO & ANALIZA ---
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
-  const [customUserNotes, setCustomUserNotes] = useState("");
-  const [referenceUrl, setReferenceUrl] = useState("");
-  const [analysisProvider, setAnalysisProvider] = useState<"gemini" | "deepseek">("gemini");
-  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
+  const [goal, setGoal] = useState<ShortGoal>("zasiÄ™g");
+  const [format, setFormat] = useState("3 bĹ‚Ä™dy");
+  const [duration, setDuration] = useState(30);
+  const [topic, setTopic] = useState("");
+  const [sourceContent, setSourceContent] = useState("");
+  const [brandContext, setBrandContext] = useState("");
 
-  // --- STATE: SCENARIUSZE ---
-  const [scenarioSuggestions, setScenarioSuggestions] = useState("");
-  const [scenarioProvider, setScenarioProvider] = useState<"deepseek" | "gemini">("deepseek");
-  const [scenarioResult, setScenarioResult] = useState<any | null>(null);
-  const [isGeneratingScenario, setIsGeneratingScenario] = useState(false);
-
-  // --- STATE: SUPABASE & UI ---
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
+  const [result, setResult] = useState<ShortResult | null>(null);
+  const [rawAnswer, setRawAnswer] = useState("");
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState("");
+  const [videoUpload, setVideoUpload] = useState<VideoUploadRecord | null>(null);
+  const [videoAnalysis, setVideoAnalysis] = useState<ShortVideoAnalysis | null>(null);
+  const [videoStatus, setVideoStatus] = useState<ShortVideoStatus | "idle">("idle");
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [analyzingVideo, setAnalyzingVideo] = useState(false);
+  const [deletingVideo, setDeletingVideo] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoError, setVideoError] = useState("");
+  const [shortAiProvider, setShortAiProvider] = useState<ShortAiProvider>("gemini");
+  const [videoAnalysisNotes, setVideoAnalysisNotes] = useState("");
+  const [videoReferenceUrl, setVideoReferenceUrl] = useState("");
+
+  const topicRef = useRef<HTMLTextAreaElement>(null);
+  const sourceRef = useRef<HTMLTextAreaElement>(null);
+  const contextRef = useRef<HTMLTextAreaElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const css: Record<string, string> = dark
+    ? {
+        bg: "#050505",
+        surface: "#111111",
+        surfaceSoft: "#0B0B0C",
+        text: "#F5F5F5",
+        muted: "#9CA3AF",
+        border: "#27272A",
+        accent: "#E5E7EB",
+        aiBg: "#0C1117",
+        aiBgSoft: "#101820",
+        aiBorder: "#1E3A4C",
+        aiText: "#7DD3FC",
+      }
+    : {
+        bg: "#F6F6F6",
+        surface: "#FFFFFF",
+        surfaceSoft: "#FAFAFA",
+        text: "#111111",
+        muted: "#71717A",
+        border: "#E4E4E7",
+        accent: "#111111",
+        aiBg: "#F0F9FF",
+        aiBgSoft: "#F8FCFF",
+        aiBorder: "#BAE6FD",
+        aiText: "#0284C7",
+      };
+
+  const selectedPlatformNames = useMemo(() => {
+    return selectedPlatforms
+      .map((id) => getPlatformInfo(id)?.shortName || id)
+      .join(", ");
+  }, [selectedPlatforms]);
+
+  const canGenerate =
+    selectedPlatforms.length > 0 &&
+    Boolean(
+      topic.trim() ||
+        videoAnalysis?.detected_topic?.trim() ||
+        videoAnalysis?.title?.trim() ||
+        videoAnalysis?.hook?.trim()
+    );
+
+  useEffect(() => {
+    return () => {
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    };
+  }, [videoPreviewUrl]);
 
   function showToast(message: string) {
     setToast(message);
     setTimeout(() => setToast(""), 3200);
+  }
+
+  function togglePlatform(platform: ShortPlatform) {
+    setSelectedPlatforms((prev) => {
+      if (prev.includes(platform)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((item) => item !== platform);
+      }
+
+      return [...prev, platform];
+    });
+  }
+
+  function updateVideoAnalysisField<K extends keyof ShortVideoAnalysis>(
+    field: K,
+    value: ShortVideoAnalysis[K]
+  ) {
+    setVideoAnalysis((current) =>
+      current
+        ? {
+            ...current,
+            [field]: value,
+          }
+        : current
+    );
+  }
+
+  async function copyResult() {
+    if (!result) return;
+    await navigator.clipboard.writeText(formatResultAsText(result));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
   }
 
   async function getOrCreateWorkspaceUuid() {
@@ -92,459 +649,2134 @@ export default function ShortStudio({ dark = true, workspaceId = "contentiq" }: 
       .select("id")
       .single();
 
-    if (error || !created?.id) throw new Error(error.message);
+    if (error || !created?.id) {
+      throw new Error(error?.message || "Nie udaĹ‚o siÄ™ utworzyÄ‡ przestrzeni.");
+    }
+
     return created.id as string;
   }
 
-  // --- LOGIKA WIDEO (EKSTRAKCJA KLATEK) ---
-  const handleVideoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setVideoFile(e.target.files[0]);
-      setUploadProgress(0);
-      setAnalysisResult(null);
-    }
-  };
+  async function getCurrentUserId() {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Brak aktywnej sesji.");
+    return auth.user.id;
+  }
 
-  const extractFrames = async (file: File): Promise<string[]> => {
-    return new Promise((resolve) => {
-      const video = document.createElement("video");
-      video.src = URL.createObjectURL(file);
-      video.muted = true;
-      video.crossOrigin = "anonymous";
-      const frames: string[] = [];
+  function handleVideoFileChange(file: File | null) {
+    setVideoError("");
+    setVideoProgress(0);
+    setVideoAnalysis(null);
+    setResult(null);
 
-      video.addEventListener("loadeddata", async () => {
-        const canvas = document.createElement("canvas");
-        // Pomniejszamy klatki, żeby nie przekroczyć limitów API
-        canvas.width = video.videoWidth / 4; 
-        canvas.height = video.videoHeight / 4;
-        const ctx = canvas.getContext("2d");
-        const duration = video.duration || 5;
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoPreviewUrl("");
+    setVideoUpload(null);
+    setVideoStatus("idle");
 
-        for (let i = 1; i <= 4; i++) {
-          video.currentTime = (duration / 5) * i;
-          await new Promise((r) => setTimeout(r, 400));
-          ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-          frames.push(canvas.toDataURL("image/jpeg", 0.7));
-          setUploadProgress((prev) => prev + 15);
-        }
-        resolve(frames);
-      });
-      video.load();
-    });
-  };
-
-  const handleAnalyzeVideo = async () => {
-    if (!videoFile && analysisProvider === "gemini") {
-      alert("Proszę wgrać wideo, aby użyć analizy wizualnej Gemini.");
+    if (!file) {
+      setVideoFile(null);
       return;
     }
-    
-    setIsAnalyzing(true);
-    setUploadProgress(10);
+
+    if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
+      setVideoFile(null);
+      setVideoError("ZĹ‚y format pliku. Dozwolone: MP4, MOV i WebM.");
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
+      setVideoFile(null);
+      setVideoError("Plik jest za duĹĽy. Maksymalny rozmiar to 100 MB.");
+      return;
+    }
+
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+  }
+
+  async function uploadVideoTemp() {
+    if (!videoFile) throw new Error("Brak pliku video.");
+
+    setUploadingVideo(true);
+    setVideoError("");
+    setVideoProgress(8);
 
     try {
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => (prev < 40 ? prev + 5 : prev));
-      }, 300);
+      const wsId = await getOrCreateWorkspaceUuid();
+      const userId = await getCurrentUserId();
+      if (!wsId) throw new Error("Brak workspace.");
 
-      let frames: string[] = [];
-      if (videoFile) {
-        frames = await extractFrames(videoFile);
+      const fileName = safeFileName(videoFile.name || "short-video");
+      const path = `${userId}/${wsId}/${Date.now()}-${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .upload(path, videoFile, {
+          contentType: videoFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw new Error(`BĹ‚Ä…d uploadu: ${uploadError.message}`);
+      setVideoProgress(45);
+
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .createSignedUrl(path, 60 * 60);
+
+      if (signedError) {
+        console.warn("Nie udaĹ‚o siÄ™ utworzyÄ‡ signed URL:", signedError.message);
       }
-      
-      clearInterval(progressInterval);
-      setUploadProgress(60);
 
-      const payload = {
-        upload_id: `upl_${Date.now()}`,
-        workspace_id: workspaceId,
-        storage_path: videoFile ? `/temp/${videoFile.name}` : "/temp/manual-analysis",
-        file_name: videoFile ? videoFile.name : "Analiza bez pliku",
-        mime_type: videoFile ? videoFile.type : "video/mp4",
-        frame_data_urls: frames,
-        ai_provider: analysisProvider,
-        custom_user_notes: customUserNotes,
-        reference_url: referenceUrl,
+      const { data: uploadRow, error: insertError } = await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .insert({
+          workspace_id: wsId,
+          user_id: userId,
+          storage_bucket: TEMP_VIDEO_BUCKET,
+          storage_path: path,
+          public_url: null,
+          file_name: videoFile.name,
+          mime_type: videoFile.type,
+          file_size: videoFile.size,
+          status: "uploaded_temp",
+        })
+        .select("id, workspace_id, storage_path, public_url, file_name, mime_type, file_size, status")
+        .single();
+
+      if (insertError || !uploadRow) {
+        await supabase.storage.from(TEMP_VIDEO_BUCKET).remove([path]);
+        throw new Error(insertError?.message || "BĹ‚Ä…d zapisu uploadu w Supabase.");
+      }
+
+      const record: VideoUploadRecord = {
+        id: uploadRow.id as string,
+        workspace_id: uploadRow.workspace_id as string,
+        storage_path: uploadRow.storage_path as string,
+        public_url: null,
+        signed_url: signedData?.signedUrl || null,
+        file_name: uploadRow.file_name as string,
+        mime_type: uploadRow.mime_type as string,
+        file_size: Number(uploadRow.file_size || videoFile.size),
+        status: uploadRow.status as ShortVideoStatus,
       };
 
-      setUploadProgress(85);
+      setVideoUpload(record);
+      setVideoStatus("uploaded_temp");
+      setVideoProgress(60);
+      return record;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setVideoError(explainSupabaseVideoError(message));
+      throw err;
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
 
-      const res = await fetch("/api/analyze-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+  async function captureVideoFrames() {
+    const video = videoRef.current;
+    if (!video || !videoPreviewUrl) return [];
+    const activeVideo = video;
+
+    const waitForEvent = (eventName: string) =>
+      new Promise<void>((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          cleanup();
+          reject(new Error(`Nie udaĹ‚o siÄ™ odczytaÄ‡ klatki video: ${eventName}.`));
+        }, 2500);
+
+        function cleanup() {
+          window.clearTimeout(timeout);
+          activeVideo.removeEventListener(eventName, onEvent);
+          activeVideo.removeEventListener("error", onError);
+        }
+
+        function onEvent() {
+          cleanup();
+          resolve();
+        }
+
+        function onError() {
+          cleanup();
+          reject(new Error("BĹ‚Ä…d odczytu pliku video."));
+        }
+
+        activeVideo.addEventListener(eventName, onEvent, { once: true });
+        activeVideo.addEventListener("error", onError, { once: true });
       });
 
-      if (!res.ok) throw new Error("Błąd podczas analizy API.");
-
-      const data = await res.json();
-      setAnalysisResult(data);
-      setUploadProgress(100);
-      showToast("✓ Wideo przeanalizowane");
-    } catch (error) {
-      console.error(error);
-      alert("Wystąpił błąd podczas analizy wideo.");
-      setUploadProgress(0);
-    } finally {
-      setIsAnalyzing(false);
+    if (video.readyState < 1) {
+      await waitForEvent("loadedmetadata");
     }
-  };
 
-  // --- LOGIKA SCENARIUSZA ---
-  const handleGenerateScenario = async () => {
-    if (!scenarioSuggestions.trim()) return;
-    setIsGeneratingScenario(true);
+    const duration = Number.isFinite(video.duration) && video.duration > 0
+      ? video.duration
+      : 1;
+    const times = [0.8, duration * 0.45, Math.max(duration - 0.8, duration * 0.8)]
+      .map((time) => Math.min(Math.max(time, 0.1), Math.max(duration - 0.1, 0.1)));
+
+    const canvas = document.createElement("canvas");
+    const width = Math.min(video.videoWidth || 720, 720);
+    const height = Math.round(width * ((video.videoHeight || 1280) / (video.videoWidth || 720)));
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return [];
+
+    const frames: string[] = [];
+    const originalTime = video.currentTime;
+    const wasPaused = video.paused;
+    video.pause();
+
+    for (const time of times) {
+      video.currentTime = time;
+      await waitForEvent("seeked");
+      ctx.drawImage(video, 0, 0, width, height);
+      frames.push(canvas.toDataURL("image/jpeg", 0.78));
+    }
+
+    video.currentTime = originalTime;
+    if (!wasPaused) void video.play().catch(() => undefined);
+
+    return frames;
+  }
+
+  async function analyzeVideo() {
+    if (!videoFile && !videoUpload) {
+      setVideoError("Najpierw wybierz plik video.");
+      return;
+    }
+
+    setAnalyzingVideo(true);
+    setVideoError("");
+    setVideoProgress(videoUpload ? 62 : 12);
 
     try {
-      const payload = {
-        mode: "generate",
-        platform: "tiktok/reels/shorts",
-        contentType: "short_video_scenario",
-        prompt: scenarioSuggestions,
-      };
+      const frameDataUrls = await captureVideoFrames().catch((err) => {
+        console.warn("Nie udaĹ‚o siÄ™ pobraÄ‡ klatek video:", err);
+        return [] as string[];
+      });
+      const upload = videoUpload || (await uploadVideoTemp());
+      setVideoProgress(70);
+
+      const res = await fetch("/api/shorts/analyze-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          upload_id: upload.id,
+          workspace_id: upload.workspace_id,
+          storage_path: upload.storage_path,
+          public_url: upload.public_url,
+          signed_url: upload.signed_url,
+          file_name: upload.file_name,
+          mime_type: upload.mime_type,
+          frame_data_urls: frameDataUrls,
+          ai_provider: shortAiProvider,
+          custom_user_notes: videoAnalysisNotes,
+          reference_url: videoReferenceUrl,
+        }),
+      });
+
+      const json = await res.json();
+      setVideoProgress(88);
+
+      if (!res.ok || json.error) {
+        const details = json.details ? ` SzczegĂłĹ‚y: ${json.details}` : "";
+        throw new Error(`${json.error || "BĹ‚Ä…d AI podczas analizy filmu."}${details}`);
+      }
+
+      const analysis = normalizeVideoAnalysis(json);
+      setVideoAnalysis(analysis);
+      setVideoStatus("analyzed");
+      setVideoProgress(100);
+      setTopic(analysis.detected_topic || analysis.title || topic);
+      setSourceContent(
+        [
+          analysis.transcript ? `Transkrypcja / opis wypowiedzi:\n${analysis.transcript}` : "",
+          analysis.visual_summary ? `Notatka techniczna / co widać:\n${analysis.visual_summary}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      );
+
+      await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .update({
+          status: "analyzed",
+          ai_transcript: analysis.transcript,
+          ai_visual_summary: analysis.visual_summary,
+          ai_detected_topic: analysis.detected_topic,
+          ai_suggested_hook: analysis.hook,
+          ai_suggested_caption: analysis.caption,
+          ai_suggested_hashtags: analysis.hashtags,
+        })
+        .eq("id", upload.id);
+
+      showToast("âś“ AI przygotowaĹ‚o analizÄ™ filmu");
+    } catch (err) {
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setAnalyzingVideo(false);
+    }
+  }
+
+  async function deleteTempVideo() {
+    if (!videoUpload) {
+      setVideoFile(null);
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoPreviewUrl("");
+      return;
+    }
+
+    setDeletingVideo(true);
+    setVideoError("");
+
+    try {
+      const { error: removeError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .remove([videoUpload.storage_path]);
+
+      if (removeError) throw new Error(removeError.message);
+
+      const { error: deleteError } = await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .delete()
+        .eq("id", videoUpload.id);
+
+      if (deleteError) throw new Error(deleteError.message);
+
+      setVideoFile(null);
+      setVideoUpload(null);
+      setVideoAnalysis(null);
+      setVideoStatus("deleted_local");
+      setVideoProgress(0);
+      setResult(null);
+
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoPreviewUrl("");
+      showToast("âś“ UsuniÄ™to plik tymczasowy i rekord z bazy");
+    } catch (err) {
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setDeletingVideo(false);
+    }
+  }
+
+  async function saveAnalyzedVideoTemplate() {
+    if (!videoAnalysis || !videoUpload) {
+      setVideoError("Najpierw przeanalizuj film AI.");
+      return;
+    }
+
+    setSavingTemplate(true);
+    setVideoError("");
+
+    try {
+      const userId = await getCurrentUserId();
+      const templateRows = videoAnalysis.platform_recommendations.length > 0
+        ? videoAnalysis.platform_recommendations
+        : selectedPlatforms.map((platform) => ({
+            platform,
+            caption: videoAnalysis.caption,
+            hook: videoAnalysis.hook,
+            hashtags: videoAnalysis.hashtags,
+            publishing_notes: "",
+          }));
+
+      const { error: insertError } = await supabase
+        .schema("contentiq")
+        .from("short_templates")
+        .insert(
+          templateRows.map((item) => ({
+            workspace_id: videoUpload.workspace_id,
+            user_id: userId,
+            source_upload_id: videoUpload.id,
+            title: videoAnalysis.title,
+            platform: item.platform,
+            hook: item.hook,
+            caption: item.caption,
+            hashtags: item.hashtags,
+            script: videoAnalysis.transcript,
+            on_screen_text: videoAnalysis.on_screen_text,
+            shots: [],
+            thumbnail_text: videoAnalysis.hook,
+            ai_summary: [
+              videoAnalysis.template_summary,
+              videoAnalysis.visual_summary,
+              videoReferenceUrl.trim() ? `Link roboczy: ${videoReferenceUrl.trim()}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
+            video_storage_path: videoUpload.storage_path,
+            video_public_url: videoUpload.public_url || videoUpload.signed_url,
+            status: "template_ready",
+          }))
+        );
+
+      if (insertError) throw new Error(insertError.message);
+
+      await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .update({
+          status: "template_ready",
+          ai_transcript: videoAnalysis.transcript,
+          ai_visual_summary: videoAnalysis.visual_summary,
+          ai_detected_topic: videoAnalysis.detected_topic,
+          ai_suggested_hook: videoAnalysis.hook,
+          ai_suggested_caption: videoAnalysis.caption,
+          ai_suggested_hashtags: videoAnalysis.hashtags,
+        })
+        .eq("id", videoUpload.id);
+
+      setVideoStatus("template_ready");
+      showToast("âś“ Zapisano szablon shorta z filmu");
+    } catch (err) {
+      setVideoError(
+        explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
+      );
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
+
+  async function generateShorts() {
+    const generationTopic =
+      topic.trim() ||
+      videoAnalysis?.detected_topic?.trim() ||
+      videoAnalysis?.title?.trim() ||
+      videoAnalysis?.hook?.trim() ||
+      "";
+
+    const generationSourceContent =
+      sourceContent.trim() ||
+      [
+        videoAnalysis?.transcript
+          ? `Transkrypcja / opis wypowiedzi:
+${videoAnalysis.transcript}`
+          : "",
+        videoAnalysis?.visual_summary
+          ? `Notatka techniczna / co widać:
+${videoAnalysis.visual_summary}`
+          : "",
+        videoAnalysis?.caption ? `Opis AI:
+${videoAnalysis.caption}` : "",
+        videoAnalysis?.hashtags?.length
+          ? `Hashtagi:
+${videoAnalysis.hashtags.join(" ")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+    if (!generationTopic) {
+      setError("Wpisz temat albo najpierw przeanalizuj film AI.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setResult(null);
+    setRawAnswer("");
+
+    try {
+      const prompt = buildPrompt({
+        topic: generationTopic,
+        sourceContent: generationSourceContent,
+        selectedPlatforms,
+        goal,
+        format,
+        duration,
+        brandContext,
+      });
 
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "chat",
+          prompt,
+        }),
       });
 
-      if (!res.ok) throw new Error("Błąd API podczas generowania");
+      const json = (await res.json()) as ApiResponse;
 
-      const result = await res.json();
-      setScenarioResult(result.data || { title: "Nowy Scenariusz", body: result.answer });
-      showToast("✓ Scenariusz wygenerowany");
-    } catch (error) {
-      console.error(error);
-      alert("Wystąpił błąd podczas tworzenia scenariusza.");
+      if (!res.ok || json.error) {
+        setError(json.error || "BĹ‚Ä…d API.");
+        return;
+      }
+
+      const answer = json.answer || "";
+      setRawAnswer(answer);
+
+      const parsed = JSON.parse(cleanJsonAnswer(answer)) as ShortResult;
+
+      parsed.variants = safeArray(parsed.variants).map((variant) => ({
+        ...variant,
+        shots: safeArray(variant.shots),
+        on_screen_text: safeArray(variant.on_screen_text),
+        hashtags: safeArray(variant.hashtags),
+        score: Number(variant.score || 0),
+      }));
+
+      parsed.cross_platform_notes = safeArray(parsed.cross_platform_notes);
+
+      setResult(parsed);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "AI nie zwrĂłciĹ‚o poprawnego JSON. SprĂłbuj jeszcze raz albo skrĂłÄ‡ opis."
+      );
     } finally {
-      setIsGeneratingScenario(false);
+      setLoading(false);
     }
-  };
+  }
 
-  // --- LOGIKA ZAPISU (SUPABASE) ---
-  const handleSaveToSupabase = async (section: "analysis" | "scenario", isTemplate: boolean) => {
+  async function saveDraft() {
+    if (!result) return;
+
     setSaving(true);
+    setError("");
+
     try {
       const wsId = await getOrCreateWorkspaceUuid();
-      
-      let title = "Bez tytułu";
-      let body = "";
-      let topic = "";
-
-      if (section === "analysis" && analysisResult) {
-        title = analysisResult.title;
-        topic = analysisResult.detected_topic || "Analiza Wideo";
-        body = `WIZUALNE PODSUMOWANIE:\n${analysisResult.visual_summary}\n\nHOOK:\n${analysisResult.hook}\n\nOPIS:\n${analysisResult.caption}\n\nHASHTAGI:\n${(analysisResult.hashtags || []).join(" ")}`;
-      } else if (section === "scenario" && scenarioResult) {
-        title = scenarioResult.title || "Scenariusz Short";
-        topic = scenarioSuggestions;
-        body = scenarioResult.body || JSON.stringify(scenarioResult, null, 2);
-      }
+      const body = formatResultAsText(result);
+      const avgScore =
+        result.variants.length > 0
+          ? Math.round(
+              result.variants.reduce((sum, item) => sum + item.score, 0) /
+                result.variants.length
+            )
+          : null;
 
       const { error: insertError } = await supabase
         .schema("contentiq")
         .from("content_drafts")
         .insert({
           workspace_id: wsId,
-          title: title,
+          title: result.idea_title || topic.slice(0, 80),
           body,
           topic,
-          content_type: `Short Studio / ${section === "analysis" ? "Analiza" : "Scenariusz"}`,
-          target_platforms: ["tiktok", "instagram_reels", "youtube_shorts"],
-          status: isTemplate ? "template" : "draft",
+          content_type: "Short Studio / multi-platform video",
+          target_platforms: selectedPlatforms,
+          ai_score: avgScore,
+          ai_feedback: result.ai_summary,
+          status: "draft",
         });
 
       if (insertError) throw new Error(insertError.message);
-      showToast(`✓ Zapisano jako ${isTemplate ? "szablon" : "szkic"}`);
-    } catch (error: any) {
-      alert(`Błąd zapisu: ${error.message}`);
+
+      showToast("âś“ Zapisano Short Studio jako szkic");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleAction = (section: "analysis" | "scenario", action: "template" | "draft" | "clear" | "delete") => {
-    if (action === "template" || action === "draft") {
-      handleSaveToSupabase(section, action === "template");
-      return;
-    }
+  async function saveTemplate() {
+    if (!result) return;
 
-    if (section === "analysis") {
-      if (action === "clear") setAnalysisResult(null);
-      if (action === "delete") {
-        setAnalysisResult(null);
-        setCustomUserNotes("");
-        setReferenceUrl("");
-        setVideoFile(null);
-        setUploadProgress(0);
+    setSavingTemplate(true);
+    setError("");
+
+    try {
+      const wsId = await getOrCreateWorkspaceUuid();
+      const body = formatResultAsText(result);
+      const avgScore =
+        result.variants.length > 0
+          ? Math.round(
+              result.variants.reduce((sum, item) => sum + item.score, 0) /
+                result.variants.length
+            )
+          : null;
+
+      const { error: insertError } = await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .insert({
+          workspace_id: wsId,
+          title: result.idea_title || topic.slice(0, 80),
+          body,
+          topic,
+          content_type: "Short Studio / multi-platform video",
+          target_platforms: selectedPlatforms,
+          ai_score: avgScore,
+          ai_feedback: result.ai_summary,
+          status: "template",
+        });
+
+      if (insertError) throw new Error(insertError.message);
+
+      if (videoAnalysis && videoUpload) {
+        const userId = await getCurrentUserId();
+        const { error: templateError } = await supabase
+          .schema("contentiq")
+          .from("short_templates")
+          .insert(
+            result.variants.map((variant) => ({
+              workspace_id: wsId,
+              user_id: userId,
+              source_upload_id: videoUpload.id,
+              title: result.idea_title || videoAnalysis.title,
+              platform: variant.platform,
+              hook: variant.hook,
+              caption: variant.caption,
+              hashtags: variant.hashtags,
+              script: variant.script,
+              on_screen_text: variant.on_screen_text,
+              shots: variant.shots,
+              thumbnail_text: variant.thumbnail_text,
+              ai_summary: result.ai_summary || videoAnalysis.template_summary,
+              video_storage_path: videoUpload.storage_path,
+              video_public_url: videoUpload.public_url || videoUpload.signed_url,
+              status: "template_ready",
+            }))
+          );
+
+        if (templateError) throw new Error(templateError.message);
+
+        await supabase
+          .schema("contentiq")
+          .from("short_video_uploads")
+          .update({ status: "template_ready" })
+          .eq("id", videoUpload.id);
+
+        setVideoStatus("template_ready");
       }
-    } else {
-      if (action === "clear") setScenarioResult(null);
-      if (action === "delete") {
-        setScenarioResult(null);
-        setScenarioSuggestions("");
-      }
-    }
-  };
 
-  const styles = {
-    sectionTitle: { fontSize: 20, fontWeight: 700, color: css.text, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, fontFamily: "'DM Serif Display', serif" },
-    grid: { display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 24, marginBottom: 40 },
-    card: { background: css.surface, border: `1px solid ${css.border}`, borderRadius: 22, padding: 24, display: "flex", flexDirection: "column" as const, gap: 16 },
-    label: { fontSize: 11, fontWeight: 800, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: css.muted, marginBottom: 8, display: "block" },
-    input: { width: "100%", padding: 12, borderRadius: 12, background: css.surfaceSoft, border: `1px solid ${css.border}`, color: css.text, fontFamily: "inherit", fontSize: 13 },
-    textarea: { width: "100%", padding: 14, borderRadius: 16, background: css.surfaceSoft, border: `1px solid ${css.border}`, color: css.text, fontFamily: "inherit", fontSize: 13, resize: "vertical" as const, lineHeight: 1.7 },
-    buttonPrimary: { background: dark ? "#ffffff" : "#111111", color: dark ? "#050505" : "#ffffff", border: "none", padding: "12px 20px", borderRadius: 14, fontSize: 13, fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.2s" },
-    actionRow: { display: "flex", gap: 10, marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${css.border}` },
-    btnTemplate: { flex: 1, padding: "10px", background: css.aiBgSoft, color: css.aiText, border: `1px solid ${css.aiBorder}`, borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 800, display: "flex", justifyContent: "center", alignItems: "center", gap: 6 },
-    btnClear: { padding: "10px 16px", background: "transparent", color: css.muted, border: `1px solid ${css.border}`, borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", gap: 6 },
-    btnDelete: { padding: "10px 16px", background: css.dangerBg, color: css.danger, border: `1px solid ${css.danger}40`, borderRadius: 12, cursor: "pointer", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", gap: 6 },
-    tableHeader: { fontSize: 11, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: css.muted, paddingBottom: 8, borderBottom: `1px solid ${css.border}` },
-    tableRow: { display: "grid", gridTemplateColumns: "140px 1fr", gap: 16, padding: "14px 0", borderBottom: `1px dashed ${css.border}80`, fontSize: 13 },
-  };
+      showToast("âś“ Zapisano Short Studio jako szablon");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingTemplate(false);
+    }
+  }
 
   return (
-    <div style={{ "--bg": css.bg, "--surface": css.surface, fontFamily: "'DM Sans', sans-serif", color: css.text } as CSSProperties}>
+    <div
+      style={
+        {
+          "--bg": css.bg,
+          "--surface": css.surface,
+          "--text": css.text,
+          "--muted": css.muted,
+          "--border": css.border,
+          "--accent": css.accent,
+          fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+          color: css.text,
+        } as CSSProperties
+      }
+    >
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800;9..40,900&family=DM+Serif+Display&display=swap');
+
+        * {
+          box-sizing: border-box;
+        }
+
+        textarea {
+          resize: none;
+        }
+
+        .short-studio-grid {
+          display: grid;
+          grid-template-columns: 0.9fr 1.1fr;
+          gap: 18px;
+          align-items: start;
+        }
+
+        .variant-card {
+          transition: transform .18s ease, border-color .18s ease;
+        }
+
+        .variant-card:hover {
+          transform: translateY(-2px);
+          border-color: ${css.aiBorder};
+        }
+
+        @media(max-width: 980px) {
+          .short-studio-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .short-two-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
       {toast && (
-        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 100, background: "#052e16", color: "#22c55e", border: "1px solid #166534", borderRadius: 12, padding: "10px 16px", fontSize: 13, fontWeight: 800, boxShadow: "0 18px 44px rgba(0,0,0,0.35)" }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 20,
+            right: 20,
+            zIndex: 100,
+            background: "#052e16",
+            color: "#22c55e",
+            border: "1px solid #166534",
+            borderRadius: 12,
+            padding: "10px 16px",
+            fontSize: 13,
+            fontWeight: 800,
+            boxShadow: "0 18px 44px rgba(0,0,0,0.35)",
+          }}
+        >
           {toast}
         </div>
       )}
 
-      {/* ───────────────── GŁÓWNA SEKCJA: ANALIZA VIDEO ───────────────── */}
-      <h2 style={styles.sectionTitle}><Video size={22} color={css.aiText} /> Analiza Wideo AI</h2>
-      
-      <div style={{ ...styles.grid, gridTemplateColumns: "1fr 1.3fr" }}>
-        {/* LEWA KOLUMNA: UPLOAD & INPUT */}
-        <div style={styles.card}>
-          <div>
-            <label style={styles.label}>Wybierz materiał (Short/Reel)</label>
-            <div 
-              style={{ border: `2px dashed ${css.border}`, borderRadius: 16, padding: 24, textAlign: "center", cursor: "pointer", background: css.surfaceSoft }}
-              onClick={() => fileInputRef.current?.click()}
+      <div className="short-studio-grid">
+        <div
+          style={{
+            background: css.surface,
+            border: `1px solid ${css.border}`,
+            borderRadius: 22,
+            padding: 18,
+          }}
+        >
+          <SectionLabel color={css.accent}>Short Studio</SectionLabel>
+
+          <h2
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 31,
+              lineHeight: 1.05,
+              margin: "8px 0 8px",
+              color: css.text,
+              fontWeight: 400,
+            }}
+          >
+            Jedna idea, wiele shortĂłw
+          </h2>
+
+          <p
+            style={{
+              margin: "0 0 18px",
+              color: css.muted,
+              fontSize: 13,
+              lineHeight: 1.7,
+            }}
+          >
+            Przygotuj jeden temat i od razu dostaniesz osobne wersje pod TikTok,
+            Reels, Shorts, Facebook Reels i LinkedIn Video.
+          </p>
+
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "10px 12px",
+              borderRadius: 14,
+              border: `1px solid ${css.border}`,
+              background: css.surfaceSoft,
+              color: css.muted,
+              fontSize: 12,
+              lineHeight: 1.6,
+            }}
+          >
+            Analiza filmu i generowanie z pomysĹ‚u sÄ… rozdzielone. MoĹĽesz najpierw
+            przygotowaÄ‡ pakiet publikacyjny z video, a niĹĽej niezaleĹĽnie tworzyÄ‡
+            warianty shortĂłw z pomysĹ‚u albo z poprawionej analizy.
+          </div>
+
+          {true && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 15,
+                borderRadius: 18,
+                background: css.aiBg,
+                border: `1px solid ${css.aiBorder}`,
+              }}
             >
-              <UploadCloud size={32} color={css.muted} style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 14, fontWeight: 600, color: css.text }}>
-                {videoFile ? videoFile.name : "Wgraj wideo do analizy"}
+              <SectionLabel color={css.aiText}>
+                Analiza shorta z pliku video
+              </SectionLabel>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: css.muted,
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                }}
+              >
+                Film jest przechowywany tymczasowo i zostanie usuniÄ™ty po
+                publikacji lub wygaĹ›niÄ™ciu. Do bazy trafiajÄ… tylko metadane,
+                opis, analiza AI i link do posta po publikacji.
+              </p>
+
+              <div style={{ marginBottom: 12 }}>
+                <SectionLabel color={css.aiText}>Silnik analizy</SectionLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    {
+                      id: "gemini" as ShortAiProvider,
+                      label: "Gemini",
+                      note: "klatki + napisy",
+                    },
+                    {
+                      id: "deepseek" as ShortAiProvider,
+                      label: "DeepSeek",
+                      note: "tekst + strategia",
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setShortAiProvider(item.id)}
+                      style={{
+                        borderRadius: 13,
+                        border: `1px solid ${
+                          shortAiProvider === item.id ? css.aiBorder : css.border
+                        }`,
+                        background:
+                          shortAiProvider === item.id ? css.aiBgSoft : css.surfaceSoft,
+                        color: shortAiProvider === item.id ? css.aiText : css.muted,
+                        padding: "10px 12px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <span style={{ display: "block", fontSize: 12, fontWeight: 900 }}>
+                        {item.label}
+                      </span>
+                      <span style={{ display: "block", fontSize: 10, marginTop: 3 }}>
+                        {item.note}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              <input type="file" accept="video/mp4,video/quicktime,video/webm" ref={fileInputRef} style={{ display: "none" }} onChange={handleVideoSelect} />
-            </div>
-            
-            {(uploadProgress > 0 || isAnalyzing) && (
+
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                onChange={(event) =>
+                  handleVideoFileChange(event.target.files?.[0] || null)
+                }
+                style={{
+                  width: "100%",
+                  borderRadius: 14,
+                  border: `1px dashed ${css.aiBorder}`,
+                  background: css.surfaceSoft,
+                  color: css.text,
+                  padding: 12,
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              />
+
+              {videoFile && (
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      color: css.muted,
+                      fontSize: 11,
+                      lineHeight: 1.5,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span>{videoFile.name}</span>
+                    <strong>{formatBytes(videoFile.size)}</strong>
+                  </div>
+
+                  {videoPreviewUrl && (
+                    <video
+                      ref={videoRef}
+                      src={videoPreviewUrl}
+                      controls
+                      style={{
+                        width: "100%",
+                        maxHeight: 260,
+                        borderRadius: 16,
+                        background: "#000",
+                        border: `1px solid ${css.border}`,
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
               <div style={{ marginTop: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6, color: css.muted, fontWeight: 600 }}>
-                  <span>{uploadProgress === 100 ? "Zakończono" : "Pobieranie klatek i analiza..."}</span>
-                  <span>{Math.round(uploadProgress)}%</span>
-                </div>
-                <div style={{ width: "100%", height: 6, background: css.border, borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ width: `${uploadProgress}%`, height: "100%", background: css.success, transition: "width 0.3s ease" }} />
-                </div>
+                <SectionLabel color={css.aiText}>Sugestie do analizy AI</SectionLabel>
+                <textarea
+                  value={videoAnalysisNotes}
+                  onChange={(event) => setVideoAnalysisNotes(event.target.value)}
+                  placeholder="Np. przygotuj opis sprzedaĹĽowy, podkreĹ›l planer, wyciÄ…gnij napisy z filmu, zaproponuj mocny hook i CTA do obserwowania."
+                  style={{
+                    width: "100%",
+                    minHeight: 86,
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    lineHeight: 1.65,
+                  }}
+                />
               </div>
-            )}
-          </div>
 
-          <div>
-            <label style={{ ...styles.label, display: "flex", alignItems: "center", gap: 6 }}>
-              <LinkIcon size={14} /> Link referencyjny (Opcjonalnie)
-            </label>
-            <input 
-              type="text"
-              style={styles.input}
-              placeholder="np. link do produktu, artykułu lub inspiracji..."
-              value={referenceUrl}
-              onChange={(e) => setReferenceUrl(e.target.value)}
-            />
-          </div>
+              <div style={{ marginTop: 12 }}>
+                <SectionLabel color={css.aiText}>Link opcjonalny</SectionLabel>
+                <input
+                  value={videoReferenceUrl}
+                  onChange={(event) => setVideoReferenceUrl(event.target.value)}
+                  placeholder="Np. link do produktu, landing page albo posta referencyjnego"
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                  }}
+                />
+              </div>
 
-          <div>
-            <label style={styles.label}>Twoje sugestie do analizy</label>
-            <textarea 
-              style={{ ...styles.textarea, minHeight: 90 }} 
-              placeholder="np. Zwróć uwagę na jakość dźwięku. Jakie CTA sprawdzi się pod sprzedaż e-booka?"
-              value={customUserNotes}
-              onChange={(e) => setCustomUserNotes(e.target.value)}
-            />
-          </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: videoUpload ? "1fr 1fr" : "1fr",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={analyzeVideo}
+                  disabled={!videoFile || uploadingVideo || analyzingVideo}
+                  style={{
+                    border: "none",
+                    borderRadius: 14,
+                    background: dark ? "#ffffff" : "#111111",
+                    color: dark ? "#050505" : "#ffffff",
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor:
+                      !videoFile || uploadingVideo || analyzingVideo
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity: !videoFile || uploadingVideo || analyzingVideo ? 0.55 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {uploadingVideo
+                    ? "UploadujÄ™ film..."
+                    : analyzingVideo
+                      ? "AI analizuje film..."
+                      : "Przeanalizuj film AI"}
+                </button>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-            <div style={{ flex: 1 }}>
-              <label style={styles.label}>Model AI</label>
-              <select style={styles.input} value={analysisProvider} onChange={(e) => setAnalysisProvider(e.target.value as any)}>
-                <option value="gemini">Google Gemini (OCR / Obraz)</option>
-                <option value="deepseek">DeepSeek Reasoner</option>
-              </select>
-            </div>
-            <button 
-              style={{ ...styles.buttonPrimary, opacity: isAnalyzing ? 0.6 : 1 }} 
-              disabled={isAnalyzing}
-              onClick={handleAnalyzeVideo}
-            >
-              {isAnalyzing ? <Loader2 className="animate-spin" size={18} /> : <Bot size={18} />}
-              Analizuj
-            </button>
-          </div>
-        </div>
+                {videoUpload && (
+                  <button
+                    type="button"
+                    onClick={deleteTempVideo}
+                    disabled={deletingVideo}
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid #ef444460",
+                      background: "#ef444414",
+                      color: "#ef4444",
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: deletingVideo ? "not-allowed" : "pointer",
+                      opacity: deletingVideo ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {deletingVideo ? "Usuwam..." : "UsuĹ„ plik tymczasowy"}
+                  </button>
+                )}
+              </div>
 
-        {/* PRAWA KOLUMNA: WYNIK ANALIZY (TABELA) */}
-        <div style={{ ...styles.card, background: analysisResult ? css.aiBgSoft : css.surface, borderColor: analysisResult ? css.aiBorder : css.border }}>
-          {!analysisResult ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: css.muted, textAlign: "center" }}>
-              <Sparkles size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
-              <p style={{ fontWeight: 600, fontSize: 16, margin: "0 0 8px 0", color: css.text }}>Brak wyników analizy</p>
-              <p style={{ fontSize: 13, maxWidth: 300, lineHeight: 1.6 }}>Wgraj wideo i pozwól AI wyciągnąć wnioski wizualne, najmocniejsze hooki i rekomendacje.</p>
-            </div>
-          ) : (
-            <>
-              <div style={{ flex: 1, overflowY: "auto", paddingRight: 8 }}>
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, color: css.aiText, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>✦ Tytuł / Temat</div>
-                  <h3 style={{ fontSize: 24, fontWeight: 400, margin: 0, color: css.text, fontFamily: "'DM Serif Display', serif" }}>{analysisResult.title}</h3>
+              <div
+                style={{
+                  marginTop: 10,
+                  color: css.muted,
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                Status: <strong style={{ color: css.aiText }}>{videoStatus}</strong>
+              </div>
+
+              {(uploadingVideo || analyzingVideo || videoProgress > 0) && (
+                <div style={{ marginTop: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      color: css.muted,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span>
+                      {uploadingVideo
+                        ? "Upload filmu"
+                        : analyzingVideo
+                          ? "Analiza AI"
+                          : videoProgress >= 100
+                            ? "Gotowe"
+                            : "Przygotowanie"}
+                    </span>
+                    <span>{Math.round(videoProgress)}%</span>
+                  </div>
+                  <div
+                    style={{
+                      height: 7,
+                      borderRadius: 999,
+                      background: css.surfaceSoft,
+                      border: `1px solid ${css.border}`,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(100, Math.max(0, videoProgress))}%`,
+                        height: "100%",
+                        background: css.aiText,
+                        transition: "width .25s ease",
+                      }}
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div style={{ marginBottom: 20, padding: 16, background: css.surfaceSoft, borderRadius: 16, border: `1px solid ${css.border}` }}>
-                  <div style={{ fontSize: 10, color: css.accent, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Najmocniejszy Hook</div>
-                  <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: css.text, fontStyle: "italic" }}>"{analysisResult.hook}"</p>
-                </div>
+              {videoAnalysis && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <ResultBox label="Pakiet publikacyjny AI - edytowalny" css={css} accent>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div>
+                        <SectionLabel color={css.aiText}>Temat posta</SectionLabel>
+                        <input
+                          value={videoAnalysis.detected_topic || videoAnalysis.title}
+                          onChange={(event) => {
+                            updateVideoAnalysisField("detected_topic", event.target.value);
+                            updateVideoAnalysisField("title", event.target.value);
+                          }}
+                          style={{
+                            width: "100%",
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
 
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, color: css.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Proponowana Treść Posta</div>
-                  <p style={{ fontSize: 13, lineHeight: 1.8, color: css.text, margin: 0, whiteSpace: "pre-wrap" }}>{analysisResult.caption}</p>
-                </div>
+                      <div>
+                        <SectionLabel color={css.aiText}>Hook</SectionLabel>
+                        <textarea
+                          value={videoAnalysis.hook}
+                          onChange={(event) =>
+                            updateVideoAnalysisField("hook", event.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            minHeight: 64,
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            lineHeight: 1.6,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
 
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, color: css.muted, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Podsumowanie wizualne</div>
-                  <p style={{ fontSize: 12, lineHeight: 1.6, color: css.muted, margin: 0 }}>{analysisResult.visual_summary}</p>
-                </div>
+                      <div>
+                        <SectionLabel color={css.aiText}>Opis posta</SectionLabel>
+                        <textarea
+                          value={videoAnalysis.caption}
+                          onChange={(event) =>
+                            updateVideoAnalysisField("caption", event.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            minHeight: 104,
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            lineHeight: 1.65,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
 
-                {/* LOGIKA TABELI (ZGODNA Z WYTYCZNYMI) */}
-                {analysisResult.platform_recommendations && analysisResult.platform_recommendations.length > 0 && (
-                  <div style={{ marginTop: 24 }}>
-                    <div style={styles.tableHeader}>Tabela Rekomendacji Platform</div>
-                    {analysisResult.platform_recommendations.map((plat: any, i: number) => (
-                      <div key={i} style={styles.tableRow}>
+                      <div>
+                        <SectionLabel color={css.aiText}>Hashtagi</SectionLabel>
+                        <input
+                          value={videoAnalysis.hashtags.join(" ")}
+                          onChange={(event) =>
+                            updateVideoAnalysisField(
+                              "hashtags",
+                              event.target.value
+                                .split(/[\s,]+/)
+                                .map((tag) => tag.trim())
+                                .filter(Boolean)
+                            )
+                          }
+                          placeholder="#short #reels #content"
+                          style={{
+                            width: "100%",
+                            borderRadius: 12,
+                            border: `1px solid ${css.aiBorder}`,
+                            background: css.surface,
+                            color: css.text,
+                            padding: 11,
+                            fontFamily: "inherit",
+                            fontSize: 13,
+                            outline: "none",
+                          }}
+                        />
+                      </div>
+
+                      <div className="short-two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                         <div>
-                          <strong style={{ color: css.text, textTransform: "capitalize", fontSize: 14 }}>
-                            {plat.platform.replace("_", " ")}
-                          </strong>
+                          <SectionLabel color={css.aiText}>Notatka techniczna / co widać</SectionLabel>
+                          <textarea
+                            value={videoAnalysis.visual_summary}
+                            onChange={(event) =>
+                              updateVideoAnalysisField("visual_summary", event.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              minHeight: 112,
+                              borderRadius: 12,
+                              border: `1px solid ${css.aiBorder}`,
+                              background: css.surface,
+                              color: css.text,
+                              padding: 11,
+                              fontFamily: "inherit",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                              outline: "none",
+                            }}
+                          />
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <span style={{ color: css.text, lineHeight: 1.5 }}>
-                            <strong>Hook:</strong> {plat.hook}
-                          </span>
-                          <span style={{ color: css.muted, fontSize: 12, lineHeight: 1.5 }}>
-                            <strong>Notatki:</strong> {plat.publishing_notes}
-                          </span>
+
+                        <div>
+                          <SectionLabel color={css.aiText}>Transkrypcja / napisy</SectionLabel>
+                          <textarea
+                            value={videoAnalysis.transcript}
+                            onChange={(event) =>
+                              updateVideoAnalysisField("transcript", event.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              minHeight: 112,
+                              borderRadius: 12,
+                              border: `1px solid ${css.aiBorder}`,
+                              background: css.surface,
+                              color: css.text,
+                              padding: 11,
+                              fontFamily: "inherit",
+                              fontSize: 12,
+                              lineHeight: 1.6,
+                              outline: "none",
+                            }}
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              <div style={styles.actionRow}>
-                <button style={styles.btnTemplate} onClick={() => handleAction("analysis", "template")} disabled={saving}>
-                  <BookmarkPlus size={16} /> Szablon
-                </button>
-                <button style={{ ...styles.btnTemplate, background: "transparent", color: css.text, borderColor: css.border }} onClick={() => handleAction("analysis", "draft")} disabled={saving}>
-                  Szkic
-                </button>
-                <button style={styles.btnClear} onClick={() => handleAction("analysis", "clear")}>
-                  <Eraser size={16} />
-                </button>
-                <button style={styles.btnDelete} onClick={() => handleAction("analysis", "delete")}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </>
+                      {videoReferenceUrl.trim() && (
+                        <div
+                          style={{
+                            borderRadius: 12,
+                            border: `1px solid ${css.border}`,
+                            background: css.surface,
+                            color: css.muted,
+                            padding: 10,
+                            fontSize: 12,
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          Link do dodania w poĹ›cie lub notatkach: {videoReferenceUrl}
+                        </div>
+                      )}
+                    </div>
+                  </ResultBox>
+
+                  <button
+                    type="button"
+                    onClick={saveAnalyzedVideoTemplate}
+                    disabled={savingTemplate}
+                    style={{
+                      borderRadius: 14,
+                      border: `1px solid ${css.aiBorder}`,
+                      background: css.surface,
+                      color: css.aiText,
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: savingTemplate ? "not-allowed" : "pointer",
+                      opacity: savingTemplate ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {savingTemplate
+                      ? "Zapisuję..."
+                      : "Zapisz opis filmu jako propozycję posta"}
+                  </button>
+                </div>
+              )}
+
+              {videoError && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    background: "#ef444414",
+                    border: "1px solid #ef444440",
+                    color: "#ef4444",
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {videoError}
+                </div>
+              )}
+            </div>
           )}
-        </div>
-      </div>
 
-      <div style={{ height: 1, background: css.border, margin: "40px 0" }} />
 
-      {/* ───────────────── SEKCJA DOLNA: SCENARIUSZ SHORTÓW ───────────────── */}
-      <h2 style={styles.sectionTitle}><Sparkles size={22} color={css.aiText} /> Kreator Scenariuszy</h2>
-      
-      <div style={styles.grid}>
-        {/* LEWA KOLUMNA: INPUT SCENARIUSZA */}
-        <div style={styles.card}>
-          <div style={{ flex: 1 }}>
-            <label style={styles.label}>Kontekst i Brief (Dla AI)</label>
-            <textarea 
-              style={{ ...styles.textarea, minHeight: 180 }} 
-              placeholder="Opisz krótko swój pomysł na shorta. Kto jest docelowym odbiorcą? Jaki ma być wydźwięk materiału (edukacyjny, humorystyczny)? Co jest głównym problemem, który rozwiązujesz?"
-              value={scenarioSuggestions}
-              onChange={(e) => setScenarioSuggestions(e.target.value)}
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>
+              Platformy: {selectedPlatformNames}
+            </SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {SHORT_PLATFORMS.map((item) => (
+                <Pill
+                  key={item.id}
+                  active={selectedPlatforms.includes(item.id)}
+                  onClick={() => togglePlatform(item.id)}
+                  color={item.color}
+                  css={css}
+                >
+                  {item.name}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Cel</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {GOALS.map((item) => (
+                <Pill
+                  key={item}
+                  active={goal === item}
+                  onClick={() => setGoal(item)}
+                  color={css.accent}
+                  css={css}
+                >
+                  {item}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Format bazowy</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {FORMATS.map((item) => (
+                <Pill
+                  key={item}
+                  active={format === item}
+                  onClick={() => setFormat(item)}
+                  color={css.aiText}
+                  css={css}
+                >
+                  {item}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>DĹ‚ugoĹ›Ä‡ bazowa</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {LENGTHS.map((item) => (
+                <Pill
+                  key={item}
+                  active={duration === item}
+                  onClick={() => setDuration(item)}
+                  color={css.accent}
+                  css={css}
+                >
+                  {item}s
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Temat / idea</SectionLabel>
+
+            <textarea
+              ref={topicRef}
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+              placeholder="np. Dlaczego firmy nie powinny kopiowaÄ‡ tego samego contentu na wszystkie platformy"
+              style={{
+                width: "100%",
+                minHeight: 112,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
             />
           </div>
 
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-            <div style={{ flex: 1 }}>
-              <label style={styles.label}>Model AI</label>
-              <select style={styles.input} value={scenarioProvider} onChange={(e) => setScenarioProvider(e.target.value as any)}>
-                <option value="deepseek">DeepSeek Reasoner (Tworzenie i Strategia)</option>
-                <option value="gemini">Google Gemini</option>
-              </select>
-            </div>
-            <button 
-              style={{ ...styles.buttonPrimary, opacity: (!scenarioSuggestions.trim() || isGeneratingScenario) ? 0.6 : 1 }} 
-              disabled={!scenarioSuggestions.trim() || isGeneratingScenario}
-              onClick={handleGenerateScenario}
-            >
-              {isGeneratingScenario ? <Loader2 className="animate-spin" size={18} /> : <Bot size={18} />}
-              Generuj Skrypt
-            </button>
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>
+              MateriaĹ‚ ĹşrĂłdĹ‚owy, opcjonalnie
+            </SectionLabel>
+
+            <textarea
+              ref={sourceRef}
+              value={sourceContent}
+              onChange={(event) => setSourceContent(event.target.value)}
+              placeholder="MoĹĽesz wkleiÄ‡ post z LinkedIna, opis bloga albo szkic tekstu, ktĂłry AI ma przerobiÄ‡ na shorty."
+              style={{
+                width: "100%",
+                minHeight: 92,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            />
           </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <SectionLabel color={css.muted}>Kontekst marki</SectionLabel>
+
+            <textarea
+              ref={contextRef}
+              value={brandContext}
+              onChange={(event) => setBrandContext(event.target.value)}
+              placeholder="np. marka ekspercka B2B, ton prosty i konkretny, odbiorcy: wĹ‚aĹ›ciciele firm i marketerzy."
+              style={{
+                width: "100%",
+                minHeight: 82,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={generateShorts}
+            disabled={loading || !canGenerate}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 16,
+              padding: "14px 16px",
+              background: dark ? "#ffffff" : "#111111",
+              color: dark ? "#050505" : "#ffffff",
+              fontSize: 13,
+              fontWeight: 900,
+              cursor:
+                loading || !canGenerate
+                  ? "not-allowed"
+                  : "pointer",
+              opacity:
+                loading || !canGenerate
+                  ? 0.5
+                  : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {loading ? "AI tworzy treĹ›ci..." : "âś¦ Wygeneruj treĹ›ci z filmu / pomysĹ‚u"}
+          </button>
+
+          {error && (
+            <div
+              style={{
+                marginTop: 12,
+                background: "#ef444414",
+                border: "1px solid #ef444440",
+                color: "#ef4444",
+                borderRadius: 14,
+                padding: 12,
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
+              {error}
+            </div>
+          )}
         </div>
 
-        {/* PRAWA KOLUMNA: WYNIK SCENARIUSZA */}
-        <div style={{ ...styles.card, background: scenarioResult ? css.aiBgSoft : css.surface, borderColor: scenarioResult ? css.aiBorder : css.border }}>
-          {!scenarioResult ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: css.muted, textAlign: "center" }}>
-              <Sparkles size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
-              <p style={{ fontWeight: 600, fontSize: 16, margin: "0 0 8px 0", color: css.text }}>Brak scenariusza</p>
-              <p style={{ fontSize: 13, maxWidth: 300, lineHeight: 1.6 }}>Opisz swój pomysł po lewej stronie, aby AI przygotowało kompleksowy scenariusz na shorta.</p>
+        <div>
+
+
+          {videoAnalysis && !result && !loading && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px solid ${css.aiBorder}`,
+                background: css.aiBg,
+                padding: 20,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <SectionLabel color={css.aiText}>Wynik analizy filmu AI</SectionLabel>
+
+              <ResultBox label="Temat posta" css={css} accent>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 24,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {videoAnalysis.detected_topic || videoAnalysis.title}
+                </h3>
+              </ResultBox>
+
+              <ResultBox label="Hook" css={css}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 17,
+                    lineHeight: 1.5,
+                    fontWeight: 900,
+                  }}
+                >
+                  {videoAnalysis.hook || "AI nie zwróciło hooka. Dopisz go ręcznie po lewej w edycji analizy."}
+                </p>
+              </ResultBox>
+
+              <ResultBox label="Opis do posta" css={css}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: css.text,
+                    fontSize: 13,
+                    lineHeight: 1.8,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {videoAnalysis.caption || "Brak opisu. Możesz go dopisać w edytowalnym pakiecie po lewej."}
+                </p>
+              </ResultBox>
+
+              <ResultBox label="Hashtagi" css={css}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {safeArray(videoAnalysis.hashtags).length > 0 ? (
+                    safeArray(videoAnalysis.hashtags).map((tag, index) => (
+                      <span
+                        key={`${tag}-${index}`}
+                        style={{
+                          color: css.aiText,
+                          background: `${css.aiText}18`,
+                          borderRadius: 999,
+                          padding: "5px 9px",
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ color: css.muted, fontSize: 12 }}>
+                      Brak hashtagów w odpowiedzi AI.
+                    </span>
+                  )}
+                </div>
+              </ResultBox>
+
+              {videoError && (
+                <div
+                  style={{
+                    background: "#ef444414",
+                    border: "1px solid #ef444440",
+                    color: "#ef4444",
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {videoError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={saveAnalyzedVideoTemplate}
+                disabled={savingTemplate}
+                style={{
+                  marginTop: "auto",
+                  borderRadius: 14,
+                  border: `1px solid ${css.aiBorder}`,
+                  background: dark ? "#ffffff" : "#111111",
+                  color: dark ? "#050505" : "#ffffff",
+                  padding: "12px 14px",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: savingTemplate ? "not-allowed" : "pointer",
+                  opacity: savingTemplate ? 0.6 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                {savingTemplate
+                  ? "Zapisuję..."
+                  : "Zapisz jako propozycję posta"}
+              </button>
             </div>
-          ) : (
-            <>
-              <div style={{ flex: 1, overflowY: "auto", paddingRight: 8 }}>
-                <div style={{ fontSize: 10, color: css.aiText, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>✦ Koncepcja Od AI</div>
-                <h3 style={{ fontSize: 24, fontWeight: 400, margin: "0 0 16px 0", color: css.text, fontFamily: "'DM Serif Display', serif" }}>{scenarioResult.title || "Nowy Scenariusz Wideo"}</h3>
-                
-                <div style={{ fontSize: 13, lineHeight: 1.8, color: css.text, whiteSpace: "pre-wrap" }}>
-                  {scenarioResult.body || scenarioResult.hook || JSON.stringify(scenarioResult, null, 2)}
+          )}
+
+          {!videoAnalysis && !result && !loading && (uploadingVideo || analyzingVideo || videoProgress > 0) && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px solid ${css.aiBorder}`,
+                background: css.aiBg,
+                display: "grid",
+                placeItems: "center",
+                padding: 28,
+                textAlign: "center",
+              }}
+            >
+              <div style={{ width: "100%", maxWidth: 420 }}>
+                <SectionLabel color={css.aiText}>Status pracy AI</SectionLabel>
+                <h3
+                  style={{
+                    fontFamily: "'DM Serif Display', serif",
+                    fontSize: 28,
+                    fontWeight: 400,
+                    margin: "0 0 10px",
+                    color: css.text,
+                  }}
+                >
+                  {uploadingVideo
+                    ? "Uploaduję film..."
+                    : analyzingVideo
+                      ? "AI analizuje film..."
+                      : "Przygotowuję wynik..."}
+                </h3>
+
+                <div
+                  style={{
+                    height: 9,
+                    borderRadius: 999,
+                    background: css.surfaceSoft,
+                    border: `1px solid ${css.border}`,
+                    overflow: "hidden",
+                    marginTop: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(0, videoProgress))}%`,
+                      height: "100%",
+                      background: css.aiText,
+                      transition: "width .25s ease",
+                    }}
+                  />
                 </div>
 
-                {scenarioResult.hashtags && (
-                  <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {scenarioResult.hashtags.map((tag: string) => (
-                      <span key={tag} style={{ background: `${css.aiText}18`, color: css.aiText, padding: "5px 12px", borderRadius: 999, fontSize: 11, fontWeight: 800 }}>{tag}</span>
-                    ))}
+                <p
+                  style={{
+                    color: css.muted,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    margin: "12px 0 0",
+                  }}
+                >
+                  {Math.round(videoProgress)}% · nie zamykaj tej zakładki, film i
+                  klatki są przygotowywane do analizy.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!videoAnalysis && !result && !loading && !(uploadingVideo || analyzingVideo || videoProgress > 0) && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px dashed ${css.border}`,
+                background: css.surface,
+                display: "grid",
+                placeItems: "center",
+                padding: 28,
+                textAlign: "center",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 48, opacity: 0.18, marginBottom: 12 }}>
+                  âŠž
+                </div>
+
+                <h3
+                  style={{
+                    fontFamily: "'DM Serif Display', serif",
+                    fontSize: 28,
+                    fontWeight: 400,
+                    margin: "0 0 8px",
+                    color: css.text,
+                  }}
+                >
+                  Wynik analizy filmu albo scenariusz pojawi się tutaj
+                </h3>
+
+                <p
+                  style={{
+                    maxWidth: 380,
+                    color: css.muted,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                    margin: 0,
+                  }}
+                >
+                  Po uploadzie zobaczysz tu opis posta, hook i hashtagi. Po
+                  wygenerowaniu pomysłu zobaczysz warianty scenariusza.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div
+              style={{
+                minHeight: 520,
+                borderRadius: 22,
+                border: `1px solid ${css.border}`,
+                background: css.surface,
+                display: "grid",
+                placeItems: "center",
+                padding: 28,
+                textAlign: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: "50%",
+                    border: `3px solid ${css.border}`,
+                    borderTopColor: css.aiText,
+                    margin: "0 auto 14px",
+                    animation: "spin .8s linear infinite",
+                  }}
+                />
+
+                <style>{`
+                  @keyframes spin {
+                    to { transform: rotate(360deg); }
+                  }
+                `}</style>
+
+                <p style={{ color: css.muted, fontSize: 13 }}>
+                  AI dopasowuje shorty do platform...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {result && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <ResultBox label="AI podsumowanie" css={css} accent>
+                <h3
+                  style={{
+                    margin: "0 0 8px",
+                    color: css.text,
+                    fontSize: 22,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {result.idea_title}
+                </h3>
+
+                <p
+                  style={{
+                    margin: "0 0 10px",
+                    color: css.text,
+                    fontSize: 13,
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {result.ai_summary}
+                </p>
+
+                <p
+                  style={{
+                    margin: 0,
+                    color: css.muted,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  KÄ…t: {result.main_angle}
+                </p>
+              </ResultBox>
+
+              {safeArray(result.variants).map((variant) => {
+                const platformInfo = getPlatformInfo(variant.platform);
+                const color = platformInfo?.color || css.accent;
+
+                return (
+                  <div
+                    key={variant.platform}
+                    className="variant-card"
+                    style={{
+                      background: css.surface,
+                      border: `1px solid ${css.border}`,
+                      borderRadius: 20,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "12px 15px",
+                        background: `${color}14`,
+                        borderBottom: `1px solid ${css.border}`,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 14,
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            color,
+                            fontSize: 11,
+                            fontWeight: 900,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.1em",
+                          }}
+                        >
+                          {variant.platform_name}
+                        </div>
+
+                        <div
+                          style={{
+                            color: css.text,
+                            fontSize: 18,
+                            fontWeight: 900,
+                            marginTop: 3,
+                          }}
+                        >
+                          {variant.format} Â· {variant.duration_seconds}s
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          color: getScoreColor(variant.score),
+                          fontSize: 28,
+                          fontWeight: 900,
+                          fontFamily: "'DM Serif Display', serif",
+                        }}
+                      >
+                        {variant.score}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 15 }}>
+                      <ResultBox label="Hook 0-2 sekundy" css={css} accent>
+                        <p
+                          style={{
+                            margin: 0,
+                            color: css.text,
+                            fontSize: 17,
+                            fontWeight: 900,
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          â€ś{variant.hook}â€ť
+                        </p>
+                      </ResultBox>
+
+                      <div style={{ height: 10 }} />
+
+                      <ResultBox label="Scenariusz" css={css}>
+                        <p
+                          style={{
+                            margin: 0,
+                            color: css.text,
+                            fontSize: 13,
+                            lineHeight: 1.8,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {variant.script}
+                        </p>
+                      </ResultBox>
+
+                      <div style={{ height: 10 }} />
+
+                      <div
+                        className="short-two-grid"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 10,
+                        }}
+                      >
+                        <ResultBox label="UjÄ™cia" css={css}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                            {safeArray(variant.shots).map((shot, index) => (
+                              <div
+                                key={`${variant.platform}-shot-${index}`}
+                                style={{
+                                  borderLeft: `3px solid ${color}`,
+                                  paddingLeft: 10,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    color,
+                                    fontSize: 10,
+                                    fontWeight: 900,
+                                    marginBottom: 3,
+                                  }}
+                                >
+                                  {shot.time}
+                                </div>
+                                <div
+                                  style={{
+                                    color: css.text,
+                                    fontSize: 12,
+                                    lineHeight: 1.55,
+                                  }}
+                                >
+                                  <strong>{shot.scene}</strong>
+                                  <br />
+                                  {shot.action}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ResultBox>
+
+                        <ResultBox label="Teksty na ekranie" css={css}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {safeArray(variant.on_screen_text).map(
+                              (item, index) => (
+                                <div
+                                  key={`${variant.platform}-txt-${index}`}
+                                  style={{
+                                    background: css.surfaceSoft,
+                                    border: `1px solid ${css.border}`,
+                                    borderRadius: 12,
+                                    padding: 9,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      color: css.muted,
+                                      fontSize: 10,
+                                      fontWeight: 900,
+                                      marginBottom: 3,
+                                    }}
+                                  >
+                                    {item.time}
+                                  </div>
+                                  <div
+                                    style={{
+                                      color: css.text,
+                                      fontSize: 12,
+                                      fontWeight: 800,
+                                      lineHeight: 1.45,
+                                    }}
+                                  >
+                                    {item.text}
+                                  </div>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </ResultBox>
+                      </div>
+
+                      <div style={{ height: 10 }} />
+
+                      <ResultBox label="Opis i hashtagi" css={css}>
+                        <p
+                          style={{
+                            margin: 0,
+                            color: css.text,
+                            fontSize: 13,
+                            lineHeight: 1.7,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {variant.caption}
+                        </p>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 6,
+                            marginTop: 10,
+                          }}
+                        >
+                          {safeArray(variant.hashtags).map((tag, index) => (
+                            <span
+                              key={`${variant.platform}-${tag}-${index}`}
+                              style={{
+                                color,
+                                background: `${color}18`,
+                                borderRadius: 999,
+                                padding: "5px 9px",
+                                fontSize: 11,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </ResultBox>
+
+                      <div style={{ height: 10 }} />
+
+                      <div
+                        className="short-two-grid"
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 10,
+                        }}
+                      >
+                        <ResultBox label="Miniatura" css={css}>
+                          <p
+                            style={{
+                              margin: 0,
+                              color: css.text,
+                              fontSize: 19,
+                              fontWeight: 900,
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {variant.thumbnail_text}
+                          </p>
+                        </ResultBox>
+
+                        <ResultBox label="Notatka publikacyjna" css={css} accent>
+                          <p
+                            style={{
+                              margin: 0,
+                              color: css.text,
+                              fontSize: 12,
+                              lineHeight: 1.7,
+                            }}
+                          >
+                            {variant.publishing_notes}
+                          </p>
+                        </ResultBox>
+                      </div>
+                    </div>
                   </div>
-                )}
+                );
+              })}
+
+              <ResultBox label="Wnioski cross-platform" css={css} accent>
+                <ul style={{ margin: 0, paddingLeft: 18, color: css.text }}>
+                  {safeArray(result.cross_platform_notes).map((item, index) => (
+                    <li
+                      key={`${item}-${index}`}
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 1.7,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </ResultBox>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={copyResult}
+                  style={{
+                    borderRadius: 14,
+                    border: `1px solid ${css.border}`,
+                    background: css.surface,
+                    color: css.muted,
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {copied ? "âś“ Skopiowano" : "Kopiuj caĹ‚oĹ›Ä‡"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveTemplate}
+                  disabled={savingTemplate}
+                  style={{
+                    borderRadius: 14,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.aiBg,
+                    color: css.aiText,
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: savingTemplate ? "not-allowed" : "pointer",
+                    opacity: savingTemplate ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {savingTemplate ? "Zapisuję..." : "Zapisz jako szablon"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={saving}
+                  style={{
+                    borderRadius: 14,
+                    border: "none",
+                    background: dark ? "#ffffff" : "#111111",
+                    color: dark ? "#050505" : "#ffffff",
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: saving ? "not-allowed" : "pointer",
+                    opacity: saving ? 0.6 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {saving ? "Zapisuję..." : "Zapisz jako szkic"}
+                </button>
               </div>
 
-              <div style={styles.actionRow}>
-                <button style={styles.btnTemplate} onClick={() => handleAction("scenario", "template")} disabled={saving}>
-                  <BookmarkPlus size={16} /> Szablon
-                </button>
-                <button style={{ ...styles.btnTemplate, background: "transparent", color: css.text, borderColor: css.border }} onClick={() => handleAction("scenario", "draft")} disabled={saving}>
-                  Szkic
-                </button>
-                <button style={styles.btnClear} onClick={() => handleAction("scenario", "clear")}>
-                  <Eraser size={16} />
-                </button>
-                <button style={styles.btnDelete} onClick={() => handleAction("scenario", "delete")}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </>
+              {rawAnswer && (
+                <details
+                  style={{
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    borderRadius: 14,
+                    padding: 12,
+                  }}
+                >
+                  <summary
+                    style={{
+                      color: css.muted,
+                      fontSize: 11,
+                      cursor: "pointer",
+                      fontWeight: 800,
+                    }}
+                  >
+                    Surowa odpowiedĹş AI
+                  </summary>
+
+                  <pre
+                    style={{
+                      color: css.muted,
+                      fontSize: 10,
+                      lineHeight: 1.7,
+                      whiteSpace: "pre-wrap",
+                      marginTop: 10,
+                    }}
+                  >
+                    {rawAnswer}
+                  </pre>
+                </details>
+              )}
+            </div>
           )}
         </div>
       </div>
-
     </div>
   );
 }
