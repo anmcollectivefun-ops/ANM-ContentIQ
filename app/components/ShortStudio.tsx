@@ -1041,6 +1041,44 @@ export default function ShortStudio({
 
       if (insertError) throw new Error(insertError.message);
 
+      const draftBody = rows
+        .map((item) =>
+          [
+            `PLATFORMA: ${getPlatformInfo(item.platform)?.name || item.platform}`,
+            `HOOK:\n${item.hook || videoAnalysis.hook}`,
+            `OPIS POSTA:\n${item.caption || videoAnalysis.caption}`,
+            `HASHTAGI:\n${safeArray(item.hashtags).join(" ")}`,
+            videoReferenceUrl.trim() ? `LINK:\n${videoReferenceUrl.trim()}` : "",
+            videoAnalysis.transcript ? `NAPISY / TRANSKRYPCJA:\n${videoAnalysis.transcript}` : "",
+            videoAnalysis.visual_summary ? `NOTATKA TECHNICZNA:\n${videoAnalysis.visual_summary}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n")
+        )
+        .join("\n\n---\n\n");
+
+      const { error: draftInsertError } = await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .insert({
+          workspace_id: videoUpload.workspace_id,
+          title: videoAnalysis.title || videoAnalysis.detected_topic || "Propozycja posta z filmu",
+          body: draftBody,
+          topic: videoAnalysis.detected_topic || videoAnalysis.title,
+          content_type: "Short Studio / analyzed video post",
+          target_platforms: selectedPlatforms,
+          ai_feedback: [
+            "Propozycja posta wygenerowana z filmu i sugestii użytkownika.",
+            videoAnalysis.template_summary,
+            videoAnalysisNotes.trim() ? `Sugestia użytkownika: ${videoAnalysisNotes.trim()}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+          status: "template",
+        });
+
+      if (draftInsertError) throw new Error(draftInsertError.message);
+
       const { error: updateError } = await supabase
         .schema("contentiq")
         .from("short_video_uploads")
@@ -1431,6 +1469,23 @@ export default function ShortStudio({
 
               <div style={{ marginTop: 13 }}>
                 <SectionLabel color={css.aiText}>Sugestia dla AI</SectionLabel>
+
+                <div
+                  style={{
+                    marginBottom: 8,
+                    borderRadius: 12,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.aiBgSoft,
+                    color: css.text,
+                    padding: "9px 10px",
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  To pole prowadzi AI. Wpisz cel posta, odbiorcę, CTA, link albo
+                  konkretny przekaz. Bez sugestii AI bazuje głównie na napisach i
+                  może zgadywać intencję filmu.
+                </div>
 
                 <textarea
                   value={videoAnalysisNotes}
