@@ -50,6 +50,7 @@ type DraftImageResult = {
 type GenerateImageResponse = {
   ok?: boolean;
   error?: string;
+  rawError?: string;
   text?: string;
   images?: {
     id: string;
@@ -159,6 +160,7 @@ export default function CreativeStudio({
 }) {
   const supabase = createClient();
   const [providerMode, setProviderMode] = useState<ProviderMode>("anm");
+  const [userApiKey, setUserApiKey] = useState("");
   const [platform, setPlatform] = useState<CreativePlatform>("instagram");
   const [assetType, setAssetType] = useState<CreativeAssetType>("post");
   const [format, setFormat] = useState<CreativeFormat>("1:1");
@@ -333,6 +335,10 @@ export default function CreativeStudio({
     setError("");
 
     try {
+      if (item.providerMode === "own" && !userApiKey.trim()) {
+        throw new Error("Wklej własny Google Gemini API key albo przełącz źródło generowania na ANM AI.");
+      }
+
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: {
@@ -343,6 +349,7 @@ export default function CreativeStudio({
           negativePrompt: item.negativePrompt,
           aspectRatio: item.format,
           providerMode: item.providerMode,
+          userApiKey: item.providerMode === "own" ? userApiKey.trim() : undefined,
         }),
       });
 
@@ -481,8 +488,8 @@ export default function CreativeStudio({
             }}
           >
             Przygotuj prompt, wybierz platformę, format i styl. Na tym etapie
-            komponent tworzy gotowe warianty do generowania — w kolejnym kroku
-            podepniemy API i prawdziwe obrazy.
+            komponent tworzy gotowe warianty promptów, a przycisk generowania
+            wysyła je do Google Gemini Image API.
           </p>
 
           {/* PROVIDER */}
@@ -548,9 +555,41 @@ export default function CreativeStudio({
               }}
             >
               {providerMode === "anm"
-                ? "Tryb ANM AI — później podepniemy limity i generowanie na zasobach aplikacji."
-                : "Tryb własny API key — później podepniemy klucz użytkownika z ustawień."}
+                ? "Tryb ANM AI używa klucza Google ustawionego w zmiennych środowiskowych aplikacji."
+                : "Tryb własny API key użyje Twojego klucza tylko do tego jednego żądania."}
             </div>
+
+            {providerMode === "own" && (
+              <div style={{ marginTop: 10 }}>
+                <input
+                  value={userApiKey}
+                  onChange={(e) => setUserApiKey(e.target.value)}
+                  type="password"
+                  placeholder="Wklej własny Gemini API key"
+                  style={{
+                    width: "100%",
+                    borderRadius: 12,
+                    border: `1px solid ${css.aiBorder}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: "11px 12px",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    outline: "none",
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: css.muted,
+                    fontSize: 10,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Klucz nie zapisuje się w Supabase. Jeśli ten klucz także ma limit 0, Google zwróci błąd quota.
+                </div>
+              </div>
+            )}
           </div>
 
           {/* PLATFORM */}
@@ -851,8 +890,8 @@ export default function CreativeStudio({
                   }}
                 >
                   Na tym etapie komponent tworzy gotowe drafty promptów i układu
-                  generowania. W kolejnym kroku podepniemy API i tutaj pojawią
-                  się prawdziwe wygenerowane obrazy.
+                  generowania. Po kliknięciu generowania i aktywnym limicie API
+                  tutaj pojawią się prawdziwe wygenerowane obrazy.
                 </p>
               </div>
             </div>

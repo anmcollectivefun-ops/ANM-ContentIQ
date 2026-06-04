@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -18,13 +18,54 @@ function normalizeAspectRatio(format?: string) {
   return "1:1";
 }
 
+function getImageModel() {
+  return process.env.GOOGLE_GENAI_IMAGE_MODEL?.trim() || "gemini-2.5-flash-image";
+}
+
+function getApiKey(body: GenerateImageBody) {
+  if (body.providerMode === "own" && body.userApiKey?.trim()) {
+    return body.userApiKey.trim();
+  }
+
+  return process.env.GOOGLE_GENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
+}
+
+function normalizeGoogleError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error);
+
+  if (raw.includes("RESOURCE_EXHAUSTED") || raw.includes("Quota exceeded") || raw.includes("429")) {
+    return {
+      status: 429,
+      message:
+        "Google Gemini odrzucił generowanie obrazu z powodu limitu quota. Włącz billing albo zwiększ limit dla modelu Gemini 2.5 Flash Image w Google AI Studio / Google Cloud. Możesz też użyć własnego API key z aktywnym limitem.",
+      raw,
+    };
+  }
+
+  if (raw.includes("API_KEY_INVALID") || raw.toLowerCase().includes("api key")) {
+    return {
+      status: 401,
+      message:
+        "Klucz Google API jest nieprawidłowy albo nie ma dostępu do Gemini API. Sprawdź GOOGLE_GENAI_API_KEY lub użyj własnego klucza.",
+      raw,
+    };
+  }
+
+  return {
+    status: 500,
+    message: raw || "Nieznany błąd generowania obrazu.",
+    raw,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as GenerateImageBody;
-
     const prompt = body.prompt?.trim();
     const negativePrompt = body.negativePrompt?.trim() || "";
     const aspectRatio = normalizeAspectRatio(body.aspectRatio);
+    const model = getImageModel();
+    const apiKey = getApiKey(body);
 
     if (!prompt) {
       return NextResponse.json(
@@ -33,21 +74,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const apiKey =
-      body.providerMode === "own" && body.userApiKey
-        ? body.userApiKey
-        : process.env.GOOGLE_GENAI_API_KEY;
-
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Brak klucza Google API." },
+        {
+          error:
+            "Brak klucza Google API. Dodaj GOOGLE_GENAI_API_KEY w zmiennych środowiskowych albo użyj własnego API key w Creative Studio.",
+        },
         { status: 500 }
       );
     }
 
-    const ai = new GoogleGenAI({
-      apiKey,
-    });
+    const ai = new GoogleGenAI({ apiKey });
 
     const finalPrompt = `
 Wygeneruj grafikę contentową zgodnie z opisem.
@@ -68,7 +105,7 @@ Wymagania:
 `.trim();
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model,
       contents: finalPrompt,
       config: {
         responseModalities: ["TEXT", "IMAGE"],
@@ -115,22 +152,21 @@ Wymagania:
     return NextResponse.json({
       ok: true,
       provider: "google",
-      model: "gemini-2.5-flash-image",
+      model,
       aspectRatio,
       text,
       images,
     });
   } catch (error) {
     console.error("generate-image error:", error);
+    const normalized = normalizeGoogleError(error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Nieznany błąd generowania obrazu.",
+        error: normalized.message,
+        rawError: normalized.raw,
       },
-      { status: 500 }
+      { status: normalized.status }
     );
   }
 }
