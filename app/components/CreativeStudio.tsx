@@ -364,7 +364,9 @@ export default function CreativeStudio({
         throw new Error(
           rawResponse
             ? `API generowania zwróciło odpowiedź inną niż JSON: ${rawResponse.slice(0, 300)}`
-            : `API generowania zwróciło pustą odpowiedź. Sprawdź logi Vercel dla /api/generate-image.`
+            : selectedProviderMode === "huggingface"
+              ? `Hugging Face zwrócił pustą odpowiedź albo funkcja została przerwana. To często zimny start modelu. Odczekaj chwilę i kliknij Generuj HF ponownie.`
+              : `API generowania zwróciło pustą odpowiedź. Sprawdź logi Vercel dla /api/generate-image.`
         );
       }
 

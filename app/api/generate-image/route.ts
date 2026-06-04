@@ -80,8 +80,8 @@ function normalizeHuggingFaceError(status: number, raw: string) {
     return "Hugging Face zwrócił limit zapytań. Spróbuj ponownie później albo użyj innego tokenu.";
   }
 
-  if (status === 503) {
-    return "Model Hugging Face jeszcze się ładuje. Spróbuj ponownie za chwilę.";
+  if (status === 503 || raw.toLowerCase().includes("currently loading")) {
+    return "Model Hugging Face jeszcze się ładuje. To normalny zimny start. Odczekaj kilkanaście sekund i kliknij Generuj HF ponownie.";
   }
 
   return `Hugging Face error (${status}): ${raw}`;
@@ -107,19 +107,38 @@ async function generateWithHuggingFace(prompt: string, negativePrompt: string, a
     .filter(Boolean)
     .join("\n");
 
-  const response = await fetch(modelUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${hfToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      inputs: finalPrompt,
-      options: {
-        wait_for_model: true,
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25_000);
+
+  let response: Response;
+  try {
+    response = await fetch(modelUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${hfToken}`,
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      signal: controller.signal,
+      body: JSON.stringify({
+        inputs: finalPrompt,
+        options: {
+          wait_for_model: false,
+        },
+      }),
+    });
+  } catch (error) {
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    return NextResponse.json(
+      {
+        error: isAbort
+          ? "Hugging Face nie odpowiedział w 25 sekund. To najpewniej zimny start modelu. Spróbuj ponownie za chwilę."
+          : `Hugging Face request failed: ${error instanceof Error ? error.message : String(error)}`,
+      },
+      { status: isAbort ? 503 : 502 }
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const contentType = response.headers.get("content-type") || "image/png";
 
@@ -138,6 +157,16 @@ async function generateWithHuggingFace(prompt: string, negativePrompt: string, a
   }
 
   const arrayBuffer = await response.arrayBuffer();
+  if (!arrayBuffer.byteLength) {
+    return NextResponse.json(
+      {
+        error:
+          "Hugging Face zwrócił pusty obraz. To może być zimny start albo chwilowy problem modelu. Spróbuj ponownie za chwilę.",
+      },
+      { status: 502 }
+    );
+  }
+
   const base64 = Buffer.from(arrayBuffer).toString("base64");
   const mimeType = contentType.includes("image/") ? contentType.split(";")[0] : "image/png";
 
