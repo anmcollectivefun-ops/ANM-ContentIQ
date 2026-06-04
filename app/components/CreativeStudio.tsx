@@ -558,7 +558,7 @@ export default function CreativeStudio({
                   fontFamily: "inherit",
                 }}
               >
-                Hugging Face FLUX
+                Hugging Face SDXL
               </button>
 
               <button
@@ -1187,7 +1187,7 @@ export default function CreativeStudio({
                           lineHeight: 1.6,
                         }}
                       >
-                        Provider: {item.providerMode === "huggingface" ? "Hugging Face FLUX" : item.providerMode === "anm" ? "Google / Gemini" : "Własny API key"}
+                        Provider: {item.providerMode === "huggingface" ? "Hugging Face SDXL" : item.providerMode === "anm" ? "Google / Gemini" : "Własny API key"}
                       </div>
                     </div>
                   </div>

@@ -32,7 +32,7 @@ function getGoogleImageModel() {
 }
 
 function getHuggingFaceModel() {
-  return process.env.HF_IMAGE_MODEL?.trim() || "black-forest-labs/FLUX.1-schnell";
+  return process.env.HF_IMAGE_MODEL?.trim() || "stabilityai/stable-diffusion-xl-base-1.0";
 }
 
 function getGoogleApiKey(body: GenerateImageBody) {
