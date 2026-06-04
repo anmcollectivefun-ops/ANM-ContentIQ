@@ -397,6 +397,15 @@ function SectionLabel({
   children: React.ReactNode;
   color: string;
 }) {
+  const canGenerate =
+    selectedPlatforms.length > 0 &&
+    Boolean(
+      topic.trim() ||
+        videoAnalysis?.detected_topic?.trim() ||
+        videoAnalysis?.title?.trim() ||
+        videoAnalysis?.hook?.trim()
+    );
+
   return (
     <div
       style={{
@@ -639,13 +648,13 @@ export default function ShortStudio({
 
     if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
       setVideoFile(null);
-      setVideoError("Z?y format pliku. Dozwolone: MP4, MOV i WebM.");
+      setVideoError("Zły format pliku. Dozwolone: MP4, MOV i WebM.");
       return;
     }
 
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
       setVideoFile(null);
-      setVideoError("Plik jest za du?y. Maksymalny rozmiar to 100 MB.");
+      setVideoError("Plik jest za duży. Maksymalny rozmiar to 100 MB.");
       return;
     }
 
@@ -665,7 +674,7 @@ export default function ShortStudio({
       if (!wsId) throw new Error("Brak workspace.");
 
       const fileName = safeFileName(videoFile.name || "short-video");
-      const path = `${wsId}/${Date.now()}-${fileName}`;
+      const path = `${userId}/${wsId}/${Date.now()}-${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(TEMP_VIDEO_BUCKET)
@@ -674,18 +683,14 @@ export default function ShortStudio({
           upsert: false,
         });
 
-      if (uploadError) throw new Error(`B??d uploadu: ${uploadError.message}`);
-
-      const { data: publicData } = supabase.storage
-        .from(TEMP_VIDEO_BUCKET)
-        .getPublicUrl(path);
+      if (uploadError) throw new Error(`Błąd uploadu: ${uploadError.message}`);
 
       const { data: signedData, error: signedError } = await supabase.storage
         .from(TEMP_VIDEO_BUCKET)
         .createSignedUrl(path, 60 * 60);
 
       if (signedError) {
-        console.warn("Nie uda?o si? utworzy? signed URL:", signedError.message);
+        console.warn("Nie udało się utworzyć signed URL:", signedError.message);
       }
 
       const { data: uploadRow, error: insertError } = await supabase
@@ -696,7 +701,7 @@ export default function ShortStudio({
           user_id: userId,
           storage_bucket: TEMP_VIDEO_BUCKET,
           storage_path: path,
-          public_url: publicData.publicUrl || null,
+          public_url: null,
           file_name: videoFile.name,
           mime_type: videoFile.type,
           file_size: videoFile.size,
@@ -707,14 +712,14 @@ export default function ShortStudio({
 
       if (insertError || !uploadRow) {
         await supabase.storage.from(TEMP_VIDEO_BUCKET).remove([path]);
-        throw new Error(insertError?.message || "B??d zapisu uploadu w Supabase.");
+        throw new Error(insertError?.message || "Błąd zapisu uploadu w Supabase.");
       }
 
       const record: VideoUploadRecord = {
         id: uploadRow.id as string,
         workspace_id: uploadRow.workspace_id as string,
         storage_path: uploadRow.storage_path as string,
-        public_url: (uploadRow.public_url as string | null) || null,
+        public_url: null,
         signed_url: signedData?.signedUrl || null,
         file_name: uploadRow.file_name as string,
         mime_type: uploadRow.mime_type as string,
@@ -765,7 +770,7 @@ export default function ShortStudio({
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error || "B??d AI podczas analizy filmu.");
+        throw new Error(json.error || "Błąd AI podczas analizy filmu.");
       }
 
       const analysis = normalizeVideoAnalysis(json);
@@ -795,7 +800,7 @@ export default function ShortStudio({
         })
         .eq("id", upload.id);
 
-      showToast("? AI przygotowa?o analiz? filmu");
+      showToast("✓ AI przygotowało analizę filmu");
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -899,7 +904,7 @@ export default function ShortStudio({
         .eq("id", videoUpload.id);
 
       setVideoStatus("template_ready");
-      showToast("? Zapisano szablon shorta z filmu");
+      showToast("✓ Zapisano szablon shorta z filmu");
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -908,8 +913,38 @@ export default function ShortStudio({
   }
 
   async function generateShorts() {
-    if (!topic.trim()) {
-      setError("Wpisz temat albo pomysł na short video.");
+    const generationTopic =
+      topic.trim() ||
+      videoAnalysis?.detected_topic?.trim() ||
+      videoAnalysis?.title?.trim() ||
+      videoAnalysis?.hook?.trim() ||
+      "";
+
+    const generationSourceContent =
+      sourceContent.trim() ||
+      [
+        videoAnalysis?.transcript
+          ? `Transkrypcja / opis wypowiedzi:
+${videoAnalysis.transcript}`
+          : "",
+        videoAnalysis?.visual_summary
+          ? `Opis wizualny:
+${videoAnalysis.visual_summary}`
+          : "",
+        videoAnalysis?.caption ? `Opis AI:
+${videoAnalysis.caption}` : "",
+        videoAnalysis?.hashtags?.length
+          ? `Hashtagi:
+${videoAnalysis.hashtags.join(" ")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("
+
+");
+
+    if (!generationTopic) {
+      setError("Wpisz temat albo najpierw przeanalizuj film AI.");
       return;
     }
 
@@ -920,8 +955,8 @@ export default function ShortStudio({
 
     try {
       const prompt = buildPrompt({
-        topic,
-        sourceContent,
+        topic: generationTopic,
+        sourceContent: generationSourceContent,
         selectedPlatforms,
         goal,
         format,
@@ -1213,8 +1248,8 @@ export default function ShortStudio({
             }}
           >
             {[
-              { id: "idea" as StudioMode, label: "Pomysł -> shorty" },
-              { id: "video" as StudioMode, label: "Film -> analiza AI" },
+              { id: "idea" as StudioMode, label: "Pomysł → shorty" },
+              { id: "video" as StudioMode, label: "Film → analiza AI" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -1239,200 +1274,6 @@ export default function ShortStudio({
             ))}
           </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>
-              Platformy: {selectedPlatformNames}
-            </SectionLabel>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {SHORT_PLATFORMS.map((item) => (
-                <Pill
-                  key={item.id}
-                  active={selectedPlatforms.includes(item.id)}
-                  onClick={() => togglePlatform(item.id)}
-                  color={item.color}
-                  css={css}
-                >
-                  {item.name}
-                </Pill>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Cel</SectionLabel>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {GOALS.map((item) => (
-                <Pill
-                  key={item}
-                  active={goal === item}
-                  onClick={() => setGoal(item)}
-                  color={css.accent}
-                  css={css}
-                >
-                  {item}
-                </Pill>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Format bazowy</SectionLabel>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {FORMATS.map((item) => (
-                <Pill
-                  key={item}
-                  active={format === item}
-                  onClick={() => setFormat(item)}
-                  color={css.aiText}
-                  css={css}
-                >
-                  {item}
-                </Pill>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Długość bazowa</SectionLabel>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {LENGTHS.map((item) => (
-                <Pill
-                  key={item}
-                  active={duration === item}
-                  onClick={() => setDuration(item)}
-                  color={css.accent}
-                  css={css}
-                >
-                  {item}s
-                </Pill>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Temat / idea</SectionLabel>
-
-            <textarea
-              ref={topicRef}
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="np. Dlaczego firmy nie powinny kopiować tego samego contentu na wszystkie platformy"
-              style={{
-                width: "100%",
-                minHeight: 112,
-                borderRadius: 16,
-                border: `1px solid ${css.border}`,
-                background: css.surfaceSoft,
-                color: css.text,
-                padding: 14,
-                outline: "none",
-                fontFamily: "inherit",
-                fontSize: 13,
-                lineHeight: 1.7,
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>
-              Materiał źródłowy, opcjonalnie
-            </SectionLabel>
-
-            <textarea
-              ref={sourceRef}
-              value={sourceContent}
-              onChange={(event) => setSourceContent(event.target.value)}
-              placeholder="Możesz wkleić post z LinkedIna, opis bloga albo szkic tekstu, który AI ma przerobić na shorty."
-              style={{
-                width: "100%",
-                minHeight: 92,
-                borderRadius: 16,
-                border: `1px solid ${css.border}`,
-                background: css.surfaceSoft,
-                color: css.text,
-                padding: 14,
-                outline: "none",
-                fontFamily: "inherit",
-                fontSize: 13,
-                lineHeight: 1.7,
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 18 }}>
-            <SectionLabel color={css.muted}>Kontekst marki</SectionLabel>
-
-            <textarea
-              ref={contextRef}
-              value={brandContext}
-              onChange={(event) => setBrandContext(event.target.value)}
-              placeholder="np. marka ekspercka B2B, ton prosty i konkretny, odbiorcy: właściciele firm i marketerzy."
-              style={{
-                width: "100%",
-                minHeight: 82,
-                borderRadius: 16,
-                border: `1px solid ${css.border}`,
-                background: css.surfaceSoft,
-                color: css.text,
-                padding: 14,
-                outline: "none",
-                fontFamily: "inherit",
-                fontSize: 13,
-                lineHeight: 1.7,
-              }}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={generateShorts}
-            disabled={loading || !topic.trim() || selectedPlatforms.length === 0}
-            style={{
-              width: "100%",
-              border: "none",
-              borderRadius: 16,
-              padding: "14px 16px",
-              background: dark ? "#ffffff" : "#111111",
-              color: dark ? "#050505" : "#ffffff",
-              fontSize: 13,
-              fontWeight: 900,
-              cursor:
-                loading || !topic.trim() || selectedPlatforms.length === 0
-                  ? "not-allowed"
-                  : "pointer",
-              opacity:
-                loading || !topic.trim() || selectedPlatforms.length === 0
-                  ? 0.5
-                  : 1,
-              fontFamily: "inherit",
-            }}
-          >
-            {loading ? "AI tworzy shorty..." : "✦ Wygeneruj shorty"}
-          </button>
-
-          {error && (
-            <div
-              style={{
-                marginTop: 12,
-                background: "#ef444414",
-                border: "1px solid #ef444440",
-                color: "#ef4444",
-                borderRadius: 14,
-                padding: 12,
-                fontSize: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              {error}
-            </div>
-          )}
-        </div>
-
-        <div>
           {studioMode === "video" && (
             <div
               style={{
@@ -1667,7 +1508,203 @@ export default function ShortStudio({
           )}
 
 
-          {!result && !loading && studioMode === "idea" && (
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>
+              Platformy: {selectedPlatformNames}
+            </SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {SHORT_PLATFORMS.map((item) => (
+                <Pill
+                  key={item.id}
+                  active={selectedPlatforms.includes(item.id)}
+                  onClick={() => togglePlatform(item.id)}
+                  color={item.color}
+                  css={css}
+                >
+                  {item.name}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Cel</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {GOALS.map((item) => (
+                <Pill
+                  key={item}
+                  active={goal === item}
+                  onClick={() => setGoal(item)}
+                  color={css.accent}
+                  css={css}
+                >
+                  {item}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Format bazowy</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {FORMATS.map((item) => (
+                <Pill
+                  key={item}
+                  active={format === item}
+                  onClick={() => setFormat(item)}
+                  color={css.aiText}
+                  css={css}
+                >
+                  {item}
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Długość bazowa</SectionLabel>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {LENGTHS.map((item) => (
+                <Pill
+                  key={item}
+                  active={duration === item}
+                  onClick={() => setDuration(item)}
+                  color={css.accent}
+                  css={css}
+                >
+                  {item}s
+                </Pill>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>Temat / idea</SectionLabel>
+
+            <textarea
+              ref={topicRef}
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+              placeholder="np. Dlaczego firmy nie powinny kopiować tego samego contentu na wszystkie platformy"
+              style={{
+                width: "100%",
+                minHeight: 112,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <SectionLabel color={css.muted}>
+              Materiał źródłowy, opcjonalnie
+            </SectionLabel>
+
+            <textarea
+              ref={sourceRef}
+              value={sourceContent}
+              onChange={(event) => setSourceContent(event.target.value)}
+              placeholder="Możesz wkleić post z LinkedIna, opis bloga albo szkic tekstu, który AI ma przerobić na shorty."
+              style={{
+                width: "100%",
+                minHeight: 92,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <SectionLabel color={css.muted}>Kontekst marki</SectionLabel>
+
+            <textarea
+              ref={contextRef}
+              value={brandContext}
+              onChange={(event) => setBrandContext(event.target.value)}
+              placeholder="np. marka ekspercka B2B, ton prosty i konkretny, odbiorcy: właściciele firm i marketerzy."
+              style={{
+                width: "100%",
+                minHeight: 82,
+                borderRadius: 16,
+                border: `1px solid ${css.border}`,
+                background: css.surfaceSoft,
+                color: css.text,
+                padding: 14,
+                outline: "none",
+                fontFamily: "inherit",
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={generateShorts}
+            disabled={loading || !canGenerate}
+            style={{
+              width: "100%",
+              border: "none",
+              borderRadius: 16,
+              padding: "14px 16px",
+              background: dark ? "#ffffff" : "#111111",
+              color: dark ? "#050505" : "#ffffff",
+              fontSize: 13,
+              fontWeight: 900,
+              cursor:
+                loading || !canGenerate
+                  ? "not-allowed"
+                  : "pointer",
+              opacity:
+                loading || !canGenerate
+                  ? 0.5
+                  : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {loading ? "AI tworzy treści..." : "✦ Wygeneruj treści z filmu / pomysłu"}
+          </button>
+
+          {error && (
+            <div
+              style={{
+                marginTop: 12,
+                background: "#ef444414",
+                border: "1px solid #ef444440",
+                color: "#ef4444",
+                borderRadius: 14,
+                padding: 12,
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div>
+
+
+          {!result && !loading && (
             <div
               style={{
                 minHeight: 520,
