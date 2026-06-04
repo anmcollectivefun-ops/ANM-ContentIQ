@@ -207,8 +207,8 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
     },
   });
 
-  const text = response.text(); // W nowym SDK to jest wywołanie funkcji .text(), a nie właściwość .text
-  if (!text) throw new Error("Model Gemini zwrócił pustą odpowiedź.");
+  const text = response.text;
+  if (!text) throw new Error("Model Gemini zwr?ci? pust? odpowied?.");
   
   return JSON.parse(text);
 }

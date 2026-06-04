@@ -861,7 +861,8 @@ export default function ShortStudio({
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error || "Błąd AI podczas analizy filmu.");
+        const details = json.details ? ` Szczegóły: ${json.details}` : "";
+        throw new Error(`${json.error || "Błąd AI podczas analizy filmu."}${details}`);
       }
 
       const analysis = normalizeVideoAnalysis(json);
