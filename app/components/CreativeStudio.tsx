@@ -335,7 +335,9 @@ export default function CreativeStudio({
     setError("");
 
     try {
-      if (item.providerMode === "own" && !userApiKey.trim()) {
+      const selectedProviderMode = providerMode;
+
+      if (selectedProviderMode === "own" && !userApiKey.trim()) {
         throw new Error("Wklej własny Google API key albo przełącz źródło generowania na Hugging Face albo Google z env.");
       }
 
@@ -348,8 +350,8 @@ export default function CreativeStudio({
           prompt: item.prompt,
           negativePrompt: item.negativePrompt,
           aspectRatio: item.format,
-          providerMode: item.providerMode,
-          userApiKey: item.providerMode === "own" ? userApiKey.trim() : undefined,
+          providerMode: selectedProviderMode,
+          userApiKey: selectedProviderMode === "own" ? userApiKey.trim() : undefined,
         }),
       });
 
@@ -367,7 +369,11 @@ export default function CreativeStudio({
       }
 
       if (!response.ok || json.error) {
-        throw new Error(json.error || "Nie udało się wygenerować obrazu.");
+        throw new Error(
+          json.error
+            || json.rawError
+            || `Nie udało się wygenerować obrazu. HTTP ${response.status}. Provider: ${selectedProviderMode}. Odpowiedź: ${rawResponse.slice(0, 300) || "pusta"}`
+        );
       }
 
       const image = json.images?.[0];
@@ -383,6 +389,7 @@ export default function CreativeStudio({
                 generatedImageUrl: image.dataUrl,
                 generatedImageMimeType: image.mimeType,
                 generationText: json.text,
+                providerMode: selectedProviderMode,
               }
             : result
         )
@@ -1160,7 +1167,13 @@ export default function CreativeStudio({
                             fontFamily: "inherit",
                           }}
                         >
-                          {generatingImageId === item.id ? "Generuję..." : "Generuj obraz"}
+                          {generatingImageId === item.id
+                            ? "Generuję..."
+                            : providerMode === "huggingface"
+                              ? "Generuj HF"
+                              : providerMode === "anm"
+                                ? "Generuj Google"
+                                : "Generuj własnym"}
                         </button>
                       </div>
 
