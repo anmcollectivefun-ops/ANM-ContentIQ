@@ -639,13 +639,13 @@ export default function ShortStudio({
 
     if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
       setVideoFile(null);
-      setVideoError("ZĹ‚y format pliku. Dozwolone: MP4, MOV i WebM.");
+      setVideoError("Z?y format pliku. Dozwolone: MP4, MOV i WebM.");
       return;
     }
 
     if (file.size > MAX_VIDEO_SIZE_BYTES) {
       setVideoFile(null);
-      setVideoError("Plik jest za duĹĽy. Maksymalny rozmiar to 100 MB.");
+      setVideoError("Plik jest za du?y. Maksymalny rozmiar to 100 MB.");
       return;
     }
 
@@ -674,7 +674,7 @@ export default function ShortStudio({
           upsert: false,
         });
 
-      if (uploadError) throw new Error(`BĹ‚Ä…d uploadu: ${uploadError.message}`);
+      if (uploadError) throw new Error(`B??d uploadu: ${uploadError.message}`);
 
       const { data: publicData } = supabase.storage
         .from(TEMP_VIDEO_BUCKET)
@@ -685,7 +685,7 @@ export default function ShortStudio({
         .createSignedUrl(path, 60 * 60);
 
       if (signedError) {
-        console.warn("Nie udaĹ‚o siÄ™ utworzyÄ‡ signed URL:", signedError.message);
+        console.warn("Nie uda?o si? utworzy? signed URL:", signedError.message);
       }
 
       const { data: uploadRow, error: insertError } = await supabase
@@ -706,7 +706,8 @@ export default function ShortStudio({
         .single();
 
       if (insertError || !uploadRow) {
-        throw new Error(insertError?.message || "BĹ‚Ä…d zapisu uploadu w Supabase.");
+        await supabase.storage.from(TEMP_VIDEO_BUCKET).remove([path]);
+        throw new Error(insertError?.message || "B??d zapisu uploadu w Supabase.");
       }
 
       const record: VideoUploadRecord = {
@@ -764,7 +765,7 @@ export default function ShortStudio({
       const json = await res.json();
 
       if (!res.ok || json.error) {
-        throw new Error(json.error || "BĹ‚Ä…d AI podczas analizy filmu.");
+        throw new Error(json.error || "B??d AI podczas analizy filmu.");
       }
 
       const analysis = normalizeVideoAnalysis(json);
@@ -794,7 +795,7 @@ export default function ShortStudio({
         })
         .eq("id", upload.id);
 
-      showToast("âś“ AI przygotowaĹ‚o analizÄ™ filmu");
+      showToast("? AI przygotowa?o analiz? filmu");
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -898,7 +899,7 @@ export default function ShortStudio({
         .eq("id", videoUpload.id);
 
       setVideoStatus("template_ready");
-      showToast("âś“ Zapisano szablon shorta z filmu");
+      showToast("? Zapisano szablon shorta z filmu");
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1212,8 +1213,8 @@ export default function ShortStudio({
             }}
           >
             {[
-              { id: "idea" as StudioMode, label: "PomysĹ‚ â†’ shorty" },
-              { id: "video" as StudioMode, label: "Film â†’ analiza AI" },
+              { id: "idea" as StudioMode, label: "Pomysł -> shorty" },
+              { id: "video" as StudioMode, label: "Film -> analiza AI" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -1237,239 +1238,6 @@ export default function ShortStudio({
               </button>
             ))}
           </div>
-
-          {studioMode === "video" && (
-            <div
-              style={{
-                marginBottom: 16,
-                padding: 15,
-                borderRadius: 18,
-                background: css.aiBg,
-                border: `1px solid ${css.aiBorder}`,
-              }}
-            >
-              <SectionLabel color={css.aiText}>
-                Analiza shorta z pliku video
-              </SectionLabel>
-
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: css.muted,
-                  fontSize: 12,
-                  lineHeight: 1.7,
-                }}
-              >
-                Film jest przechowywany tymczasowo i zostanie usuniÄ™ty po
-                publikacji lub wygaĹ›niÄ™ciu. Do bazy trafiajÄ… tylko metadane,
-                opis, analiza AI i link do posta po publikacji.
-              </p>
-
-              <input
-                type="file"
-                accept="video/mp4,video/quicktime,video/webm"
-                onChange={(event) =>
-                  handleVideoFileChange(event.target.files?.[0] || null)
-                }
-                style={{
-                  width: "100%",
-                  borderRadius: 14,
-                  border: `1px dashed ${css.aiBorder}`,
-                  background: css.surfaceSoft,
-                  color: css.text,
-                  padding: 12,
-                  fontSize: 12,
-                  fontFamily: "inherit",
-                }}
-              />
-
-              {videoFile && (
-                <div style={{ marginTop: 12 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      color: css.muted,
-                      fontSize: 11,
-                      lineHeight: 1.5,
-                      marginBottom: 10,
-                    }}
-                  >
-                    <span>{videoFile.name}</span>
-                    <strong>{formatBytes(videoFile.size)}</strong>
-                  </div>
-
-                  {videoPreviewUrl && (
-                    <video
-                      src={videoPreviewUrl}
-                      controls
-                      style={{
-                        width: "100%",
-                        maxHeight: 260,
-                        borderRadius: 16,
-                        background: "#000",
-                        border: `1px solid ${css.border}`,
-                      }}
-                    />
-                  )}
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: videoUpload ? "1fr 1fr" : "1fr",
-                  gap: 8,
-                  marginTop: 12,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={analyzeVideo}
-                  disabled={!videoFile || uploadingVideo || analyzingVideo}
-                  style={{
-                    border: "none",
-                    borderRadius: 14,
-                    background: dark ? "#ffffff" : "#111111",
-                    color: dark ? "#050505" : "#ffffff",
-                    padding: "12px 14px",
-                    fontSize: 12,
-                    fontWeight: 900,
-                    cursor:
-                      !videoFile || uploadingVideo || analyzingVideo
-                        ? "not-allowed"
-                        : "pointer",
-                    opacity: !videoFile || uploadingVideo || analyzingVideo ? 0.55 : 1,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {uploadingVideo
-                    ? "UploadujÄ™ film..."
-                    : analyzingVideo
-                      ? "AI analizuje film..."
-                      : "Przeanalizuj film AI"}
-                </button>
-
-                {videoUpload && (
-                  <button
-                    type="button"
-                    onClick={deleteTempVideo}
-                    disabled={deletingVideo}
-                    style={{
-                      borderRadius: 14,
-                      border: "1px solid #ef444460",
-                      background: "#ef444414",
-                      color: "#ef4444",
-                      padding: "12px 14px",
-                      fontSize: 12,
-                      fontWeight: 900,
-                      cursor: deletingVideo ? "not-allowed" : "pointer",
-                      opacity: deletingVideo ? 0.6 : 1,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {deletingVideo ? "Usuwam..." : "UsuĹ„ plik tymczasowy"}
-                  </button>
-                )}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 10,
-                  color: css.muted,
-                  fontSize: 11,
-                  lineHeight: 1.6,
-                }}
-              >
-                Status: <strong style={{ color: css.aiText }}>{videoStatus}</strong>
-              </div>
-
-              {videoAnalysis && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                  }}
-                >
-                  <ResultBox label="Wynik AI" css={css} accent>
-                    <h3
-                      style={{
-                        margin: "0 0 8px",
-                        color: css.text,
-                        fontSize: 18,
-                      }}
-                    >
-                      {videoAnalysis.title}
-                    </h3>
-
-                    <p
-                      style={{
-                        margin: "0 0 8px",
-                        color: css.text,
-                        fontSize: 12,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      {videoAnalysis.visual_summary}
-                    </p>
-
-                    <p
-                      style={{
-                        margin: 0,
-                        color: css.muted,
-                        fontSize: 12,
-                        lineHeight: 1.7,
-                      }}
-                    >
-                      Hook: {videoAnalysis.hook}
-                    </p>
-                  </ResultBox>
-
-                  <button
-                    type="button"
-                    onClick={saveAnalyzedVideoTemplate}
-                    disabled={savingTemplate}
-                    style={{
-                      borderRadius: 14,
-                      border: `1px solid ${css.aiBorder}`,
-                      background: css.surface,
-                      color: css.aiText,
-                      padding: "12px 14px",
-                      fontSize: 12,
-                      fontWeight: 900,
-                      cursor: savingTemplate ? "not-allowed" : "pointer",
-                      opacity: savingTemplate ? 0.6 : 1,
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {savingTemplate
-                      ? "ZapisujÄ™..."
-                      : "Zapisz jako szablon shorta"}
-                  </button>
-                </div>
-              )}
-
-              {videoError && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    background: "#ef444414",
-                    border: "1px solid #ef444440",
-                    color: "#ef4444",
-                    borderRadius: 14,
-                    padding: 12,
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {videoError}
-                </div>
-              )}
-            </div>
-          )}
 
           <div style={{ marginBottom: 16 }}>
             <SectionLabel color={css.muted}>
@@ -1665,7 +1433,241 @@ export default function ShortStudio({
         </div>
 
         <div>
-          {!result && !loading && (
+          {studioMode === "video" && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 15,
+                borderRadius: 18,
+                background: css.aiBg,
+                border: `1px solid ${css.aiBorder}`,
+              }}
+            >
+              <SectionLabel color={css.aiText}>
+                Analiza shorta z pliku video
+              </SectionLabel>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: css.muted,
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                }}
+              >
+                Film jest przechowywany tymczasowo i zostanie usunięty po
+                publikacji lub wygaśnięciu. Do bazy trafiają tylko metadane,
+                opis, analiza AI i link do posta po publikacji.
+              </p>
+
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                onChange={(event) =>
+                  handleVideoFileChange(event.target.files?.[0] || null)
+                }
+                style={{
+                  width: "100%",
+                  borderRadius: 14,
+                  border: `1px dashed ${css.aiBorder}`,
+                  background: css.surfaceSoft,
+                  color: css.text,
+                  padding: 12,
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              />
+
+              {videoFile && (
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      color: css.muted,
+                      fontSize: 11,
+                      lineHeight: 1.5,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span>{videoFile.name}</span>
+                    <strong>{formatBytes(videoFile.size)}</strong>
+                  </div>
+
+                  {videoPreviewUrl && (
+                    <video
+                      src={videoPreviewUrl}
+                      controls
+                      style={{
+                        width: "100%",
+                        maxHeight: 260,
+                        borderRadius: 16,
+                        background: "#000",
+                        border: `1px solid ${css.border}`,
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: videoUpload ? "1fr 1fr" : "1fr",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={analyzeVideo}
+                  disabled={!videoFile || uploadingVideo || analyzingVideo}
+                  style={{
+                    border: "none",
+                    borderRadius: 14,
+                    background: dark ? "#ffffff" : "#111111",
+                    color: dark ? "#050505" : "#ffffff",
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor:
+                      !videoFile || uploadingVideo || analyzingVideo
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity: !videoFile || uploadingVideo || analyzingVideo ? 0.55 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {uploadingVideo
+                    ? "Uploaduję film..."
+                    : analyzingVideo
+                      ? "AI analizuje film..."
+                      : "Przeanalizuj film AI"}
+                </button>
+
+                {videoUpload && (
+                  <button
+                    type="button"
+                    onClick={deleteTempVideo}
+                    disabled={deletingVideo}
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid #ef444460",
+                      background: "#ef444414",
+                      color: "#ef4444",
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: deletingVideo ? "not-allowed" : "pointer",
+                      opacity: deletingVideo ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {deletingVideo ? "Usuwam..." : "Usuń plik tymczasowy"}
+                  </button>
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  color: css.muted,
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                Status: <strong style={{ color: css.aiText }}>{videoStatus}</strong>
+              </div>
+
+              {videoAnalysis && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <ResultBox label="Wynik AI" css={css} accent>
+                    <h3
+                      style={{
+                        margin: "0 0 8px",
+                        color: css.text,
+                        fontSize: 18,
+                      }}
+                    >
+                      {videoAnalysis.title}
+                    </h3>
+
+                    <p
+                      style={{
+                        margin: "0 0 8px",
+                        color: css.text,
+                        fontSize: 12,
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      {videoAnalysis.visual_summary}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        color: css.muted,
+                        fontSize: 12,
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      Hook: {videoAnalysis.hook}
+                    </p>
+                  </ResultBox>
+
+                  <button
+                    type="button"
+                    onClick={saveAnalyzedVideoTemplate}
+                    disabled={savingTemplate}
+                    style={{
+                      borderRadius: 14,
+                      border: `1px solid ${css.aiBorder}`,
+                      background: css.surface,
+                      color: css.aiText,
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: savingTemplate ? "not-allowed" : "pointer",
+                      opacity: savingTemplate ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {savingTemplate
+                      ? "Zapisuję..."
+                      : "Zapisz jako szablon shorta"}
+                  </button>
+                </div>
+              )}
+
+              {videoError && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    background: "#ef444414",
+                    border: "1px solid #ef444440",
+                    color: "#ef4444",
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {videoError}
+                </div>
+              )}
+            </div>
+          )}
+
+
+          {!result && !loading && studioMode === "idea" && (
             <div
               style={{
                 minHeight: 520,
@@ -1851,7 +1853,7 @@ export default function ShortStudio({
                     </div>
 
                     <div style={{ padding: 15 }}>
-                      <ResultBox label="Hook 0–2 sekundy" css={css} accent>
+                      <ResultBox label="Hook 0-2 sekundy" css={css} accent>
                         <p
                           style={{
                             margin: 0,
