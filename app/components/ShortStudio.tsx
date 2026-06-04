@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type ShortPlatform =
@@ -53,6 +53,59 @@ type ApiResponse = {
   answer?: string;
   error?: string;
 };
+
+type StudioMode = "idea" | "video";
+
+type VideoUploadRecord = {
+  id: string;
+  workspace_id: string;
+  storage_path: string;
+  public_url: string | null;
+  signed_url: string | null;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  status: ShortVideoStatus;
+};
+
+type ShortVideoStatus =
+  | "uploaded_temp"
+  | "analyzed"
+  | "template_ready"
+  | "publishing"
+  | "published_external"
+  | "deleted_local"
+  | "expired";
+
+type ShortVideoAnalysis = {
+  title: string;
+  visual_summary: string;
+  transcript: string;
+  detected_topic: string;
+  hook: string;
+  caption: string;
+  hashtags: string[];
+  on_screen_text: {
+    time: string;
+    text: string;
+  }[];
+  platform_recommendations: {
+    platform: ShortPlatform;
+    caption: string;
+    hook: string;
+    hashtags: string[];
+    publishing_notes: string;
+  }[];
+  template_summary: string;
+};
+
+const TEMP_VIDEO_BUCKET = "contentiq-temp-videos";
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+const ALLOWED_VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
 
 const SHORT_PLATFORMS: {
   id: ShortPlatform;
@@ -126,6 +179,46 @@ function cleanJsonAnswer(answer: string) {
 
 function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+function safeFileName(fileName: string) {
+  const dotIndex = fileName.lastIndexOf(".");
+  const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
+  const base = dotIndex >= 0 ? fileName.slice(0, dotIndex) : fileName;
+
+  return `${base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72) || "short-video"}${extension}`;
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+function normalizeVideoAnalysis(value: Partial<ShortVideoAnalysis>): ShortVideoAnalysis {
+  return {
+    title: value.title || "Analiza short video",
+    visual_summary: value.visual_summary || "",
+    transcript: value.transcript || "",
+    detected_topic: value.detected_topic || value.title || "",
+    hook: value.hook || "",
+    caption: value.caption || "",
+    hashtags: safeArray(value.hashtags),
+    on_screen_text: safeArray(value.on_screen_text),
+    platform_recommendations: safeArray(value.platform_recommendations).map((item) => ({
+      platform: item.platform,
+      caption: item.caption || "",
+      hook: item.hook || "",
+      hashtags: safeArray(item.hashtags),
+      publishing_notes: item.publishing_notes || "",
+    })),
+    template_summary: value.template_summary || "",
+  };
 }
 
 function getScoreColor(score: number) {
@@ -390,6 +483,7 @@ export default function ShortStudio({
   workspaceId?: string;
 }) {
   const supabase = createClient();
+  const [studioMode, setStudioMode] = useState<StudioMode>("idea");
 
   const [selectedPlatforms, setSelectedPlatforms] = useState<ShortPlatform[]>([
     "tiktok",
@@ -413,6 +507,15 @@ export default function ShortStudio({
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState("");
+  const [videoUpload, setVideoUpload] = useState<VideoUploadRecord | null>(null);
+  const [videoAnalysis, setVideoAnalysis] = useState<ShortVideoAnalysis | null>(null);
+  const [videoStatus, setVideoStatus] = useState<ShortVideoStatus | "idle">("idle");
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [analyzingVideo, setAnalyzingVideo] = useState(false);
+  const [deletingVideo, setDeletingVideo] = useState(false);
+  const [videoError, setVideoError] = useState("");
 
   const topicRef = useRef<HTMLTextAreaElement>(null);
   const sourceRef = useRef<HTMLTextAreaElement>(null);
@@ -451,6 +554,12 @@ export default function ShortStudio({
       .map((id) => getPlatformInfo(id)?.shortName || id)
       .join(", ");
   }, [selectedPlatforms]);
+
+  useEffect(() => {
+    return () => {
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    };
+  }, [videoPreviewUrl]);
 
   function showToast(message: string) {
     setToast(message);
@@ -505,6 +614,296 @@ export default function ShortStudio({
     }
 
     return created.id as string;
+  }
+
+  async function getCurrentUserId() {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error("Brak aktywnej sesji.");
+    return auth.user.id;
+  }
+
+  function handleVideoFileChange(file: File | null) {
+    setVideoError("");
+    setVideoAnalysis(null);
+    setResult(null);
+
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoPreviewUrl("");
+    setVideoUpload(null);
+    setVideoStatus("idle");
+
+    if (!file) {
+      setVideoFile(null);
+      return;
+    }
+
+    if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
+      setVideoFile(null);
+      setVideoError("ZĹ‚y format pliku. Dozwolone: MP4, MOV i WebM.");
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
+      setVideoFile(null);
+      setVideoError("Plik jest za duĹĽy. Maksymalny rozmiar to 100 MB.");
+      return;
+    }
+
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
+  }
+
+  async function uploadVideoTemp() {
+    if (!videoFile) throw new Error("Brak pliku video.");
+
+    setUploadingVideo(true);
+    setVideoError("");
+
+    try {
+      const wsId = await getOrCreateWorkspaceUuid();
+      const userId = await getCurrentUserId();
+      if (!wsId) throw new Error("Brak workspace.");
+
+      const fileName = safeFileName(videoFile.name || "short-video");
+      const path = `${wsId}/${Date.now()}-${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .upload(path, videoFile, {
+          contentType: videoFile.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw new Error(`BĹ‚Ä…d uploadu: ${uploadError.message}`);
+
+      const { data: publicData } = supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .getPublicUrl(path);
+
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .createSignedUrl(path, 60 * 60);
+
+      if (signedError) {
+        console.warn("Nie udaĹ‚o siÄ™ utworzyÄ‡ signed URL:", signedError.message);
+      }
+
+      const { data: uploadRow, error: insertError } = await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .insert({
+          workspace_id: wsId,
+          user_id: userId,
+          storage_bucket: TEMP_VIDEO_BUCKET,
+          storage_path: path,
+          public_url: publicData.publicUrl || null,
+          file_name: videoFile.name,
+          mime_type: videoFile.type,
+          file_size: videoFile.size,
+          status: "uploaded_temp",
+        })
+        .select("id, workspace_id, storage_path, public_url, file_name, mime_type, file_size, status")
+        .single();
+
+      if (insertError || !uploadRow) {
+        throw new Error(insertError?.message || "BĹ‚Ä…d zapisu uploadu w Supabase.");
+      }
+
+      const record: VideoUploadRecord = {
+        id: uploadRow.id as string,
+        workspace_id: uploadRow.workspace_id as string,
+        storage_path: uploadRow.storage_path as string,
+        public_url: (uploadRow.public_url as string | null) || null,
+        signed_url: signedData?.signedUrl || null,
+        file_name: uploadRow.file_name as string,
+        mime_type: uploadRow.mime_type as string,
+        file_size: Number(uploadRow.file_size || videoFile.size),
+        status: uploadRow.status as ShortVideoStatus,
+      };
+
+      setVideoUpload(record);
+      setVideoStatus("uploaded_temp");
+      return record;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setVideoError(message);
+      throw err;
+    } finally {
+      setUploadingVideo(false);
+    }
+  }
+
+  async function analyzeVideo() {
+    if (!videoFile && !videoUpload) {
+      setVideoError("Najpierw wybierz plik video.");
+      return;
+    }
+
+    setAnalyzingVideo(true);
+    setVideoError("");
+
+    try {
+      const upload = videoUpload || (await uploadVideoTemp());
+
+      const res = await fetch("/api/shorts/analyze-video", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          upload_id: upload.id,
+          workspace_id: upload.workspace_id,
+          storage_path: upload.storage_path,
+          public_url: upload.public_url,
+          signed_url: upload.signed_url,
+          file_name: upload.file_name,
+          mime_type: upload.mime_type,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "BĹ‚Ä…d AI podczas analizy filmu.");
+      }
+
+      const analysis = normalizeVideoAnalysis(json);
+      setVideoAnalysis(analysis);
+      setVideoStatus("analyzed");
+      setTopic(analysis.detected_topic || analysis.title || topic);
+      setSourceContent(
+        [
+          analysis.transcript ? `Transkrypcja / opis wypowiedzi:\n${analysis.transcript}` : "",
+          analysis.visual_summary ? `Opis wizualny:\n${analysis.visual_summary}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n")
+      );
+
+      await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .update({
+          status: "analyzed",
+          ai_transcript: analysis.transcript,
+          ai_visual_summary: analysis.visual_summary,
+          ai_detected_topic: analysis.detected_topic,
+          ai_suggested_hook: analysis.hook,
+          ai_suggested_caption: analysis.caption,
+          ai_suggested_hashtags: analysis.hashtags,
+        })
+        .eq("id", upload.id);
+
+      showToast("âś“ AI przygotowaĹ‚o analizÄ™ filmu");
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAnalyzingVideo(false);
+    }
+  }
+
+  async function deleteTempVideo() {
+    if (!videoUpload) {
+      setVideoFile(null);
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoPreviewUrl("");
+      return;
+    }
+
+    setDeletingVideo(true);
+    setVideoError("");
+
+    try {
+      const { error: removeError } = await supabase.storage
+        .from(TEMP_VIDEO_BUCKET)
+        .remove([videoUpload.storage_path]);
+
+      if (removeError) throw new Error(removeError.message);
+
+      const { error: deleteError } = await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .delete()
+        .eq("id", videoUpload.id);
+
+      if (deleteError) throw new Error(deleteError.message);
+
+      setVideoFile(null);
+      setVideoUpload(null);
+      setVideoAnalysis(null);
+      setVideoStatus("deleted_local");
+      setResult(null);
+
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+      setVideoPreviewUrl("");
+      showToast("✓ Usunięto plik tymczasowy i rekord z bazy");
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeletingVideo(false);
+    }
+  }
+
+  async function saveAnalyzedVideoTemplate() {
+    if (!videoAnalysis || !videoUpload) {
+      setVideoError("Najpierw przeanalizuj film AI.");
+      return;
+    }
+
+    setSavingTemplate(true);
+    setVideoError("");
+
+    try {
+      const userId = await getCurrentUserId();
+      const templateRows = videoAnalysis.platform_recommendations.length > 0
+        ? videoAnalysis.platform_recommendations
+        : selectedPlatforms.map((platform) => ({
+            platform,
+            caption: videoAnalysis.caption,
+            hook: videoAnalysis.hook,
+            hashtags: videoAnalysis.hashtags,
+            publishing_notes: "",
+          }));
+
+      const { error: insertError } = await supabase
+        .schema("contentiq")
+        .from("short_templates")
+        .insert(
+          templateRows.map((item) => ({
+            workspace_id: videoUpload.workspace_id,
+            user_id: userId,
+            source_upload_id: videoUpload.id,
+            title: videoAnalysis.title,
+            platform: item.platform,
+            hook: item.hook,
+            caption: item.caption,
+            hashtags: item.hashtags,
+            script: videoAnalysis.transcript,
+            on_screen_text: videoAnalysis.on_screen_text,
+            shots: [],
+            thumbnail_text: videoAnalysis.hook,
+            ai_summary: `${videoAnalysis.template_summary}\n\n${videoAnalysis.visual_summary}`.trim(),
+            video_storage_path: videoUpload.storage_path,
+            video_public_url: videoUpload.public_url || videoUpload.signed_url,
+            status: "template_ready",
+          }))
+        );
+
+      if (insertError) throw new Error(insertError.message);
+
+      await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .update({ status: "template_ready" })
+        .eq("id", videoUpload.id);
+
+      setVideoStatus("template_ready");
+      showToast("âś“ Zapisano szablon shorta z filmu");
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSavingTemplate(false);
+    }
   }
 
   async function generateShorts() {
@@ -649,6 +1048,43 @@ export default function ShortStudio({
 
       if (insertError) throw new Error(insertError.message);
 
+      if (videoAnalysis && videoUpload) {
+        const userId = await getCurrentUserId();
+        const { error: templateError } = await supabase
+          .schema("contentiq")
+          .from("short_templates")
+          .insert(
+            result.variants.map((variant) => ({
+              workspace_id: wsId,
+              user_id: userId,
+              source_upload_id: videoUpload.id,
+              title: result.idea_title || videoAnalysis.title,
+              platform: variant.platform,
+              hook: variant.hook,
+              caption: variant.caption,
+              hashtags: variant.hashtags,
+              script: variant.script,
+              on_screen_text: variant.on_screen_text,
+              shots: variant.shots,
+              thumbnail_text: variant.thumbnail_text,
+              ai_summary: result.ai_summary || videoAnalysis.template_summary,
+              video_storage_path: videoUpload.storage_path,
+              video_public_url: videoUpload.public_url || videoUpload.signed_url,
+              status: "template_ready",
+            }))
+          );
+
+        if (templateError) throw new Error(templateError.message);
+
+        await supabase
+          .schema("contentiq")
+          .from("short_video_uploads")
+          .update({ status: "template_ready" })
+          .eq("id", videoUpload.id);
+
+        setVideoStatus("template_ready");
+      }
+
       showToast("✓ Zapisano Short Studio jako szablon");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -766,6 +1202,274 @@ export default function ShortStudio({
             Przygotuj jeden temat i od razu dostaniesz osobne wersje pod TikTok,
             Reels, Shorts, Facebook Reels i LinkedIn Video.
           </p>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              marginBottom: 16,
+            }}
+          >
+            {[
+              { id: "idea" as StudioMode, label: "PomysĹ‚ â†’ shorty" },
+              { id: "video" as StudioMode, label: "Film â†’ analiza AI" },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStudioMode(item.id)}
+                style={{
+                  borderRadius: 14,
+                  border: `1px solid ${
+                    studioMode === item.id ? css.aiBorder : css.border
+                  }`,
+                  background: studioMode === item.id ? css.aiBg : css.surfaceSoft,
+                  color: studioMode === item.id ? css.aiText : css.muted,
+                  padding: "11px 12px",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {studioMode === "video" && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: 15,
+                borderRadius: 18,
+                background: css.aiBg,
+                border: `1px solid ${css.aiBorder}`,
+              }}
+            >
+              <SectionLabel color={css.aiText}>
+                Analiza shorta z pliku video
+              </SectionLabel>
+
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: css.muted,
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                }}
+              >
+                Film jest przechowywany tymczasowo i zostanie usuniÄ™ty po
+                publikacji lub wygaĹ›niÄ™ciu. Do bazy trafiajÄ… tylko metadane,
+                opis, analiza AI i link do posta po publikacji.
+              </p>
+
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                onChange={(event) =>
+                  handleVideoFileChange(event.target.files?.[0] || null)
+                }
+                style={{
+                  width: "100%",
+                  borderRadius: 14,
+                  border: `1px dashed ${css.aiBorder}`,
+                  background: css.surfaceSoft,
+                  color: css.text,
+                  padding: 12,
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                }}
+              />
+
+              {videoFile && (
+                <div style={{ marginTop: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      color: css.muted,
+                      fontSize: 11,
+                      lineHeight: 1.5,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span>{videoFile.name}</span>
+                    <strong>{formatBytes(videoFile.size)}</strong>
+                  </div>
+
+                  {videoPreviewUrl && (
+                    <video
+                      src={videoPreviewUrl}
+                      controls
+                      style={{
+                        width: "100%",
+                        maxHeight: 260,
+                        borderRadius: 16,
+                        background: "#000",
+                        border: `1px solid ${css.border}`,
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: videoUpload ? "1fr 1fr" : "1fr",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={analyzeVideo}
+                  disabled={!videoFile || uploadingVideo || analyzingVideo}
+                  style={{
+                    border: "none",
+                    borderRadius: 14,
+                    background: dark ? "#ffffff" : "#111111",
+                    color: dark ? "#050505" : "#ffffff",
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor:
+                      !videoFile || uploadingVideo || analyzingVideo
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity: !videoFile || uploadingVideo || analyzingVideo ? 0.55 : 1,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {uploadingVideo
+                    ? "UploadujÄ™ film..."
+                    : analyzingVideo
+                      ? "AI analizuje film..."
+                      : "Przeanalizuj film AI"}
+                </button>
+
+                {videoUpload && (
+                  <button
+                    type="button"
+                    onClick={deleteTempVideo}
+                    disabled={deletingVideo}
+                    style={{
+                      borderRadius: 14,
+                      border: "1px solid #ef444460",
+                      background: "#ef444414",
+                      color: "#ef4444",
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: deletingVideo ? "not-allowed" : "pointer",
+                      opacity: deletingVideo ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {deletingVideo ? "Usuwam..." : "UsuĹ„ plik tymczasowy"}
+                  </button>
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  color: css.muted,
+                  fontSize: 11,
+                  lineHeight: 1.6,
+                }}
+              >
+                Status: <strong style={{ color: css.aiText }}>{videoStatus}</strong>
+              </div>
+
+              {videoAnalysis && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <ResultBox label="Wynik AI" css={css} accent>
+                    <h3
+                      style={{
+                        margin: "0 0 8px",
+                        color: css.text,
+                        fontSize: 18,
+                      }}
+                    >
+                      {videoAnalysis.title}
+                    </h3>
+
+                    <p
+                      style={{
+                        margin: "0 0 8px",
+                        color: css.text,
+                        fontSize: 12,
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      {videoAnalysis.visual_summary}
+                    </p>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        color: css.muted,
+                        fontSize: 12,
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      Hook: {videoAnalysis.hook}
+                    </p>
+                  </ResultBox>
+
+                  <button
+                    type="button"
+                    onClick={saveAnalyzedVideoTemplate}
+                    disabled={savingTemplate}
+                    style={{
+                      borderRadius: 14,
+                      border: `1px solid ${css.aiBorder}`,
+                      background: css.surface,
+                      color: css.aiText,
+                      padding: "12px 14px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: savingTemplate ? "not-allowed" : "pointer",
+                      opacity: savingTemplate ? 0.6 : 1,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {savingTemplate
+                      ? "ZapisujÄ™..."
+                      : "Zapisz jako szablon shorta"}
+                  </button>
+                </div>
+              )}
+
+              {videoError && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    background: "#ef444414",
+                    border: "1px solid #ef444440",
+                    color: "#ef4444",
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {videoError}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <SectionLabel color={css.muted}>
