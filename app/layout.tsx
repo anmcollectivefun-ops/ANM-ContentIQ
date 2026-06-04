@@ -1,33 +1,25 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+});
 
 export const metadata: Metadata = {
   title: "ANM ContentIQ",
-  description: "AI Content Intelligence Platform",
-  icons: {
-    icon: [
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
-      { url: "/ANM_ContentIQ_.JPG", sizes: "1024x1024", type: "image/jpeg" },
-    ],
-    shortcut: "/favicon-32.png",
-    apple: "/apple-touch-icon.png",
-  },
-  verification: {
-    other: {
-      "tiktok-domain-verification": "abc123xyz", // tu wklej swój kod z TikToka
-    },
-  },
+  description: "Centrum contentu i analityki AI",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="pl">
-      <body>{children}</body>
+      <body className={plusJakarta.variable}>{children}</body>
     </html>
   );
 }

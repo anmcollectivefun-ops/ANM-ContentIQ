@@ -1036,108 +1036,131 @@ export default function AppWorkspacePage() {
       )}
     </button>
   </div>
+<nav
+  className="ciq-nav"
+  style={{
+    ...st.nav,
+    padding: sidebarCollapsed ? "6px 10px" : "8px 12px 12px",
+  }}
+>
+  {sidebarCollapsed ? (
+    <div style={st.collapsedNavGrid}>
+      {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
+        const isActive = activeTab === tab.id;
 
-  <nav
-    className="ciq-nav"
-    style={{
-      ...st.nav,
-      padding: sidebarCollapsed ? "6px 10px" : "8px 10px 12px",
-    }}
-  >
-    {sidebarCollapsed ? (
-      <div style={st.collapsedNavGrid}>
-        {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
-          const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => openTab(tab.id)}
+            className="ciq-nav-tab"
+            title={tab.label}
+            style={{
+              ...st.collapsedNavButton,
+              background: isActive ? css.activeBg : css.sidebarButton,
+              color: isActive ? css.activeText : css.muted,
+              border: `1px solid ${isActive ? css.accentBorder : css.border}`,
+              boxShadow: isActive ? css.activeShadow : "none",
+            }}
+          >
+            <IconView name={tab.icon} size={19} />
+          </button>
+        );
+      })}
+    </div>
+  ) : (
+    NAV_GROUPS.map((group) => {
+      const isOpen = openNavGroups[group.id];
+      const groupHasActiveTab = group.tabs.some((tab) => tab.id === activeTab);
 
-          return (
-            <button
-              key={tab.id}
-              onClick={() => openTab(tab.id)}
-              className="ciq-nav-tab"
-              title={tab.label}
-              style={{
-                ...st.collapsedNavButton,
-                background: isActive ? css.activeBg : css.sidebarButton,
-                color: isActive ? css.activeText : css.muted,
-                border: `1px solid ${isActive ? css.accentBorder : css.border}`,
-                boxShadow: isActive ? css.activeShadow : "none",
-              }}
-            >
-              <IconView name={tab.icon} size={19} />
-            </button>
-          );
-        })}
-      </div>
-    ) : (
-      NAV_GROUPS.map((group) => (
+      return (
         <div key={group.id} style={st.navGroup}>
           <button
             onClick={() => toggleNavGroup(group.id)}
             style={{
               ...st.navGroupHeader,
-              color: css.groupText,
-              background: "transparent",
+              background: groupHasActiveTab ? css.groupIconBg : "transparent",
+              color: groupHasActiveTab ? css.sectionTitle : css.groupText,
+              border: `1px solid ${
+                groupHasActiveTab ? css.accentBorder : "transparent"
+              }`,
             }}
           >
             <span
               style={{
                 ...st.navGroupIcon,
-                background: css.groupIconBg,
-                color: css.groupIconText,
-                border: `1px solid ${css.border}`,
+                background: groupHasActiveTab ? css.logoBg : css.groupIconBg,
+                color: groupHasActiveTab ? css.logoText : css.groupIconText,
+                border: `1px solid ${
+                  groupHasActiveTab ? css.accentBorder : css.border
+                }`,
               }}
             >
-              <IconView name={group.icon} size={15} />
+              <IconView name={group.icon} size={16} />
             </span>
 
-            <span>{group.title}</span>
+            <span style={st.navGroupTitle}>{group.title}</span>
 
-            <span style={{ marginLeft: "auto", display: "inline-flex", opacity: 0.7 }}>
-              {openNavGroups[group.id] ? (
-                <ChevronDown size={15} />
-              ) : (
-                <ChevronRight size={15} />
-              )}
+            <span
+              style={{
+                marginLeft: "auto",
+                display: "inline-flex",
+                opacity: 0.8,
+              }}
+            >
+              {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
             </span>
           </button>
 
-          {openNavGroups[group.id] &&
-            group.tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
+          {isOpen && (
+            <div
+              style={{
+                ...st.navSubMenu,
+                borderLeft: `1px solid ${css.border}`,
+              }}
+            >
+              {group.tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
 
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => openTab(tab.id)}
-                  className="ciq-nav-tab"
-                  style={{
-                    ...st.navTab,
-                    background: isActive ? css.activeBg : "transparent",
-                    color: isActive ? css.activeText : css.muted,
-                    fontWeight: isActive ? 900 : 700,
-                    border: `1px solid ${isActive ? css.accentBorder : "transparent"}`,
-                    boxShadow: isActive ? css.activeShadow : "none",
-                  }}
-                >
-                  <span
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => openTab(tab.id)}
+                    className="ciq-nav-tab"
                     style={{
-                      ...st.navIcon,
-                      background: isActive ? css.logoBg : css.sidebarButton,
-                      color: isActive ? css.logoText : css.muted,
-                      border: `1px solid ${isActive ? css.accentBorder : css.border}`,
+                      ...st.navTab,
+                      background: isActive ? css.subItemActive : "transparent",
+                      color: isActive ? css.activeText : css.subItemText,
+                      fontWeight: isActive ? 750 : 500,
+                      border: `1px solid ${
+                        isActive ? css.subItemActiveBorder : "transparent"
+                      }`,
+                      boxShadow: isActive ? css.activeShadow : "none",
                     }}
                   >
-                    <IconView name={tab.icon} size={16} />
-                  </span>
+                    <span
+                      style={{
+                        ...st.navIcon,
+                        background: isActive ? css.logoBg : css.sidebarButton,
+                        color: isActive ? css.logoText : css.subItemMuted,
+                        border: `1px solid ${
+                          isActive ? css.subItemActiveBorder : css.border
+                        }`,
+                      }}
+                    >
+                      <IconView name={tab.icon} size={16} />
+                    </span>
 
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+                    <span style={st.navTabLabel}>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
-      ))
-    )}
-  </nav>
+      );
+    })
+  )}
+</nav>
 
   <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
     <div
@@ -2423,7 +2446,7 @@ const darkVars = {
   accentBorder: "#456EA8",
   activeText: "#FFFFFF",
 
-  groupText: "#C8CED8",
+  groupText: "#BFD3FF",
   groupIconBg: "#222834",
   groupIconText: "#BFD3FF",
 
@@ -2440,6 +2463,13 @@ const darkVars = {
   liveSoft: "#1A1D25",
   logoBg: "#EAF2FF",
   logoText: "#101827",
+
+  sectionTitle: "#8FB7FF",
+  subItemText: "#C7CED9",
+  subItemMuted: "#98A2B3",
+  subItemHover: "#242A35",
+  subItemActive: "#253044",
+  subItemActiveBorder: "#456EA8",
 };
 
 const lightVars = {
@@ -2456,7 +2486,7 @@ const lightVars = {
   accentBorder: "#AFC8E8",
   activeText: "#152033",
 
-  groupText: "#596273",
+  groupText: "#315E8E",
   groupIconBg: "#EEF3FA",
   groupIconText: "#315E8E",
 
@@ -2473,6 +2503,13 @@ const lightVars = {
   liveSoft: "#F6F8FB",
   logoBg: "#1B1F27",
   logoText: "#FFFFFF",
+
+  sectionTitle: "#315E8E",
+  subItemText: "#374151",
+  subItemMuted: "#6B7280",
+  subItemHover: "#EEF4FC",
+  subItemActive: "#E6F0FF",
+  subItemActiveBorder: "#7EA6E8",
 };
 
 // ─── STATIC STYLES ────────────────────────────────────────────────────────────
@@ -2481,14 +2518,16 @@ const st: Record<string, CSSProperties> = {
   root: {
     transition: "background 0.3s",
     minHeight: "100vh",
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'DM Sans', 'Helvetica Neue', sans-serif",
   },
+
   shell: {
     display: "grid",
     gridTemplateColumns: "270px 1fr",
     minHeight: "100vh",
     transition: "grid-template-columns 0.22s ease",
   },
+
   sidebar: {
     display: "flex",
     flexDirection: "column",
@@ -2496,32 +2535,38 @@ const st: Record<string, CSSProperties> = {
     position: "sticky",
     top: 0,
     height: "100vh",
-    transition: "background 0.3s",
+    transition: "background 0.3s, box-shadow 0.3s",
+    overflow: "hidden",
   },
+
   sidebarLogo: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    padding: "22px 18px",
+    gap: 12,
+    padding: "20px 18px",
     textDecoration: "none",
+    minHeight: 84,
   },
+
   collapseButton: {
     width: "100%",
-    minHeight: 38,
-    borderRadius: 12,
-    padding: "8px 10px",
+    minHeight: 42,
+    borderRadius: 16,
+    padding: "10px 12px",
     display: "flex",
     alignItems: "center",
     gap: 8,
-    fontSize: 11,
-    fontWeight: 900,
+    fontSize: 13,
+    fontWeight: 800,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    transition: "all 0.18s ease",
   },
+
   logoMark: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -2530,140 +2575,190 @@ const st: Record<string, CSSProperties> = {
     fontWeight: 900,
     flexShrink: 0,
   },
+
   logoName: {
-    fontSize: 18,
-    letterSpacing: "-0.02em",
+    fontSize: 19,
+    letterSpacing: "-0.03em",
+    lineHeight: 1,
   },
+
   logoSub: {
     fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    marginTop: 2,
+    letterSpacing: "0.11em",
+    marginTop: 5,
   },
+
   nav: {
     flex: 1,
     padding: "8px 0",
     overflowY: "auto",
   },
+
   navGroup: {
-    marginBottom: 8,
+    marginBottom: 14,
   },
+
   navGroupHeader: {
     width: "100%",
-    minHeight: 32,
-    border: "none",
-    padding: "9px 18px",
+    minHeight: 42,
+    borderRadius: 16,
+    padding: "8px 10px",
     display: "flex",
     alignItems: "center",
-    gap: 9,
+    gap: 11,
     fontSize: 11,
     fontWeight: 900,
     textTransform: "uppercase",
-    letterSpacing: "0.08em",
+    letterSpacing: "0.13em",
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    transition: "all 0.18s ease",
   },
+
+  navGroupTitle: {
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    lineHeight: 1.2,
+  },
+
   navGroupIcon: {
-    minWidth: 46,
-    height: 26,
-    borderRadius: 8,
+    width: 34,
+    minWidth: 34,
+    height: 34,
+    borderRadius: 12,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 10,
-    fontWeight: 900,
-    background: "rgba(127,127,127,0.12)",
+    flexShrink: 0,
   },
+
+  navSubMenu: {
+    marginLeft: 17,
+    marginTop: 8,
+    paddingLeft: 14,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+
   collapsedNavGrid: {
     display: "grid",
     gridTemplateColumns: "1fr",
-    gap: 8,
+    gap: 9,
   },
+
   collapsedNavButton: {
     width: "100%",
     aspectRatio: "1 / 1",
-    borderRadius: 14,
+    borderRadius: 16,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 9,
-    lineHeight: 1.1,
-    fontWeight: 900,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    transition: "all 0.18s ease",
   },
+
   navTab: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: 11,
     width: "100%",
-    padding: "12px 18px",
-    fontSize: 15,
-    border: "none",
+    padding: "9px 10px",
+    borderRadius: 14,
+    fontSize: 14,
     cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
     textAlign: "left",
+    transition: "all 0.18s ease",
   },
+
+  navTabLabel: {
+    lineHeight: 1.35,
+  },
+
   navIcon: {
-    fontSize: 10,
-    width: 42,
-    minWidth: 42,
-    height: 24,
-    borderRadius: 8,
+    width: 32,
+    minWidth: 32,
+    height: 32,
+    borderRadius: 11,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: 900,
-    textAlign: "center",
+    flexShrink: 0,
   },
+
   sidebarBottom: {
     padding: 16,
     display: "flex",
     flexDirection: "column",
     gap: 8,
   },
+
   themeToggle: {
-    padding: "9px 12px",
-    borderRadius: 12,
+    padding: "10px 12px",
+    borderRadius: 14,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    fontWeight: 800,
+    transition: "all 0.18s ease",
   },
+
   signoutBtn: {
-    padding: "9px 12px",
-    borderRadius: 12,
+    padding: "10px 12px",
+    borderRadius: 14,
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "inherit",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    fontWeight: 800,
+    transition: "all 0.18s ease",
   },
+
   legalLinks: {
     display: "flex",
-    flexWrap: "wrap",
-    gap: 8,
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 4,
   },
+
   legalTextLink: {
-    fontSize: 11,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 12,
     textDecoration: "none",
-    lineHeight: 1.4,
+    padding: "7px 2px",
+    fontWeight: 700,
   },
+
   legalIconLink: {
     width: 34,
-    height: 30,
-    borderRadius: 10,
+    height: 34,
+    borderRadius: 12,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 11,
-    fontWeight: 900,
     textDecoration: "none",
   },
+
   mainArea: {
     display: "flex",
     flexDirection: "column",
     minHeight: "100vh",
     transition: "background 0.3s",
   },
+
   topbar: {
     padding: "18px 28px",
     display: "flex",
@@ -2673,6 +2768,7 @@ const st: Record<string, CSSProperties> = {
     top: 0,
     zIndex: 10,
   },
+
   tabLabel: {
     fontSize: 10,
     fontWeight: 800,
@@ -2680,20 +2776,24 @@ const st: Record<string, CSSProperties> = {
     letterSpacing: "0.12em",
     marginBottom: 4,
   },
+
   pageTitle: {
     fontSize: 32,
     fontWeight: 400,
     letterSpacing: "-0.03em",
     margin: 0,
   },
+
   pageSubtitle: {
     fontSize: 13,
     marginTop: 4,
   },
+
   topActions: {
     display: "flex",
     gap: 10,
   },
+
   topBtn: {
     padding: "10px 16px",
     borderRadius: 12,
@@ -2702,50 +2802,60 @@ const st: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
   },
+
   content: {
     padding: "24px 28px 34px",
     flex: 1,
     overflowY: "auto",
   },
+
   summaryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: 14,
     marginBottom: 18,
   },
+
   summaryCard: {
     borderRadius: 20,
     padding: 20,
   },
+
   summaryValue: {
     fontSize: 24,
     fontWeight: 400,
     margin: "8px 0",
     lineHeight: 1.15,
   },
+
   summaryNote: {
     fontSize: 12,
     lineHeight: 1.65,
     margin: 0,
   },
+
   panel: {
     borderRadius: 20,
     padding: 22,
   },
+
   aiStack: {
     display: "flex",
     flexDirection: "column",
     gap: 12,
     marginTop: 14,
   },
+
   aiInsightRow: {
     paddingLeft: 12,
   },
+
   insightText: {
     fontSize: 13,
     lineHeight: 1.7,
     margin: 0,
   },
+
   smallLabel: {
     fontSize: 10,
     fontWeight: 900,
@@ -2753,12 +2863,14 @@ const st: Record<string, CSSProperties> = {
     letterSpacing: "0.12em",
     margin: 0,
   },
+
   smallMiniLabel: {
     fontSize: 10,
     fontWeight: 800,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
+
   tilesLabel: {
     fontSize: 11,
     fontWeight: 800,
@@ -2766,11 +2878,13 @@ const st: Record<string, CSSProperties> = {
     letterSpacing: "0.08em",
     marginBottom: 14,
   },
+
   tilesGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: 14,
   },
+
   tile: {
     borderRadius: 22,
     padding: 18,
@@ -2780,6 +2894,7 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     overflow: "hidden",
   },
+
   socialWatermark: {
     position: "absolute",
     right: 16,
@@ -2790,6 +2905,7 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1,
     pointerEvents: "none",
   },
+
   accountWatermark: {
     position: "absolute",
     right: 24,
@@ -2800,6 +2916,7 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1,
     pointerEvents: "none",
   },
+
   contentWatermark: {
     position: "absolute",
     right: 16,
@@ -2810,11 +2927,13 @@ const st: Record<string, CSSProperties> = {
     lineHeight: 1,
     pointerEvents: "none",
   },
+
   tileTopLine: {
     height: 4,
     borderRadius: "14px 14px 0 0",
     margin: "-18px -18px 14px",
   },
+
   tileTop: {
     display: "flex",
     justifyContent: "space-between",
@@ -2823,18 +2942,22 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   tileName: {
     fontSize: 16,
     fontWeight: 900,
   },
+
   tileHandle: {
     fontSize: 11,
     marginTop: 2,
   },
+
   tileArrow: {
     fontSize: 12,
     marginTop: 2,
   },
+
   connectionRow: {
     display: "flex",
     alignItems: "center",
@@ -2844,6 +2967,7 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   connectionPill: {
     display: "inline-flex",
     alignItems: "center",
@@ -2852,6 +2976,7 @@ const st: Record<string, CSSProperties> = {
     fontSize: 10,
     fontWeight: 800,
   },
+
   liveLabel: {
     fontSize: 10,
     fontWeight: 800,
@@ -2861,12 +2986,14 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   scoreTrack: {
     flex: 1,
     height: 5,
     borderRadius: 999,
     background: "#71717A33",
   },
+
   tileStats: {
     display: "flex",
     gap: 20,
@@ -2875,13 +3002,16 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   tileStatValue: {
     fontSize: 13,
     fontWeight: 900,
   },
+
   tileStatLabel: {
     fontSize: 10,
   },
+
   tileBestFormat: {
     marginTop: 12,
     borderRadius: 14,
@@ -2892,6 +3022,7 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   tileAI: {
     display: "flex",
     flexDirection: "column",
@@ -2905,12 +3036,14 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   aiBoxLabel: {
     fontSize: 10,
     fontWeight: 900,
     textTransform: "uppercase",
     letterSpacing: "0.08em",
   },
+
   tileTrend: {
     fontSize: 11,
     marginTop: 9,
@@ -2918,6 +3051,7 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   backBtn: {
     padding: "8px 14px",
     borderRadius: 12,
@@ -2926,6 +3060,7 @@ const st: Record<string, CSSProperties> = {
     fontFamily: "inherit",
     marginBottom: 18,
   },
+
   accountSummary: {
     borderRadius: 22,
     padding: 20,
@@ -2933,6 +3068,7 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     overflow: "hidden",
   },
+
   accountSummaryRow: {
     display: "flex",
     gap: 34,
@@ -2941,18 +3077,22 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   accountMetrics: {
     display: "flex",
     gap: 28,
   },
+
   metricValue: {
     fontSize: 18,
     fontWeight: 900,
   },
+
   metricLabel: {
     fontSize: 11,
     marginTop: 2,
   },
+
   postsLabel: {
     fontSize: 11,
     fontWeight: 800,
@@ -2960,11 +3100,13 @@ const st: Record<string, CSSProperties> = {
     letterSpacing: "0.08em",
     marginBottom: 12,
   },
+
   postsList: {
     display: "flex",
     flexDirection: "column",
     gap: 10,
   },
+
   postRow: {
     borderRadius: 18,
     padding: "16px 16px",
@@ -2973,30 +3115,36 @@ const st: Record<string, CSSProperties> = {
     alignItems: "flex-start",
     justifyContent: "space-between",
   },
+
   postLeft: {
     flex: 1,
   },
+
   postTitle: {
     fontSize: 15,
     fontWeight: 900,
     lineHeight: 1.45,
     margin: 0,
   },
+
   postMeta: {
     display: "flex",
     gap: 14,
     marginTop: 8,
     flexWrap: "wrap",
   },
+
   metaItem: {
     fontSize: 11,
   },
+
   postBadges: {
     display: "flex",
     gap: 8,
     marginTop: 10,
     flexWrap: "wrap",
   },
+
   badge: {
     display: "inline-flex",
     padding: "5px 9px",
@@ -3004,6 +3152,7 @@ const st: Record<string, CSSProperties> = {
     fontSize: 11,
     fontWeight: 800,
   },
+
   postAI: {
     display: "inline-flex",
     gap: 8,
@@ -3014,33 +3163,39 @@ const st: Record<string, CSSProperties> = {
     fontSize: 11,
     lineHeight: 1.45,
   },
+
   postScoreBox: {
     textAlign: "center",
     flexShrink: 0,
     minWidth: 54,
   },
+
   sectionTitle: {
     fontSize: 28,
     lineHeight: 1.1,
     fontWeight: 400,
     margin: "10px 0",
   },
+
   sectionText: {
     fontSize: 13,
     lineHeight: 1.7,
     margin: 0,
   },
+
   contentGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
     gap: 16,
   },
+
   contentCard: {
     borderRadius: 22,
     padding: 18,
     position: "relative",
     overflow: "hidden",
   },
+
   contentCardHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -3049,11 +3204,13 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   platformDot: {
     width: 12,
     height: 12,
     borderRadius: "50%",
   },
+
   miniPostsStack: {
     display: "flex",
     flexDirection: "column",
@@ -3061,19 +3218,23 @@ const st: Record<string, CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
+
   miniPost: {
     borderRadius: 16,
     padding: 12,
   },
+
   miniPostTitle: {
     fontSize: 13,
     fontWeight: 800,
     lineHeight: 1.45,
   },
+
   miniPostMeta: {
     fontSize: 11,
     marginTop: 6,
   },
+
   miniAI: {
     display: "flex",
     flexDirection: "column",
@@ -3082,11 +3243,13 @@ const st: Record<string, CSSProperties> = {
     borderRadius: 12,
     padding: "9px 10px",
   },
+
   compareTable: {
     display: "flex",
     flexDirection: "column",
     gap: 10,
   },
+
   compareRow: {
     borderRadius: 18,
     padding: 15,
@@ -3095,6 +3258,7 @@ const st: Record<string, CSSProperties> = {
     gap: 16,
     alignItems: "center",
   },
+
   compareAIBox: {
     borderRadius: 14,
     padding: "10px 12px",
@@ -3102,6 +3266,7 @@ const st: Record<string, CSSProperties> = {
     flexDirection: "column",
     gap: 6,
   },
+
   calendarRow: {
     borderRadius: 18,
     padding: 15,
@@ -3110,30 +3275,36 @@ const st: Record<string, CSSProperties> = {
     gap: 12,
     alignItems: "center",
   },
+
   scheduleAI: {
     borderRadius: 14,
     padding: "10px 12px",
   },
+
   aiSmall: {
     fontSize: 12,
     lineHeight: 1.55,
     margin: "6px 0 0",
   },
+
   integrationsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: 16,
   },
+
   settingsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
     gap: 16,
   },
+
   integrationTitle: {
     fontSize: 25,
     fontWeight: 400,
     margin: "10px 0",
   },
+
   secondaryButton: {
     marginTop: 18,
     borderRadius: 12,
