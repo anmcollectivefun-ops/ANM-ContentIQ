@@ -366,29 +366,95 @@ export default function ShortStudio({ dark = true, workspaceId = "contentiq" }: 
   }
 
   async function captureVideoFrames() {
-    const video = videoRef.current;
-    if (!video || !videoPreviewUrl) return [];
-    const waitForEvent = (eventName: string) => new Promise<void>((resolve, reject) => {
-      const timeout = window.setTimeout(() => { cleanup(); reject(new Error("Nie udało się odczytać klatki video.")); }, 2500);
-      function cleanup() { window.clearTimeout(timeout); video.removeEventListener(eventName, onEvent); video.removeEventListener("error", onError); }
-      function onEvent() { cleanup(); resolve(); }
-      function onError() { cleanup(); reject(new Error("Błąd odczytu pliku video.")); }
-      video.addEventListener(eventName, onEvent, { once: true }); video.addEventListener("error", onError, { once: true });
-    });
-    if (video.readyState < 1) await waitForEvent("loadedmetadata");
-    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
-    const times = [0.8, duration * 0.45, Math.max(duration - 0.8, duration * 0.8)].map((time) => Math.min(Math.max(time, 0.1), Math.max(duration - 0.1, 0.1)));
-    const canvas = document.createElement("canvas");
-    const width = Math.min(video.videoWidth || 720, 720);
-    const height = Math.round(width * ((video.videoHeight || 1280) / (video.videoWidth || 720)));
-    canvas.width = width; canvas.height = height;
-    const ctx = canvas.getContext("2d"); if (!ctx) return [];
-    const frames: string[] = [];
-    const originalTime = video.currentTime; const wasPaused = video.paused; video.pause();
-    for (const time of times) { video.currentTime = time; await waitForEvent("seeked"); ctx.drawImage(video, 0, 0, width, height); frames.push(canvas.toDataURL("image/jpeg", 0.78)); }
-    video.currentTime = originalTime; if (!wasPaused) void video.play().catch(() => undefined);
-    return frames;
+  const currentVideo = videoRef.current;
+
+  if (!currentVideo || !videoPreviewUrl) {
+    return [];
   }
+
+  const activeVideo: HTMLVideoElement = currentVideo;
+
+  const waitForEvent = (eventName: string) =>
+    new Promise<void>((resolve, reject) => {
+      let timeout: number | undefined;
+
+      const cleanup = () => {
+        if (timeout) {
+          window.clearTimeout(timeout);
+        }
+
+        activeVideo.removeEventListener(eventName, onEvent);
+        activeVideo.removeEventListener("error", onError);
+      };
+
+      const onEvent = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onError = () => {
+        cleanup();
+        reject(new Error("Błąd odczytu pliku video."));
+      };
+
+      timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error(`Nie udało się odczytać klatki video: ${eventName}.`));
+      }, 2500);
+
+      activeVideo.addEventListener(eventName, onEvent, { once: true });
+      activeVideo.addEventListener("error", onError, { once: true });
+    });
+
+  if (activeVideo.readyState < 1) {
+    await waitForEvent("loadedmetadata");
+  }
+
+  const duration =
+    Number.isFinite(activeVideo.duration) && activeVideo.duration > 0
+      ? activeVideo.duration
+      : 1;
+
+  const times = [0.8, duration * 0.45, Math.max(duration - 0.8, duration * 0.8)].map(
+    (time) => Math.min(Math.max(time, 0.1), Math.max(duration - 0.1, 0.1))
+  );
+
+  const canvas = document.createElement("canvas");
+  const width = Math.min(activeVideo.videoWidth || 720, 720);
+  const height = Math.round(
+    width * ((activeVideo.videoHeight || 1280) / (activeVideo.videoWidth || 720))
+  );
+
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    return [];
+  }
+
+  const frames: string[] = [];
+  const originalTime = activeVideo.currentTime;
+  const wasPaused = activeVideo.paused;
+
+  activeVideo.pause();
+
+  for (const time of times) {
+    activeVideo.currentTime = time;
+    await waitForEvent("seeked");
+    ctx.drawImage(activeVideo, 0, 0, width, height);
+    frames.push(canvas.toDataURL("image/jpeg", 0.78));
+  }
+
+  activeVideo.currentTime = originalTime;
+
+  if (!wasPaused) {
+    void activeVideo.play().catch(() => undefined);
+  }
+
+  return frames;
+}
 
   async function analyzeVideo() {
     if (!videoFile && !videoUpload) { setVideoError("Najpierw wybierz plik video."); return; }
