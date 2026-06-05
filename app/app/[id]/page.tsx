@@ -869,7 +869,7 @@ export default function AppWorkspacePage() {
   const params = useParams();
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
-
+const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null);
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("accounts");
@@ -1861,6 +1861,8 @@ const formatProfileNumber = (value: any) => {
                 </div>
               </div>
             )}
+
+
 {/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}
 
 {activeTab === "accounts" && activeAccount && (
@@ -1971,7 +1973,7 @@ const formatProfileNumber = (value: any) => {
                 fontSize: 30,
                 lineHeight: 1.05,
                 fontFamily: "var(--font-heading)",
-                color: css.text,
+                color: css.heading,
               }}
             >
               {getAccountField(
@@ -2064,7 +2066,6 @@ const formatProfileNumber = (value: any) => {
                   "total_followers",
                   "fan_count",
                   "subscriber_count",
-
                   "profileLikes",
                   "profile_likes",
                   "likesCount",
@@ -2127,6 +2128,7 @@ const formatProfileNumber = (value: any) => {
                   fontWeight: 800,
                   textTransform: "uppercase",
                   letterSpacing: ".05em",
+                  fontFamily: "var(--font-label)",
                 }}
               >
                 {item.label}
@@ -2335,7 +2337,15 @@ const formatProfileNumber = (value: any) => {
 
               <button
                 type="button"
-                onClick={() => setActiveTab("content")}
+                onClick={() =>
+                  setSelectedPostDetails({
+                    ...post,
+                    platformName: activeAccount.name,
+                    platformColor: activeAccount.color,
+                    platformIcon: SOCIAL_ICONS[activeAccount.id],
+                    thumbnail,
+                  })
+                }
                 style={{
                   marginTop: 4,
                   border: `1px solid ${css.border}`,
@@ -2355,6 +2365,420 @@ const formatProfileNumber = (value: any) => {
           </div>
         );
       })}
+    </div>
+  </div>
+)}
+
+{selectedPostDetails && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      background: "rgba(0,0,0,0.72)",
+      backdropFilter: "blur(10px)",
+      display: "grid",
+      placeItems: "center",
+      padding: 22,
+    }}
+    onClick={() => setSelectedPostDetails(null)}
+  >
+    <div
+      onClick={(event) => event.stopPropagation()}
+      style={{
+        width: "min(980px, 96vw)",
+        maxHeight: "90vh",
+        overflow: "auto",
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        borderRadius: 28,
+        boxShadow: "0 28px 90px rgba(0,0,0,0.45)",
+        color: css.text,
+      }}
+    >
+      <div
+        style={{
+          height: 5,
+          background: selectedPostDetails.platformColor || css.accent,
+          borderRadius: "28px 28px 0 0",
+        }}
+      />
+
+      <div style={{ padding: 24, display: "grid", gap: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 16,
+            alignItems: "flex-start",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: css.accent,
+                fontFamily: "var(--font-label)",
+                fontSize: 13,
+                fontWeight: 900,
+                letterSpacing: ".12em",
+                textTransform: "uppercase",
+              }}
+            >
+              Szczegóły publikacji
+            </div>
+
+            <h2
+              style={{
+                margin: "8px 0 0",
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 34,
+                lineHeight: 1.05,
+              }}
+            >
+              {selectedPostDetails.platformName}
+            </h2>
+
+            <div
+              style={{
+                marginTop: 8,
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                color: css.muted,
+                fontSize: 12,
+              }}
+            >
+              <span>{selectedPostDetails.date}</span>
+              <span>•</span>
+              <span>{selectedPostDetails.type}</span>
+
+              {selectedPostDetails.url && (
+                <>
+                  <span>•</span>
+                  <a
+                    href={selectedPostDetails.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: selectedPostDetails.platformColor || css.accent,
+                      fontWeight: 900,
+                      textDecoration: "none",
+                    }}
+                  >
+                    Otwórz post ↗
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSelectedPostDetails(null)}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              border: `1px solid ${css.border}`,
+              background: css.liveSoft,
+              color: css.text,
+              cursor: "pointer",
+              fontSize: 18,
+              fontWeight: 900,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "220px 1fr",
+            gap: 20,
+            alignItems: "start",
+          }}
+        >
+          <div>
+            {selectedPostDetails.thumbnail ? (
+              <img
+                src={selectedPostDetails.thumbnail}
+                alt=""
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  objectFit: "cover",
+                  borderRadius: 22,
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  borderRadius: 22,
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  display: "grid",
+                  placeItems: "center",
+                  color: selectedPostDetails.platformColor || css.accent,
+                  fontSize: 42,
+                  fontWeight: 900,
+                }}
+              >
+                {selectedPostDetails.platformIcon}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div
+                style={{
+                  color: css.muted,
+                  fontFamily: "var(--font-label)",
+                  fontSize: 13,
+                  fontWeight: 900,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Tytuł / hook
+              </div>
+
+              <div
+                style={{
+                  color: css.text,
+                  fontSize: 18,
+                  fontWeight: 900,
+                  lineHeight: 1.35,
+                }}
+              >
+                {selectedPostDetails.title || "Publikacja bez tytułu"}
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{
+                  color: css.muted,
+                  fontFamily: "var(--font-label)",
+                  fontSize: 13,
+                  fontWeight: 900,
+                  letterSpacing: ".08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Pełny opis
+              </div>
+
+              <div
+                style={{
+                  background: css.liveSoft,
+                  border: `1px solid ${css.border}`,
+                  borderRadius: 18,
+                  padding: 14,
+                  color: css.text,
+                  fontSize: 13,
+                  lineHeight: 1.7,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {selectedPostDetails.description ||
+                  selectedPostDetails.content ||
+                  selectedPostDetails.title ||
+                  "Brak pełnego opisu dla tej publikacji."}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+            gap: 10,
+          }}
+        >
+          {[
+            ["Zasięg", selectedPostDetails.reach],
+            ["Wyświetlenia", selectedPostDetails.impressions ?? "—"],
+            [
+              "Polubienia",
+              selectedPostDetails.likes > 0
+                ? selectedPostDetails.likes.toLocaleString()
+                : "—",
+            ],
+            ["Komentarze", String(selectedPostDetails.comments ?? 0)],
+            [
+              "Udost.",
+              selectedPostDetails.shares ? String(selectedPostDetails.shares) : "—",
+            ],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              style={{
+                background: css.liveSoft,
+                border: `1px solid ${css.border}`,
+                borderRadius: 18,
+                padding: 14,
+                minHeight: 82,
+              }}
+            >
+              <div
+                style={{
+                  color: css.text,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 24,
+                  lineHeight: 1,
+                }}
+              >
+                {value}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  color: css.muted,
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: ".06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          style={{
+            background: css.aiBg,
+            border: `1px solid ${css.aiBorder}`,
+            boxShadow: css.aiGlow,
+            color: css.text,
+            borderRadius: 22,
+            padding: 18,
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              color: css.aiText,
+              fontFamily: "var(--font-label)",
+              fontWeight: 900,
+              letterSpacing: ".08em",
+              textTransform: "uppercase",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+          >
+            <Wand2 size={15} color={css.aiIcon} />
+            AI Score i miejsce na analizę
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "120px 1fr",
+              gap: 16,
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                placeItems: "center",
+                width: 96,
+                height: 96,
+                borderRadius: 26,
+                background: css.aiBgSoft,
+                border: `1px solid ${css.aiBorder}`,
+                color: getScoreColor(selectedPostDetails.score),
+                fontFamily: "var(--font-heading)",
+                fontSize: 34,
+                fontWeight: 900,
+              }}
+            >
+              {selectedPostDetails.score}
+            </div>
+
+            <div
+              style={{
+                color: css.text,
+                fontSize: 13,
+                lineHeight: 1.7,
+              }}
+            >
+              Na tym etapie AI Score jest punktacją techniczną. W kolejnym kroku
+              podłączymy tutaj pełne wyjaśnienie: dlaczego publikacja dostała
+              taki wynik, co poprawić i jaki następny krok wykonać.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gap: 10,
+            }}
+          >
+            {[
+              {
+                title: "Dlaczego taki wynik?",
+                text: "Tu pojawi się wyjaśnienie AI na podstawie zasięgu, interakcji, formatu i historii konta.",
+              },
+              {
+                title: "Co poprawić?",
+                text: "Tu pojawią się konkretne wskazówki naprawy: hook, format, CTA, miniatura, opis.",
+              },
+              {
+                title: "Co zrobić dalej?",
+                text: "Tu pojawi się rekomendacja: przerób na short, dodaj do harmonogramu albo opublikuj wariant.",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                style={{
+                  background: css.aiBgSoft,
+                  border: `1px solid ${css.aiBorder}`,
+                  borderRadius: 18,
+                  padding: 13,
+                }}
+              >
+                <div
+                  style={{
+                    color: css.aiText,
+                    fontSize: 12,
+                    fontWeight: 900,
+                    marginBottom: 6,
+                  }}
+                >
+                  {item.title}
+                </div>
+
+                <div
+                  style={{
+                    color: css.text,
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {item.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 )}

@@ -24,7 +24,7 @@ export default function TermsPage() {
         maxWidth: 860,
         margin: "0 auto",
         padding: "64px 28px 110px",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontFamily: "var(--font-body)",
         color: "#111827",
         lineHeight: 1.8,
       }}

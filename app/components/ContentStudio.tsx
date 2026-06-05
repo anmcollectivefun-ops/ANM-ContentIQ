@@ -502,7 +502,7 @@ function ScheduleModal({
           borderRadius: 18,
           padding: 28,
           width: 380,
-          fontFamily: "'DM Sans', sans-serif",
+          fontFamily: "var(--font-body)",
         }}
       >
         <div
@@ -946,7 +946,7 @@ function ContentActions({
             fontSize: 13,
             border: `1px solid ${toast.type === "ok" ? "#166534" : "#991b1b"}`,
             boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-            fontFamily: "'DM Sans', sans-serif",
+            fontFamily: "var(--font-body)",
           }}
         >
           {toast.msg}
