@@ -426,7 +426,7 @@ export default function CreativeStudio({
     "--muted": css.muted,
     "--border": css.border,
     "--accent": css.accent,
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+    fontFamily: "var(--font-body)",
     color: css.text,
   } as CSSProperties;
 
@@ -503,7 +503,7 @@ export default function CreativeStudio({
           <h2
             style={{
               margin: "8px 0 10px",
-              fontFamily: "'DM Serif Display', serif",
+              fontFamily: "var(--font-heading)",
               fontSize: 31,
               lineHeight: 1.05,
               fontWeight: 400,
@@ -928,7 +928,7 @@ export default function CreativeStudio({
 
                 <h3
                   style={{
-                    fontFamily: "'DM Serif Display', serif",
+                    fontFamily: "var(--font-heading)",
                     fontSize: 28,
                     fontWeight: 400,
                     margin: "0 0 8px",

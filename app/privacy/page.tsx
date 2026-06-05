@@ -44,7 +44,7 @@ export default function PrivacyPage() {
         }
 
         h1, h2, h3 {
-          font-family: 'DM Serif Display', serif;
+          font-family: var(--font-heading);
           color: #0f172a;
           letter-spacing: -0.02em;
         }

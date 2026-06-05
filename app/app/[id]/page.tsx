@@ -29,6 +29,7 @@ import {
   Sun,
   Video,
   WandSparkles,
+  Wand2,
   BrainCircuit,
   type LucideIcon,
 } from "lucide-react";
@@ -1264,7 +1265,7 @@ const formatProfileNumber = (value: any) => {
         <div
           style={{
             ...st.logoName,
-            fontFamily: "'DM Serif Display', serif",
+            fontFamily: "var(--font-heading)",
             color: css.text,
           }}
         >
@@ -1542,7 +1543,7 @@ const formatProfileNumber = (value: any) => {
               <h1
                 style={{
                   ...st.pageTitle,
-                  fontFamily: "'DM Serif Display', serif",
+                  fontFamily: "var(--font-heading)",
                   color: css.text,
                 }}
               >
@@ -1617,10 +1618,15 @@ const formatProfileNumber = (value: any) => {
                       ...st.summaryCard,
                       background: css.aiBg,
                       border: `1px solid ${css.aiBorder}`,
+                      boxShadow: css.aiGlow,
+                      color: css.text,
+                      position: "relative",
+                      overflow: "hidden",
                     }}
                   >
                     <p style={{ ...st.smallLabel, color: css.aiText }}>
-                      ✦ AI rekomendacja
+                      <Wand2 size={15} color={css.aiIcon} />
+                      AI rekomendacja
                     </p>
 
                     <h3 style={{ ...st.summaryValue, color: css.text }}>
@@ -1636,12 +1642,17 @@ const formatProfileNumber = (value: any) => {
                     className="ciq-mini-card"
                     style={{
                       ...st.summaryCard,
-                      background: css.aiBgSoft,
+                      background: css.aiBg,
                       border: `1px solid ${css.aiBorder}`,
+                      boxShadow: css.aiGlow,
+                      color: css.text,
+                      position: "relative",
+                      overflow: "hidden",
                     }}
                   >
                     <p style={{ ...st.smallLabel, color: css.aiText }}>
-                      ✦ AI alert
+                      <Wand2 size={15} color={css.aiIcon} />
+                      AI alert
                     </p>
 
                     <h3 style={{ ...st.summaryValue, color: css.text }}>
@@ -1659,11 +1670,16 @@ const formatProfileNumber = (value: any) => {
                     ...st.panel,
                     background: css.aiBg,
                     border: `1px solid ${css.aiBorder}`,
+                    boxShadow: css.aiGlow,
+                    color: css.text,
+                    position: "relative",
+                    overflow: "hidden",
                     marginBottom: 22,
                   }}
                 >
                   <p style={{ ...st.smallLabel, color: css.aiText }}>
-                    ✦ AI analiza cross-platform
+                    <Wand2 size={15} color={css.aiIcon} />
+                    AI analiza cross-platform
                   </p>
 
                   <div style={st.aiStack}>
@@ -1814,13 +1830,15 @@ const formatProfileNumber = (value: any) => {
                       <div
                         style={{
                           ...st.tileAI,
-                          background: css.aiBgSoft,
+                          background: css.aiBg,
                           border: `1px solid ${css.aiBorder}`,
+                          boxShadow: css.aiGlow,
                           color: css.text,
                         }}
                       >
                         <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
-                          ✦ AI wniosek
+                          <Wand2 size={15} color={css.aiIcon} />
+                          AI wniosek
                         </div>
 
                         <span style={{ fontSize: 11, lineHeight: 1.55 }}>
@@ -1952,7 +1970,7 @@ const formatProfileNumber = (value: any) => {
               style={{
                 fontSize: 30,
                 lineHeight: 1.05,
-                fontFamily: "'DM Serif Display', serif",
+                fontFamily: "var(--font-heading)",
                 color: css.text,
               }}
             >
@@ -2094,7 +2112,7 @@ const formatProfileNumber = (value: any) => {
                   color: item.highlight ? activeAccount.color : css.text,
                   fontSize: item.highlight ? 23 : 21,
                   lineHeight: 1.05,
-                  fontFamily: "'DM Serif Display', serif",
+                  fontFamily: "var(--font-heading)",
                 }}
               >
                 {item.value}
@@ -2123,6 +2141,7 @@ const formatProfileNumber = (value: any) => {
           ...st.tileAI,
           background: css.aiBg,
           border: `1px solid ${css.aiBorder}`,
+          boxShadow: css.aiGlow,
           color: css.text,
           marginTop: 18,
           position: "relative",
@@ -2130,7 +2149,8 @@ const formatProfileNumber = (value: any) => {
         }}
       >
         <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
-          ✦ AI analiza tej platformy
+          <Wand2 size={15} color={css.aiIcon} />
+          AI analiza tej platformy
         </div>
 
         <span>{activeAccount.aiTag}</span>
@@ -2304,7 +2324,7 @@ const formatProfileNumber = (value: any) => {
                   fontSize: 24,
                   fontWeight: 700,
                   color: scoreColor,
-                  fontFamily: "'DM Serif Display', serif",
+                  fontFamily: "var(--font-heading)",
                   lineHeight: 1,
                 }}
               >
@@ -2356,18 +2376,23 @@ const formatProfileNumber = (value: any) => {
         ...st.panel,
         background: css.aiBg,
         border: `1px solid ${css.aiBorder}`,
+        boxShadow: css.aiGlow,
+        color: css.text,
+        position: "relative",
+        overflow: "hidden",
         marginBottom: 18,
       }}
     >
       <p style={{ ...st.smallLabel, color: css.aiText }}>
-        ✦ AI podsumowanie contentu
+        <Wand2 size={15} color={css.aiIcon} />
+        AI podsumowanie contentu
       </p>
 
       <h2
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         Kluczowe wskaźniki contentu
@@ -2412,7 +2437,7 @@ const formatProfileNumber = (value: any) => {
                     style={{
                       ...st.sectionTitle,
                       color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     Twórz, analizuj, adaptuj i testuj hooki
@@ -2447,7 +2472,7 @@ const formatProfileNumber = (value: any) => {
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         TikTok, Reels i Shorts od pomysłu do scenariusza
@@ -2482,7 +2507,7 @@ const formatProfileNumber = (value: any) => {
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         Jedna idea, wiele krótkich video
@@ -2516,7 +2541,7 @@ const formatProfileNumber = (value: any) => {
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         Generowanie grafik AI do contentu
@@ -2551,7 +2576,7 @@ const formatProfileNumber = (value: any) => {
                     style={{
                       ...st.sectionTitle,
                       color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     {TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].title}
@@ -2591,7 +2616,7 @@ const formatProfileNumber = (value: any) => {
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].title}
@@ -2633,7 +2658,7 @@ const formatProfileNumber = (value: any) => {
                     style={{
                       ...st.sectionTitle,
                       color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     Samouczący się partner contentowy
@@ -2669,7 +2694,7 @@ const formatProfileNumber = (value: any) => {
         style={{
           ...st.sectionTitle,
           color: css.text,
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-heading)",
         }}
       >
         Strategia contentu na najbliższy okres
@@ -2707,7 +2732,7 @@ const formatProfileNumber = (value: any) => {
                       style={{
                         ...st.integrationTitle,
                         color: css.text,
-                        fontFamily: "'DM Serif Display', serif",
+                        fontFamily: "var(--font-heading)",
                       }}
                     >
                       {integration.name}
@@ -2750,7 +2775,7 @@ const formatProfileNumber = (value: any) => {
                     style={{
                       ...st.sectionTitle,
                       color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     Styl marki i zasady pisania
@@ -2777,7 +2802,7 @@ const formatProfileNumber = (value: any) => {
                     style={{
                       ...st.sectionTitle,
                       color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                     }}
                   >
                     Konta, integracje i preferencje
@@ -2895,7 +2920,7 @@ const st: Record<string, CSSProperties> = {
   root: {
     transition: "background 0.3s",
     minHeight: "100vh",
-    fontFamily: "'Plus Jakarta Sans', 'DM Sans', 'Helvetica Neue', sans-serif",
+    fontFamily: "var(--font-body)",
   },
 
   shell: {
@@ -2936,7 +2961,7 @@ const st: Record<string, CSSProperties> = {
     fontSize: 13,
     fontWeight: 800,
     cursor: "pointer",
-    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    fontFamily: "var(--font-body)",
     transition: "all 0.18s ease",
   },
 
@@ -2989,7 +3014,7 @@ const st: Record<string, CSSProperties> = {
     textTransform: "uppercase",
     letterSpacing: "0.13em",
     cursor: "pointer",
-    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    fontFamily: "var(--font-body)",
     transition: "all 0.18s ease",
   },
 
@@ -3035,7 +3060,7 @@ const st: Record<string, CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
-    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    fontFamily: "var(--font-body)",
     transition: "all 0.18s ease",
   },
 
@@ -3048,7 +3073,7 @@ const st: Record<string, CSSProperties> = {
     borderRadius: 14,
     fontSize: 14,
     cursor: "pointer",
-    fontFamily: "'Plus Jakarta Sans', 'DM Sans', sans-serif",
+    fontFamily: "var(--font-body)",
     textAlign: "left",
     transition: "all 0.18s ease",
   },
@@ -3224,7 +3249,9 @@ const st: Record<string, CSSProperties> = {
   },
 
   aiInsightRow: {
-    paddingLeft: 12,
+    padding: "10px 12px",
+    borderRadius: 14,
+    background: "rgba(255,255,255,0.035)",
   },
 
   insightText: {
@@ -3237,8 +3264,12 @@ const st: Record<string, CSSProperties> = {
     fontSize: 10,
     fontWeight: 900,
     textTransform: "uppercase",
-    letterSpacing: "0.12em",
+    letterSpacing: ".08em",
     margin: 0,
+    fontFamily: "var(--font-label)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
   },
 
   smallMiniLabel: {
@@ -3403,14 +3434,15 @@ const st: Record<string, CSSProperties> = {
   tileAI: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 8,
     alignItems: "flex-start",
-    padding: "10px 12px",
-    borderRadius: 14,
+    padding: "14px 16px",
+    borderRadius: 18,
     marginTop: 12,
     fontSize: 11,
     lineHeight: 1.5,
     position: "relative",
+    overflow: "hidden",
     zIndex: 1,
   },
 
@@ -3418,7 +3450,11 @@ const st: Record<string, CSSProperties> = {
     fontSize: 10,
     fontWeight: 900,
     textTransform: "uppercase",
-    letterSpacing: "0.08em",
+    letterSpacing: ".08em",
+    fontFamily: "var(--font-label)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
   },
 
   tileTrend: {
@@ -3534,11 +3570,13 @@ const st: Record<string, CSSProperties> = {
     display: "inline-flex",
     gap: 8,
     alignItems: "center",
-    padding: "7px 10px",
-    borderRadius: 12,
+    padding: "14px 16px",
+    borderRadius: 18,
     marginTop: 10,
     fontSize: 11,
     lineHeight: 1.45,
+    position: "relative",
+    overflow: "hidden",
   },
 
   postScoreBox: {
@@ -3615,10 +3653,12 @@ const st: Record<string, CSSProperties> = {
   miniAI: {
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 8,
     marginTop: 10,
-    borderRadius: 12,
-    padding: "9px 10px",
+    borderRadius: 18,
+    padding: "14px 16px",
+    position: "relative",
+    overflow: "hidden",
   },
 
   compareTable: {

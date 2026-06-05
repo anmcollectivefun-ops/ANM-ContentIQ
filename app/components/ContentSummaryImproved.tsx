@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Platform =
@@ -251,10 +252,12 @@ export default function ContentSummaryImproved({
         text: "#F5F5F5",
         muted: "#9CA3AF",
         border: "#27272A",
-        aiBg: "#0C1117",
-        aiBgSoft: "#101820",
-        aiBorder: "#1E3A4C",
-        aiText: "#7DD3FC",
+        aiBg: "rgba(109, 40, 217, 0.16)",
+        aiBgSoft: "rgba(147, 51, 234, 0.12)",
+        aiBorder: "rgba(192, 132, 252, 0.55)",
+        aiText: "#D8B4FE",
+        aiGlow: "0 0 28px rgba(168, 85, 247, 0.28)",
+        aiIcon: "#F0ABFC",
       }
     : {
         bg: "#F6F6F6",
@@ -263,10 +266,12 @@ export default function ContentSummaryImproved({
         text: "#111111",
         muted: "#71717A",
         border: "#E4E4E7",
-        aiBg: "#F0F9FF",
-        aiBgSoft: "#F8FCFF",
-        aiBorder: "#BAE6FD",
-        aiText: "#0284C7",
+        aiBg: "rgba(124, 58, 237, 0.10)",
+        aiBgSoft: "rgba(245, 243, 255, 0.95)",
+        aiBorder: "rgba(124, 58, 237, 0.34)",
+        aiText: "#6D28D9",
+        aiGlow: "0 0 26px rgba(124, 58, 237, 0.18)",
+        aiIcon: "#A855F7",
       };
 
   useEffect(() => {
@@ -399,7 +404,7 @@ export default function ContentSummaryImproved({
   }
 
   return (
-    <section style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text }}>
+    <section style={{ fontFamily: "var(--font-body)", color: css.text }}>
       <style>{`
         .ciq-platform-summary-grid {
           display: grid;
@@ -479,7 +484,7 @@ export default function ContentSummaryImproved({
                 margin: "5px 0 0",
                 color: css.text,
                 fontSize: 26,
-                fontFamily: "'DM Serif Display', serif",
+                fontFamily: "var(--font-heading)",
                 fontWeight: 400,
               }}
             >
@@ -546,7 +551,7 @@ export default function ContentSummaryImproved({
                     style={{
                       color: css.aiText,
                       fontSize: 24,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                       marginTop: 4,
                     }}
                   >
@@ -671,7 +676,7 @@ export default function ContentSummaryImproved({
                               style={{
                                 color: group.color,
                                 fontSize: 21,
-                                fontFamily: "'DM Serif Display', serif",
+                                fontFamily: "var(--font-heading)",
                                 marginTop: 4,
                               }}
                             >
@@ -843,16 +848,34 @@ export default function ContentSummaryImproved({
                                   <div
                                     style={{
                                       marginTop: 12,
-                                      background: css.aiBgSoft,
+                                      background: css.aiBg,
                                       border: `1px solid ${css.aiBorder}`,
-                                      borderRadius: 12,
-                                      padding: 10,
+                                      boxShadow: css.aiGlow,
+                                      borderRadius: 18,
+                                      padding: 14,
                                       color: css.text,
                                       fontSize: 12,
                                       lineHeight: 1.6,
+                                      position: "relative",
+                                      overflow: "hidden",
                                     }}
                                   >
-                                    <strong style={{ color: css.aiText }}>✦ AI: </strong>
+                                    <strong
+                                      style={{
+                                        color: css.aiText,
+                                        fontFamily: "var(--font-label)",
+                                        fontWeight: 900,
+                                        letterSpacing: ".08em",
+                                        textTransform: "uppercase",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 7,
+                                        marginRight: 6,
+                                      }}
+                                    >
+                                      <Wand2 size={15} color={css.aiIcon} />
+                                      AI analiza
+                                    </strong>
                                     {post.ai_summary}
                                   </div>
                                 </div>

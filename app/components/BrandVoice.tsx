@@ -139,7 +139,7 @@ export default function BrandVoice({
   );
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text, maxWidth: 760 }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text, maxWidth: 760 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
         *{box-sizing:border-box}
@@ -156,7 +156,7 @@ export default function BrandVoice({
       {/* Header */}
       <div style={{ marginBottom: 28 }} className="fade">
         <div style={{ fontSize: 10, fontWeight: 700, color: css.accent, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>✦ AI Personalizacja</div>
-        <h2 style={{ fontFamily: "'DM Serif Display',serif", fontSize: 28, fontWeight: 400, color: css.text, marginBottom: 8, letterSpacing: "-0.02em" }}>Brand Voice</h2>
+        <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 28, fontWeight: 400, color: css.text, marginBottom: 8, letterSpacing: "-0.02em" }}>Brand Voice</h2>
         <p style={{ fontSize: 13, color: css.muted, lineHeight: 1.7 }}>
           Opisz styl swojej marki — AI będzie automatycznie uwzględniać te ustawienia podczas generowania treści w Content Studio.
         </p>

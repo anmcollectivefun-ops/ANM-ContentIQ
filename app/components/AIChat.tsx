@@ -161,7 +161,7 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text, display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 500 }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text, display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 500 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
         *{box-sizing:border-box}

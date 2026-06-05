@@ -400,7 +400,7 @@ export default function AIPartner({
   }
 
   return (
-    <div style={{ color: css.text, fontFamily: "'DM Sans','Helvetica Neue',sans-serif" }}>
+    <div style={{ color: css.text, fontFamily: "var(--font-body)" }}>
       {loading && (
         <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted }}>
           AI Partner czyta Brand Voice, szablony, szkice i wyniki...
@@ -426,7 +426,7 @@ export default function AIPartner({
               <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.12em", color: css.accent, textTransform: "uppercase", marginBottom: 8 }}>
                 Pamięć stylu twórcy
               </div>
-              <h3 style={{ margin: "0 0 10px", fontSize: 24, fontFamily: "'DM Serif Display',serif", fontWeight: 400 }}>
+              <h3 style={{ margin: "0 0 10px", fontSize: 24, fontFamily: "var(--font-heading)", fontWeight: 400 }}>
                 AI ma pisać Twoim stylem, nie stylem AI
               </h3>
               <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.75 }}>

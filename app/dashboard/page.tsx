@@ -422,7 +422,7 @@ export default function DashboardPage() {
       ];
 
   return (
-    <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif", transition: "background 0.3s" }}>
+    <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "var(--font-body)", transition: "background 0.3s" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&family=DM+Serif+Display&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
@@ -446,7 +446,7 @@ export default function DashboardPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/ANM_ContentIQ_.JPG" alt="ANM ContentIQ app icon" style={{ width: 38, height: 38, borderRadius: 12, objectFit: "cover", border: `1px solid ${border}` }} />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'DM Serif Display', serif", color: text, letterSpacing: "-0.02em" }}>ANM ContentIQ</div>
+              <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "var(--font-heading)", color: text, letterSpacing: "-0.02em" }}>ANM ContentIQ</div>
               <div style={{ fontSize: 10, color: muted, letterSpacing: "0.05em", textTransform: "uppercase" }}>Analytics Dashboard</div>
             </div>
           </div>
@@ -476,7 +476,7 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 10 }}>
             ✦ Live Analytics
           </div>
-          <h1 style={{ fontSize: 40, fontWeight: 400, fontFamily: "'DM Serif Display', serif", color: text, letterSpacing: "-0.03em", lineHeight: 1.05, marginBottom: 10 }}>
+          <h1 style={{ fontSize: 40, fontWeight: 400, fontFamily: "var(--font-heading)", color: text, letterSpacing: "-0.03em", lineHeight: 1.05, marginBottom: 10 }}>
             Centrum analityki contentu
           </h1>
           <p style={{ fontSize: 14, color: muted, maxWidth: 560, lineHeight: 1.7 }}>
@@ -499,7 +499,7 @@ export default function DashboardPage() {
           ].map((stat, i) => (
             <div key={i} style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: "16px 18px" }} className="fade-up">
               <div style={{ fontSize: 11, color: muted, marginBottom: 6, fontWeight: 500 }}>{stat.label}</div>
-              <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display', serif", color: stat.color, lineHeight: 1 }}>{stat.value}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--font-heading)", color: stat.color, lineHeight: 1 }}>{stat.value}</div>
               <div style={{ fontSize: 11, color: muted, marginTop: 4 }}>{stat.sub}</div>
             </div>
           ))}
@@ -568,7 +568,7 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <ScoreRing score={acc.score} color={acc.color} />
                     <div>
-                      <div style={{ fontSize: 22, fontWeight: 700, color: acc.color, fontFamily: "'DM Serif Display', serif", lineHeight: 1 }}>{acc.score}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: acc.color, fontFamily: "var(--font-heading)", lineHeight: 1 }}>{acc.score}</div>
                       <div style={{ fontSize: 10, color: muted }}>AI Score</div>
                       <div style={{ fontSize: 11, fontWeight: 600, color: acc.trend === 0 ? muted : acc.trend > 0 ? "#22c55e" : "#ef4444", marginTop: 2 }}>
                         {acc.trend === 0 ? "0%" : `${acc.trend > 0 ? "↑" : "↓"} ${Math.abs(acc.trend)}%`}

@@ -1108,7 +1108,7 @@ export default function ContentStudio({
     "--muted": css.muted,
     "--border": css.border,
     "--accent": css.accent,
-    fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+    fontFamily: "var(--font-body)",
     color: css.text,
   } as CSSProperties;
 
@@ -1591,7 +1591,7 @@ export default function ContentStudio({
               <div
                 style={{
                   fontSize: 20,
-                  fontFamily: "'DM Serif Display', serif",
+                  fontFamily: "var(--font-heading)",
                   color: css.text,
                 }}
               >
@@ -1792,7 +1792,7 @@ export default function ContentStudio({
                   <div
                     style={{
                       fontSize: 34,
-                      fontFamily: "'DM Serif Display', serif",
+                      fontFamily: "var(--font-heading)",
                       color: getScoreColor(analysis.score),
                     }}
                   >
@@ -2057,7 +2057,7 @@ function ResultScoreHeader({
         <div
           style={{
             fontSize: 32,
-            fontFamily: "'DM Serif Display', serif",
+            fontFamily: "var(--font-heading)",
             color: getScoreColor(score),
           }}
         >

@@ -666,7 +666,7 @@ export default function Templates({
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text }}>
       <style>{`
         .template-card {
           transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;

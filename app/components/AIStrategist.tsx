@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Platform =
@@ -318,32 +319,36 @@ export default function AIStrategist({
 
   const css = dark
     ? {
-        bg: "#050505",
+        bg: "#1A2233",
         surface: "#111111",
         surfaceSoft: "#0B0B0C",
         text: "#F5F5F5",
-        muted: "#9CA3AF",
-        border: "#27272A",
-        accent: "#E5E7EB",
-        aiBg: "#0C1117",
-        aiBgSoft: "#101820",
-        aiBorder: "#1E3A4C",
-        aiText: "#7DD3FC",
+        muted: "#C9CED8",
+        border: "rgba(255,255,255,0.10)",
+        accent: "#8E443D",
+        aiBg: "rgba(109, 40, 217, 0.16)",
+        aiBgSoft: "rgba(147, 51, 234, 0.12)",
+        aiBorder: "rgba(192, 132, 252, 0.55)",
+        aiText: "#D8B4FE",
+        aiGlow: "0 0 28px rgba(168, 85, 247, 0.28)",
+        aiIcon: "#F0ABFC",
         ok: "#22c55e",
         warning: "#f59e0b",
       }
     : {
-        bg: "#F6F6F6",
+        bg: "#FFFFFF",
         surface: "#FFFFFF",
-        surfaceSoft: "#FAFAFA",
+        surfaceSoft: "#F7F2EF",
         text: "#111111",
         muted: "#71717A",
-        border: "#E4E4E7",
-        accent: "#111111",
-        aiBg: "#F0F9FF",
-        aiBgSoft: "#F8FCFF",
-        aiBorder: "#BAE6FD",
-        aiText: "#0284C7",
+        border: "rgba(35,31,32,0.14)",
+        accent: "#231F20",
+        aiBg: "rgba(124, 58, 237, 0.10)",
+        aiBgSoft: "rgba(245, 243, 255, 0.95)",
+        aiBorder: "rgba(124, 58, 237, 0.34)",
+        aiText: "#6D28D9",
+        aiGlow: "0 0 26px rgba(124, 58, 237, 0.18)",
+        aiIcon: "#A855F7",
         ok: "#16a34a",
         warning: "#d97706",
       };
@@ -903,7 +908,7 @@ export default function AIStrategist({
   };
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text }}>
       <style>{`
         .ai-strategy-grid {
           display: grid;
@@ -975,7 +980,7 @@ export default function AIStrategist({
               color: css.text,
               fontSize: 30,
               lineHeight: 1.05,
-              fontFamily: "'DM Serif Display', serif",
+              fontFamily: "var(--font-heading)",
               fontWeight: 400,
             }}
           >
@@ -1126,9 +1131,13 @@ export default function AIStrategist({
           style={{
             background: css.aiBg,
             border: `1px solid ${css.aiBorder}`,
+            boxShadow: css.aiGlow,
+            color: css.text,
             borderRadius: 18,
             padding: 16,
             minHeight: 360,
+            position: "relative",
+            overflow: "hidden",
           }}
         >
           <div
@@ -1136,11 +1145,16 @@ export default function AIStrategist({
               fontSize: 10,
               fontWeight: 900,
               textTransform: "uppercase",
-              letterSpacing: ".1em",
+              letterSpacing: ".08em",
               color: css.aiText,
+              fontFamily: "var(--font-label)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
               marginBottom: 8,
             }}
           >
+            <Wand2 size={15} color={css.aiIcon} />
             Powiadomienia strategiczne
           </div>
 
@@ -1157,13 +1171,13 @@ export default function AIStrategist({
               }}
             >
               <div>
-                <div style={{ fontSize: 46, opacity: 0.18, marginBottom: 10 }}>✦</div>
+                <Wand2 size={46} color={css.aiIcon} style={{ opacity: 0.28, marginBottom: 10 }} />
                 <h3
                   style={{
                     margin: "0 0 8px",
                     color: css.text,
                     fontSize: 24,
-                    fontFamily: "'DM Serif Display', serif",
+                    fontFamily: "var(--font-heading)",
                     fontWeight: 400,
                   }}
                 >
@@ -1283,7 +1297,7 @@ export default function AIStrategist({
                 color: css.text,
                 fontSize: 30,
                 lineHeight: 1.05,
-                fontFamily: "'DM Serif Display', serif",
+                fontFamily: "var(--font-heading)",
                 fontWeight: 400,
               }}
             >

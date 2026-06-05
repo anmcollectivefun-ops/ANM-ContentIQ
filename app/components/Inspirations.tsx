@@ -558,7 +558,7 @@ export default function Inspirations({
         <head>
           <title>${title}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 32px; line-height: 1.55; color: #111827; }
+            body { font-family: var(--font-body); padding: 32px; line-height: 1.55; color: #111827; }
             h1 { margin: 0 0 16px; font-size: 28px; }
             img { max-width: 100%; border-radius: 12px; margin: 0 0 20px; }
             pre { white-space: pre-wrap; font-family: inherit; font-size: 14px; }
@@ -1002,7 +1002,7 @@ export default function Inspirations({
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text }}>
       <style>{`
         .inspiration-card {
           transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type ShortPlatform =
@@ -407,9 +408,12 @@ function Card({
       style={{
         background: accent ? css.aiBg : css.surface,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
+        boxShadow: accent ? css.aiGlow : "none",
+        color: css.text,
         borderRadius: 18,
         padding: 16,
         minHeight,
+        position: "relative",
         overflow: "hidden",
       }}
     >
@@ -432,13 +436,20 @@ function ResultBox({
   return (
     <div
       style={{
-        background: accent ? css.aiBgSoft : css.surfaceSoft,
+        background: accent ? css.aiBg : css.surfaceSoft,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        borderRadius: 14,
-        padding: 13,
+        boxShadow: accent ? css.aiGlow : "none",
+        color: css.text,
+        borderRadius: accent ? 18 : 14,
+        padding: accent ? 14 : 13,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <SectionLabel color={accent ? css.aiText : css.accent}>{label}</SectionLabel>
+      <SectionLabel color={accent ? css.aiText : css.accent}>
+        {accent && <Wand2 size={15} color={css.aiIcon} />}
+        {label}
+      </SectionLabel>
       {children}
     </div>
   );
@@ -1316,7 +1327,7 @@ export default function ShortStudio({
   }
 
   const panelTitleStyle: CSSProperties = {
-    fontFamily: "'DM Serif Display', serif",
+    fontFamily: "var(--font-heading)",
     fontSize: 26,
     lineHeight: 1.05,
     margin: "6px 0 8px",
@@ -1347,7 +1358,7 @@ export default function ShortStudio({
           "--muted": css.muted,
           "--border": css.border,
           "--accent": css.accent,
-          fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+          fontFamily: "var(--font-body)",
           color: css.text,
         } as CSSProperties
       }
@@ -2204,7 +2215,7 @@ export default function ShortStudio({
                               color: getScoreColor(variant.score),
                               fontSize: 24,
                               fontWeight: 900,
-                              fontFamily: "'DM Serif Display', serif",
+                              fontFamily: "var(--font-heading)",
                             }}
                           >
                             {variant.score}

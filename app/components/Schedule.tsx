@@ -166,7 +166,7 @@ export default function Schedule({
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans','Helvetica Neue',sans-serif", color: css.text }}>
+    <div style={{ fontFamily: "var(--font-body)", color: css.text }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
         *{box-sizing:border-box}
@@ -213,7 +213,7 @@ export default function Schedule({
             {selected.draft?.ai_score && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <div style={{ fontSize: 11, color: css.muted }}>Przewidywany AI Score:</div>
-                <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: selected.draft.ai_score >= 80 ? "#22c55e" : selected.draft.ai_score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-heading)", color: selected.draft.ai_score >= 80 ? "#22c55e" : selected.draft.ai_score >= 60 ? "#f59e0b" : "#ef4444" }}>
                   {selected.draft.ai_score}
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function Schedule({
         ].map((stat, i) => (
           <div key={i} className="fade" style={{ animationDelay: `${i * 0.05}s`, padding: "16px 18px", borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
             <div style={{ fontSize: 11, color: css.muted, marginBottom: 6 }}>{stat.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: stat.color }}>{stat.value}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--font-heading)", color: stat.color }}>{stat.value}</div>
           </div>
         ))}
       </div>
@@ -288,7 +288,7 @@ export default function Schedule({
       {!loading && filtered.length === 0 && (
         <div style={{ textAlign: "center", padding: 60, border: `1px dashed ${css.border}`, borderRadius: 16, background: css.surface }}>
           <div style={{ fontSize: 36, opacity: 0.2, marginBottom: 12 }}>◷</div>
-          <div style={{ fontSize: 18, fontFamily: "'DM Serif Display',serif", color: css.text, marginBottom: 8 }}>
+          <div style={{ fontSize: 18, fontFamily: "var(--font-heading)", color: css.text, marginBottom: 8 }}>
             Brak zaplanowanych postów
           </div>
           <div style={{ fontSize: 13, color: css.muted, lineHeight: 1.7 }}>
@@ -331,7 +331,7 @@ export default function Schedule({
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                   {post.draft?.ai_score && (
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: post.draft.ai_score >= 80 ? "#22c55e" : post.draft.ai_score >= 60 ? "#f59e0b" : "#ef4444" }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-heading)", color: post.draft.ai_score >= 80 ? "#22c55e" : post.draft.ai_score >= 60 ? "#f59e0b" : "#ef4444" }}>
                         {post.draft.ai_score}
                       </div>
                       <div style={{ fontSize: 9, color: css.muted }}>AI Score</div>
@@ -354,7 +354,7 @@ export default function Schedule({
           <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${css.border}` }}>
             <button className="sch-btn" onClick={prevMonth}
               style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, fontSize: 14 }}>←</button>
-            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "'DM Serif Display',serif", color: css.text }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-heading)", color: css.text }}>
               {MONTHS_PL[calMonth]} {calYear}
             </div>
             <button className="sch-btn" onClick={nextMonth}

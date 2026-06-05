@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type VideoPlatform = "youtube" | "tiktok" | "facebook" | "instagram" | "linkedin";
@@ -441,9 +442,12 @@ function Card({
       style={{
         background: accent ? css.aiBg : css.surface,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
+        boxShadow: accent ? css.aiGlow : "none",
+        color: css.text,
         borderRadius: 18,
         padding: 16,
         minHeight,
+        position: "relative",
         overflow: "hidden",
       }}
     >
@@ -500,13 +504,20 @@ function ResultBlock({
   return (
     <div
       style={{
-        background: accent ? css.aiBgSoft : css.surfaceSoft,
+        background: accent ? css.aiBg : css.surfaceSoft,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        borderRadius: 14,
-        padding: 13,
+        boxShadow: accent ? css.aiGlow : "none",
+        color: css.text,
+        borderRadius: accent ? 18 : 14,
+        padding: accent ? 14 : 13,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <SectionLabel color={accent ? css.aiText : css.accent}>{label}</SectionLabel>
+      <SectionLabel color={accent ? css.aiText : css.accent}>
+        {accent && <Wand2 size={15} color={css.aiIcon} />}
+        {label}
+      </SectionLabel>
       {children}
     </div>
   );
@@ -1249,7 +1260,7 @@ export default function VideoStudio({
   }
 
   const panelTitleStyle: CSSProperties = {
-    fontFamily: "'DM Serif Display', serif",
+    fontFamily: "var(--font-heading)",
     fontSize: 26,
     lineHeight: 1.05,
     margin: "6px 0 8px",
@@ -1280,7 +1291,7 @@ export default function VideoStudio({
           "--muted": css.muted,
           "--border": css.border,
           "--accent": css.accent,
-          fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+          fontFamily: "var(--font-body)",
           color: css.text,
         } as CSSProperties
       }
@@ -2062,7 +2073,7 @@ export default function VideoStudio({
                         <div
                           style={{
                             fontSize: 38,
-                            fontFamily: "'DM Serif Display', serif",
+                            fontFamily: "var(--font-heading)",
                             color: getScoreColor(brief.estimated_score),
                             lineHeight: 1,
                           }}
