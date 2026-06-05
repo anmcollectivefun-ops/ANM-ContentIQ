@@ -241,16 +241,12 @@ async function fetchFacebook(
             insights = insightData.data || [];
             break;
           }
-        } catch {
-          // Insights są dodatkiem. Jeśli Meta ich nie odda, post nadal zapisujemy.
-        }
+        } catch {}
       }
 
-      let engagementDetails: {
-        likes?: number;
-        comments?: number;
-        shares?: number;
-      } = {};
+      let likes = 0;
+      let comments = 0;
+      let shares = 0;
 
       try {
         const engagementRes = await fetch(
@@ -262,15 +258,11 @@ async function fetchFacebook(
         const engagementData = await engagementRes.json();
 
         if (!engagementData.error) {
-          engagementDetails = {
-            likes: engagementData.reactions?.summary?.total_count || 0,
-            comments: engagementData.comments?.summary?.total_count || 0,
-            shares: engagementData.shares?.count || 0,
-          };
+          likes = engagementData.reactions?.summary?.total_count || 0;
+          comments = engagementData.comments?.summary?.total_count || 0;
+          shares = engagementData.shares?.count || 0;
         }
-      } catch {
-        // Jeśli Meta zablokuje reakcje/komentarze, nie wywalamy całej synchronizacji.
-      }
+      } catch {}
 
       const image = firstString(post.full_picture, post.picture);
 
@@ -286,12 +278,12 @@ async function fetchFacebook(
         image_url: firstString(post.full_picture),
         cover_url: firstString(post.picture),
 
-        reach: getInsightValue(insights, "post_impressions_unique"),
-        impressions: getInsightValue(insights, "post_impressions"),
-        likes: engagementDetails.likes || 0,
-        comments: engagementDetails.comments || 0,
-        shares: engagementDetails.shares || 0,
-        clicks: getInsightValue(insights, "post_clicks"),
+        reach: Number(getInsightValue(insights, "post_impressions_unique") || 0),
+        impressions: Number(getInsightValue(insights, "post_impressions") || 0),
+        likes,
+        comments,
+        shares,
+        clicks: Number(getInsightValue(insights, "post_clicks") || 0),
       };
     })
   );
