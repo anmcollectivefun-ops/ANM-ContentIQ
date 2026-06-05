@@ -14,7 +14,6 @@ import {
   Clapperboard,
   FileText,
   GitCompareArrows,
-  Home,
   ImagePlus,
   Layers3,
   Library,
@@ -46,7 +45,7 @@ import CreativeStudio from "@/app/components/CreativeStudio";
 import { calculatePerformanceScore } from "@/lib/performanceScore";
 import Inspirations from "@/app/components/Inspirations";
 import AIStrategist from "@/app/components/AIStrategist";
-
+import ContentSummaryImproved from "@/app/components/ContentSummaryImproved";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -227,6 +226,33 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "calendar", label: "Harmonogram", icon: "calendar" },
     ],
   },
+    {
+  id: "inspirationLibrary",
+  title: "Inspiracje",
+  icon: "groupInspirations",
+  tabs: [
+    {
+      id: "inspirationsContent",
+      label: "Inspiracje contentu",
+      icon: "inspirationsContent",
+    },
+    {
+      id: "inspirationsVideo",
+      label: "Inspiracje video",
+      icon: "inspirationsVideo",
+    },
+    {
+      id: "inspirationsShort",
+      label: "Inspiracje short",
+      icon: "inspirationsShort",
+    },
+    {
+      id: "inspirationsCreative",
+      label: "Inspiracje creative",
+      icon: "inspirationsCreative",
+    },
+  ],
+},
   {
     id: "templateLibrary",
     title: "Szablony",
@@ -258,33 +284,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "settings", label: "Ustawienia", icon: "settings" },
     ],
   },
-  {
-  id: "inspirationLibrary",
-  title: "Inspiracje",
-  icon: "groupInspirations",
-  tabs: [
-    {
-      id: "inspirationsContent",
-      label: "Inspiracje contentu",
-      icon: "inspirationsContent",
-    },
-    {
-      id: "inspirationsVideo",
-      label: "Inspiracje video",
-      icon: "inspirationsVideo",
-    },
-    {
-      id: "inspirationsShort",
-      label: "Inspiracje short",
-      icon: "inspirationsShort",
-    },
-    {
-      id: "inspirationsCreative",
-      label: "Inspiracje creative",
-      icon: "inspirationsCreative",
-    },
-  ],
-},
+
 ];
 
 const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((group) => group.tabs);
@@ -758,12 +758,6 @@ export default function AppWorkspacePage() {
   const bestAccount = useMemo(() => [...accounts].sort((a, b) => b.score - a.score)[0], [accounts]);
   const weakestAccount = useMemo(() => [...accounts].sort((a, b) => a.score - b.score)[0], [accounts]);
 
-  const latestContentGroups = useMemo(() => {
-    return accounts.map((account) => ({
-      account,
-      posts: (postsByPlatform[account.id] ?? []).slice(0, 3),
-    }));
-  }, [accounts, postsByPlatform]);
 
   const realInsights = useMemo<Insight[]>(() => {
     const totalPosts = accounts.reduce((sum, account) => sum + account.posts, 0);
@@ -945,6 +939,7 @@ export default function AppWorkspacePage() {
   if (!mounted) {
     return null;
   }
+
 
   return (
     <div style={{ ...st.root, background: css.bg, color: css.text }}>
@@ -1934,273 +1929,47 @@ export default function AppWorkspacePage() {
               </div>
             )}
 
- {/* ================= PODSUMOWANIE CONTENTU ================= */}
-   {activeTab === "content" && (
-              <div>
-                <div
-                  style={{
-                    ...st.panel,
-                    background: css.aiBg,
-                    border: `1px solid ${css.aiBorder}`,
-                    marginBottom: 18,
-                  }}
-                >
-                  <p style={{ ...st.smallLabel, color: css.aiText }}>
-                    ✦ AI podsumowanie contentu
-                  </p>
 
-                  <h2
-                    style={{
-                      ...st.sectionTitle,
-                      color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
-                    }}
-                  >
-                    Ostatnie treści ze wszystkich kanałów
-                  </h2>
 
-                  <p style={{ ...st.sectionText, color: css.muted }}>
-                    Tutaj widzisz najnowszy content ze wszystkich platform bez
-                    skakania między kanałami. AI od razu pokazuje, co zadziałało
-                    najlepiej i gdzie warto przerabiać treść na inny format.
-                  </p>
-                </div>
+{/* ================= PODSUMOWANIE CONTENTU ================= */}
+{activeTab === "content" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.aiBg,
+        border: `1px solid ${css.aiBorder}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.aiText }}>
+        ✦ AI podsumowanie contentu
+      </p>
 
-                <div className="ciq-content-grid" style={st.contentGrid}>
-                  {latestContentGroups.map(({ account, posts }) => (
-                    <div
-                      key={account.id}
-                      className="ciq-mini-card"
-                      style={{
-                        ...st.contentCard,
-                        background: css.surface,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <span
-                        style={{
-                          ...st.contentWatermark,
-                          color: account.color,
-                        }}
-                      >
-                        {SOCIAL_ICONS[account.id]}
-                      </span>
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        Kluczowe wskaźniki contentu
+      </h2>
 
-                      <div style={st.contentCardHeader}>
-                        <div>
-                          <div style={{ ...st.tileName, color: css.text }}>
-                            {account.name}
-                          </div>
-                          <div style={{ ...st.tileHandle, color: css.muted }}>
-                            {account.handle}
-                          </div>
-                        </div>
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Tutaj widzisz najważniejsze wyniki z ostatnich treści: wyświetlenia,
+        polubienia, komentarze, udostępnienia, średnie wyniki oraz profil
+        powiązany z daną platformą.
+      </p>
+    </div>
 
-                        <span
-                          style={{
-                            ...st.platformDot,
-                            background: account.color,
-                          }}
-                        />
-                      </div>
-
-                      <div style={st.miniPostsStack}>
-                        {posts.map((post) => (
-                          <div
-                            key={post.id}
-                            style={{
-                              ...st.miniPost,
-                              border: `1px solid ${css.border}`,
-                              background: css.liveSoft,
-                            }}
-                          >
-                            <div
-                              style={{ ...st.miniPostTitle, color: css.text }}
-                            >
-                              {post.title}
-                            </div>
-
-                            {post.url && (
-                              <a
-                                href={post.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  display: "inline-flex",
-                                  marginTop: 6,
-                                  color: account.color,
-                                  fontSize: 11,
-                                  fontWeight: 800,
-                                  textDecoration: "none",
-                                }}
-                              >
-                                Otwórz link ↗
-                              </a>
-                            )}
-
-                            <div
-                              style={{ ...st.miniPostMeta, color: css.muted }}
-                            >
-                              {post.type} • {post.date} • zasięg {post.reach}
-                            </div>
-
-                            <div
-                              style={{
-                                ...st.miniAI,
-                                background: css.aiBgSoft,
-                                border: `1px solid ${css.aiBorder}`,
-                              }}
-                            >
-                              <span
-                                style={{ ...st.aiBoxLabel, color: css.aiText }}
-                              >
-                                ✦ AI
-                              </span>
-
-                              <span
-                                style={{
-                                  color: css.text,
-                                  fontSize: 11,
-                                  lineHeight: 1.5,
-                                }}
-                              >
-                                {post.ai}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
- {/* ================= PORÓWNANIE CONTENTU ================= */}
- {activeTab === "compare" && (
-              <div>
-                <div
-                  style={{
-                    ...st.panel,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                    marginBottom: 18,
-                  }}
-                >
-                  <p style={{ ...st.smallLabel, color: css.accent }}>
-                    Porównanie platform
-                  </p>
-
-                  <h2
-                    style={{
-                      ...st.sectionTitle,
-                      color: css.text,
-                      fontFamily: "'DM Serif Display', serif",
-                    }}
-                  >
-                    Gdzie jaki content ma przewagę?
-                  </h2>
-
-                  <p style={{ ...st.sectionText, color: css.muted }}>
-                    Porównuj platformy obok siebie i sprawdzaj, gdzie dany styl,
-                    format albo temat działa najlepiej.
-                  </p>
-                </div>
-
-                <div
-                  style={{
-                    ...st.panel,
-                    background: css.aiBg,
-                    border: `1px solid ${css.aiBorder}`,
-                    marginBottom: 18,
-                  }}
-                >
-                  <p style={{ ...st.smallLabel, color: css.aiText }}>
-                    ✦ AI wniosek globalny
-                  </p>
-
-                  <p style={{ ...st.sectionText, color: css.text }}>
-                    {realInsights[0]?.text || "Brak pobranych danych do porównania platform. Po synchronizacji aplikacja pokaże tutaj realny wniosek."}
-                  </p>
-                </div>
-
-                <div style={st.compareTable}>
-                  {accounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="ciq-compare-row ciq-post-row"
-                      style={{
-                        ...st.compareRow,
-                        background: css.surface,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <div>
-                        <strong style={{ color: css.text }}>
-                          {account.name}
-                        </strong>
-
-                        <p
-                          style={{
-                            fontSize: 12,
-                            color: css.muted,
-                            margin: "4px 0 0",
-                          }}
-                        >
-                          {account.handle}
-                        </p>
-                      </div>
-
-                      <div>
-                        <div
-                          style={{
-                            ...st.smallMiniLabel,
-                            color: css.muted,
-                            marginBottom: 6,
-                          }}
-                        >
-                          AI Score
-                        </div>
-
-                        <ScoreBar score={account.score} />
-                      </div>
-
-                      <div style={{ fontSize: 12, color: css.muted }}>
-                        <span style={{ color: css.text, fontWeight: 700 }}>
-                          Najlepszy format:
-                        </span>
-                        <br />
-                        <span style={{ color: account.color }}>
-                          {account.bestFormat}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          ...st.compareAIBox,
-                          background: css.aiBgSoft,
-                          border: `1px solid ${css.aiBorder}`,
-                        }}
-                      >
-                        <span style={{ ...st.aiBoxLabel, color: css.aiText }}>
-                          ✦ AI
-                        </span>
-
-                        <span
-                          style={{
-                            color: css.text,
-                            fontSize: 11,
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {account.aiTag}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+    <ContentSummaryImproved
+      dark={dark}
+      workspaceId={workspaceId}
+      platform="tiktok"
+    />
+  </div>
+)}
 
  {/* ================= HARMONOGRAM ================= */}
    {activeTab === "calendar" && (
