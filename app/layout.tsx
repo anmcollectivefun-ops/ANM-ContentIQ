@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import {
+  Playfair_Display,
+  Montserrat,
+  Cormorant_Garamond,
+} from "next/font/google";
 import "./globals.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta",
+const playfair = Playfair_Display({
+  subsets: ["latin-ext"],
+  variable: "--font-heading",
+  display: "swap",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin-ext"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin-ext"],
+  variable: "--font-label",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -19,7 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pl">
-      <body className={plusJakarta.variable}>{children}</body>
+      <body
+        className={`${playfair.variable} ${montserrat.variable} ${cormorant.variable}`}
+      >
+        {children}
+      </body>
     </html>
   );
 }
