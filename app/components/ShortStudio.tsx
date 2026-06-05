@@ -147,6 +147,15 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function unique(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function extractHashtags(text: string | null | undefined) {
+  if (!text) return [];
+  return unique((text.match(/#[\p{L}\p{N}_-]+/gu) || []).slice(0, 32));
+}
+
 function safeFileName(fileName: string) {
   const dotIndex = fileName.lastIndexOf(".");
   const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
@@ -1232,22 +1241,24 @@ export default function ShortStudio({
 
       const { error: insertError } = await supabase
         .schema("contentiq")
-        .from("content_drafts")
+        .from("inspirations")
         .insert({
           workspace_id: wsId,
+          source_kind: "short",
+          source_studio: "Short Studio",
           title: result.idea_title || topic.slice(0, 80),
+          description: result.main_angle || result.ai_summary,
           body,
-          topic,
-          content_type: "Short Studio / multi-platform video",
-          target_platforms: selectedPlatforms,
+          platforms: selectedPlatforms,
+          hashtags: extractHashtags(body),
           ai_score: avgScore,
           ai_feedback: result.ai_summary,
-          status: "draft",
+          status: "active",
         });
 
       if (insertError) throw new Error(insertError.message);
 
-      showToast("✓ Zapisano jako szkic");
+      showToast("✓ Zapisano jako inspirację short");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -2297,7 +2308,7 @@ export default function ShortStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {saving ? "Zapisuję..." : "Szkic"}
+                      {saving ? "Zapisuję..." : "Inspiracja"}
                     </button>
                   </div>
 

@@ -203,6 +203,15 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function unique(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function extractHashtags(text: string | null | undefined) {
+  if (!text) return [];
+  return unique((text.match(/#[\p{L}\p{N}_-]+/gu) || []).slice(0, 32));
+}
+
 function safeFileName(fileName: string) {
   const dotIndex = fileName.lastIndexOf(".");
   const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
@@ -1179,22 +1188,24 @@ export default function VideoStudio({
 
       const { error: insertError } = await supabase
         .schema("contentiq")
-        .from("content_drafts")
+        .from("inspirations")
         .insert({
           workspace_id: wsId,
+          source_kind: "video",
+          source_studio: "Video Studio",
           title: brief.title || topic.slice(0, 80),
+          description: brief.hook || brief.ai_notes,
           body,
-          topic,
-          content_type: `Video Studio / ${brief.format}`,
-          target_platforms: [brief.platform],
+          platforms: [brief.platform],
+          hashtags: extractHashtags(body),
           ai_score: brief.estimated_score,
           ai_feedback: brief.ai_notes,
-          status: "draft",
+          status: "active",
         });
 
       if (insertError) throw new Error(insertError.message);
 
-      showToast("✓ Zapisano brief video jako szkic");
+      showToast("✓ Zapisano brief video jako inspirację");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -2229,7 +2240,7 @@ export default function VideoStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {saving ? "Zapisuję..." : "Szkic"}
+                      {saving ? "Zapisuję..." : "Inspiracja"}
                     </button>
                   </div>
 

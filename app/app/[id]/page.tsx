@@ -43,6 +43,7 @@ import VideoStudio from "@/app/components/VideoStudio";
 import ShortStudio from "@/app/components/ShortStudio";
 import CreativeStudio from "@/app/components/CreativeStudio";
 import { calculatePerformanceScore } from "@/lib/performanceScore";
+import Inspirations from "@/app/components/Inspirations";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,13 @@ type TabId =
   | "brand"
   | "chat"
   | "integrations"
-  | "settings";
+  | "settings"
+  |"inspirationsContent"
+|"inspirationsVideo"
+|"inspirationsShort"
+|"inspirationsCreative"
+  
+;
 
 interface Account {
   id: Platform;
@@ -169,7 +176,13 @@ interface NavTab {
 }
 
 interface NavGroup {
-  id: "stats" | "creation" | "templateLibrary" | "ai" | "settings";
+  id:
+    | "stats"
+    | "creation"
+    | "templateLibrary"
+    | "inspirationLibrary"
+    | "ai"
+    | "settings";
   title: string;
   icon: NavIconName;
   tabs: NavTab[];
@@ -242,6 +255,33 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "settings", label: "Ustawienia", icon: "settings" },
     ],
   },
+  {
+  id: "inspirationLibrary",
+  title: "Inspiracje",
+  icon: "groupInspirations",
+  tabs: [
+    {
+      id: "inspirationsContent",
+      label: "Inspiracje contentu",
+      icon: "inspirationsContent",
+    },
+    {
+      id: "inspirationsVideo",
+      label: "Inspiracje video",
+      icon: "inspirationsVideo",
+    },
+    {
+      id: "inspirationsShort",
+      label: "Inspiracje short",
+      icon: "inspirationsShort",
+    },
+    {
+      id: "inspirationsCreative",
+      label: "Inspiracje creative",
+      icon: "inspirationsCreative",
+    },
+  ],
+},
 ];
 
 const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((group) => group.tabs);
@@ -286,7 +326,55 @@ const TEMPLATE_VIEWS = {
   Extract<TabId, "templates" | "templatesContent" | "templatesVideo" | "templatesShort" | "templatesCreative">,
   { kind: "content" | "video" | "short" | "creative"; label: string; title: string; description: string; targetTab: TabId }
 >;
-
+const INSPIRATION_VIEWS = {
+  inspirationsContent: {
+    kind: "content",
+    label: "Inspiracje contentu",
+    title: "Inspiracje z Content Studio",
+    description:
+      "Pomysły, propozycje postów, warianty hooków i treści robocze, które możesz edytować i zamienić w szablon.",
+    targetTab: "studio",
+  },
+  inspirationsVideo: {
+    kind: "video",
+    label: "Inspiracje video",
+    title: "Inspiracje z Video Studio",
+    description:
+      "Propozycje scenariuszy, ujęć, miniatur i opisów video do dalszej edycji.",
+    targetTab: "video",
+  },
+  inspirationsShort: {
+    kind: "short",
+    label: "Inspiracje short",
+    title: "Inspiracje z Short Studio",
+    description:
+      "Pomysły na krótkie formaty, hooki, opisy i warianty pod TikTok, Reels, Shorts oraz LinkedIn Video.",
+    targetTab: "shorts",
+  },
+  inspirationsCreative: {
+    kind: "creative",
+    label: "Inspiracje creative",
+    title: "Inspiracje z Creative Studio",
+    description:
+      "Pomysły na grafiki, miniatury, okładki, prompty i kreacje do social media.",
+    targetTab: "creative",
+  },
+} as const satisfies Record<
+  Extract<
+    TabId,
+    | "inspirationsContent"
+    | "inspirationsVideo"
+    | "inspirationsShort"
+    | "inspirationsCreative"
+  >,
+  {
+    kind: "content" | "video" | "short" | "creative";
+    label: string;
+    title: string;
+    description: string;
+    targetTab: TabId;
+  }
+>;
 const INTEGRATIONS = [
   {
     name: "Instagram / Facebook",
@@ -339,15 +427,23 @@ const NAV_ICONS = {
   content: FileText,
   compare: GitCompareArrows,
   calendar: CalendarDays,
+
   studio: PenLine,
   video: Video,
   shorts: Clapperboard,
   creative: ImagePlus,
+
   templates: Library,
   templatesContent: FileText,
   templatesVideo: Video,
   templatesShort: Clapperboard,
   templatesCreative: ImagePlus,
+
+  inspirationsContent: Sparkles,
+  inspirationsVideo: Video,
+  inspirationsShort: Clapperboard,
+  inspirationsCreative: ImagePlus,
+
   partner: Bot,
   brand: WandSparkles,
   chat: MessageCircle,
@@ -357,6 +453,7 @@ const NAV_ICONS = {
   groupStats: BarChart3,
   groupCreation: PenLine,
   groupTemplates: Library,
+  groupInspirations: Sparkles,
   groupAi: Sparkles,
   groupSettings: Settings,
 } satisfies Record<string, LucideIcon>;
@@ -642,12 +739,13 @@ export default function AppWorkspacePage() {
   const [signingOut, setSigningOut] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openNavGroups, setOpenNavGroups] = useState<Record<NavGroup["id"], boolean>>({
-    stats: true,
-    creation: true,
-    templateLibrary: true,
-    ai: true,
-    settings: true,
-  });
+  stats: true,
+  creation: true,
+  templateLibrary: true,
+  inspirationLibrary: true,
+  ai: true,
+  settings: true,
+});
   const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
 
@@ -2281,7 +2379,48 @@ export default function AppWorkspacePage() {
                 />
               </div>
   )}
+{/* ================= INSPIRACJE ================= */}
+{activeTab in INSPIRATION_VIEWS && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent }}>
+        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].label}
+      </p>
 
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].title}
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].description}
+      </p>
+    </div>
+
+    <Inspirations
+      dark={dark}
+      workspaceId={workspaceId}
+      kind={INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].kind}
+      onOpenStudio={() =>
+        setActiveTab(
+          INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].targetTab
+        )
+      }
+    />
+  </div>
+)}
  {/* ================= AI PARTNER ================= */}
  {activeTab === "partner" && (
               <div>

@@ -768,33 +768,26 @@ function ContentActions({
       const wsId = await getOrCreateWorkspaceUuid();
       if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
 
-      const { data: draft, error } = await supabase
+      const { error } = await supabase
         .schema("contentiq")
-        .from("content_drafts")
+        .from("inspirations")
         .insert({
           workspace_id: wsId,
+          source_kind: "content",
+          source_studio: "Content Studio",
           title: getDraftTitle(generated, prompt),
+          description: generated.hook || prompt,
           body: fullContent,
-          topic: prompt,
-          content_type: contentType,
-          target_platforms: [platform],
+          platforms: [platform],
+          hashtags: safeArray(generated.hashtags),
           ai_score: generated.estimated_score,
           ai_feedback: generated.platform_notes,
-          status: "draft",
-          media: [],
-        })
-        .select("id")
-        .single();
+          status: "active",
+        });
 
       if (error) throw new Error(error.message);
 
-      await uploadMediaForDraft({
-        wsId,
-        draftId: draft.id,
-        status: "temporary",
-      });
-
-      showToast("✓ Zapisano szkic z mediami", "ok");
+      showToast("✓ Zapisano jako inspirację", "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
@@ -1014,7 +1007,7 @@ function ContentActions({
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? "Zapisuję..." : "▤ Zapisz szkic"}
+          {saving ? "Zapisuję..." : "▤ Zapisz inspirację"}
         </button>
 
         <button
