@@ -1578,11 +1578,11 @@ export default function AppWorkspacePage() {
  {activeTab === "brand" && (
               <BrandVoice dark={dark} workspaceId={workspaceId} />
             )}
-
+ {/* ================= CZAT AI ================= */}
  {activeTab === "chat" && (
               <AIChat dark={dark} workspaceId={workspaceId} />
             )}
-
+ {/* ================= SZCZEGÓŁY KONTA ================= */}
  {activeTab === "accounts" && activeAccount && (
               <div>
                 <button
