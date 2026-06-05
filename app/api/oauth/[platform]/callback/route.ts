@@ -6,6 +6,7 @@ interface TokenResult {
   refresh_token?: string;
   expires_in?: number;
   token_type?: string;
+  short_access_token?: string;
 }
  
 interface StateData {
@@ -111,8 +112,11 @@ async function exchangeMeta(platform: string, code: string, redirectUri: string)
     `code=${code}`
   );
   const short = await shortRes.json();
-  if (short.error) throw new Error(`Meta token error: ${short.error.message}`);
- 
+
+  if (short.error) {
+    throw new Error(`Meta token error: ${short.error.message}`);
+  }
+
   const longRes = await fetch(
     `https://graph.facebook.com/v19.0/oauth/access_token?` +
     `grant_type=fb_exchange_token&` +
@@ -121,11 +125,26 @@ async function exchangeMeta(platform: string, code: string, redirectUri: string)
     `fb_exchange_token=${short.access_token}`
   );
   const long = await longRes.json();
-  if (long.error) throw new Error(`Meta long token error: ${long.error.message}`);
- 
-  return { access_token: long.access_token, expires_in: long.expires_in };
+
+  if (long.error) {
+    console.warn(`[Meta OAuth][${platform}] long token exchange failed, using short token:`, long.error);
+
+    return {
+      access_token: short.access_token,
+      short_access_token: short.access_token,
+      expires_in: short.expires_in,
+      token_type: short.token_type,
+    };
+  }
+
+  return {
+    access_token: long.access_token,
+    short_access_token: short.access_token,
+    expires_in: long.expires_in,
+    token_type: long.token_type,
+  };
 }
- 
+
 async function exchangeLinkedIn(code: string, redirectUri: string): Promise<TokenResult> {
   const res = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
     method: "POST",
@@ -344,7 +363,7 @@ async function logMetaTokenDiagnostics(
   return diagnostics;
 }
 
-async function fetchMetaPages(platform: string, token: string): Promise<MetaPage[]> {
+async function fetchMetaPages(platform: string, token: string, logEmpty = true): Promise<MetaPage[]> {
   const data = await fetchMetaPagesRaw(token);
 
   if ((data as { error?: { message?: string } } | null)?.error) {
@@ -361,7 +380,7 @@ async function fetchMetaPages(platform: string, token: string): Promise<MetaPage
       || (!!expectedPageName && !pages.some((page) => page.name.toLowerCase() === expectedPageName.toLowerCase()))
     );
 
-  if (!pages.length || expectedPageMissing) {
+  if (logEmpty && (!pages.length || expectedPageMissing)) {
     await logMetaTokenDiagnostics(
       platform,
       token,
@@ -374,6 +393,63 @@ async function fetchMetaPages(platform: string, token: string): Promise<MetaPage
   }
 
   return pages;
+}
+
+
+async function fetchMetaPagesWithFallback(
+  platform: string,
+  tokenData: TokenResult
+) {
+  const attempts = [
+    {
+      label: "long_access_token",
+      token: tokenData.access_token,
+    },
+    {
+      label: "short_access_token",
+      token: tokenData.short_access_token,
+    },
+  ].filter((item) => item.token);
+
+  const errors: string[] = [];
+
+  for (const attempt of attempts) {
+    try {
+      const pages = await fetchMetaPages(platform, attempt.token as string, false);
+
+      if (pages.length) {
+        console.log(
+          `[Meta OAuth][${platform}] pages found with ${attempt.label}:`,
+          pages.map((page) => `${page.name}:${page.id}`).join(", ")
+        );
+
+        return {
+          pages,
+          token: attempt.token as string,
+          tokenSource: attempt.label,
+        };
+      }
+
+      const raw = await fetchMetaPagesRaw(attempt.token as string);
+      await logMetaTokenDiagnostics(
+        platform,
+        attempt.token as string,
+        raw,
+        [],
+        `${attempt.label}: /me/accounts returned no pages`
+      );
+
+      errors.push(`${attempt.label}: /me/accounts returned no pages`);
+    } catch (err) {
+      errors.push(
+        `${attempt.label}: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  throw new Error(
+    `Meta nie zwróciła żadnych Facebook Pages w /me/accounts. Próby: ${errors.join(" | ")}`
+  );
 }
 
 function encodeMetaPending(data: Record<string, unknown>) {
@@ -486,11 +562,7 @@ export async function GET(
       : null;
 
     if (platform === "instagram" || platform === "facebook") {
-      const pages = await fetchMetaPages(platform, tokenData.access_token);
-
-      if (!pages.length) {
-        throw new Error("Meta nie zwróciła żadnych Facebook Pages w /me/accounts. Sprawdź pages_show_list, granted scopes i pages returned w logach Vercel.");
-      }
+      const metaPagesResult = await fetchMetaPagesWithFallback(platform, tokenData);
 
       const redirectTo = state.workspace_id
         ? `/app/${state.workspace_id}/settings?select_meta_page=${platform}`
@@ -502,12 +574,15 @@ export async function GET(
         platform,
         workspace_slug: state.workspace_id,
         workspace_id: workspaceUuid,
-        access_token: tokenData.access_token,
+
+        // Zapisujemy token, który realnie zwrócił strony w /me/accounts.
+        access_token: metaPagesResult.token,
+
         token_expires_at: expiresAt,
-        pages,
+        pages: metaPagesResult.pages,
 
         login_config_id: getUsedMetaLoginConfigId(platform),
-        token_source: getMetaTokenSource(platform),
+        token_source: `${getMetaTokenSource(platform)}_${metaPagesResult.tokenSource}`,
         token_type: "user_access_token_before_page_selection",
       }), {
         httpOnly: true,
