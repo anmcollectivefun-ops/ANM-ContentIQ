@@ -918,12 +918,9 @@ async function fetchPlatformPosts(
       return fetchInstagram(meta.token, meta.accountId);
     }
 
-  case "facebook": {
-  ensureAccountId(connection.platform, accountId);
-
-  // Facebook w tej aplikacji zapisuje już Page Access Token w Supabase.
-  // Nie używamy /me/accounts ani fallbacków, bo mogą podmienić dobry Page Token.
-  return fetchFacebook(token, accountId);
+case "facebook": {
+  const meta = await resolveMetaResource(token, "facebook", accountId);
+  return fetchFacebook(meta.token, meta.accountId);
 }
 
     case "linkedin":
