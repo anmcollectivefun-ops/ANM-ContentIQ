@@ -429,20 +429,24 @@ function SectionLabel({
 function Card({
   children,
   css,
-  accent = false,
+  variant = "default",
   minHeight,
 }: {
   children: React.ReactNode;
   css: Record<string, string>;
-  accent?: boolean;
+  variant?: "default" | "aiGlow";
   minHeight?: number;
 }) {
+  const isAiGlow = variant === "aiGlow";
+
   return (
     <section
       style={{
-        background: accent ? css.aiBg : css.surface,
-        border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        boxShadow: accent ? css.aiGlow : "none",
+        background: css.surface,
+        border: `1px solid ${isAiGlow ? css.aiBorder : css.border}`,
+        boxShadow: isAiGlow
+          ? `0 20px 50px rgba(0,0,0,0.35), 0 18px 40px rgba(168, 85, 247, 0.16)`
+          : "0 10px 24px rgba(0,0,0,0.18)",
         color: css.text,
         borderRadius: 18,
         padding: 16,
@@ -451,7 +455,22 @@ function Card({
         overflow: "hidden",
       }}
     >
-      {children}
+      {isAiGlow && (
+        <div
+          style={{
+            position: "absolute",
+            left: 20,
+            right: 20,
+            bottom: -18,
+            height: 42,
+            background: "rgba(168, 85, 247, 0.18)",
+            filter: "blur(22px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
     </section>
   );
 }
@@ -504,9 +523,11 @@ function ResultBlock({
   return (
     <div
       style={{
-        background: accent ? css.aiBg : css.surfaceSoft,
+        background: css.surfaceSoft,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        boxShadow: accent ? css.aiGlow : "none",
+        boxShadow: accent
+          ? `0 10px 28px rgba(168, 85, 247, 0.10)`
+          : "none",
         color: css.text,
         borderRadius: accent ? 18 : 14,
         padding: accent ? 14 : 13,
@@ -514,11 +535,36 @@ function ResultBlock({
         overflow: "hidden",
       }}
     >
-      <SectionLabel color={accent ? css.aiText : css.accent}>
-        {accent && <Wand2 size={15} color={css.aiIcon} />}
-        {label}
-      </SectionLabel>
-      {children}
+      {accent && (
+        <div
+          style={{
+            position: "absolute",
+            left: 14,
+            right: 14,
+            bottom: -14,
+            height: 28,
+            background: "rgba(168, 85, 247, 0.14)",
+            filter: "blur(18px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <SectionLabel color={accent ? css.aiText : css.accent}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {accent && <Wand2 size={15} color={css.aiIcon} />}
+            {label}
+          </span>
+        </SectionLabel>
+        {children}
+      </div>
     </div>
   );
 }
@@ -1365,7 +1411,7 @@ export default function VideoStudio({
           <SectionLabel color={css.aiText}>Stwórz z AI swoje video</SectionLabel>
 
           <div className="video-section-grid">
-            <Card css={css} accent>
+            <Card css={css}>
               <SectionLabel color={css.aiText}>Dodaj video</SectionLabel>
 
               <h2 style={panelTitleStyle}>Upload video</h2>
@@ -1443,27 +1489,53 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Sugestia dla AI</SectionLabel>
+  <SectionLabel color={css.aiText}>Sugestia dla AI</SectionLabel>
 
-                <textarea
-                  value={videoAnalysisNotes}
-                  onChange={(event) => setVideoAnalysisNotes(event.target.value)}
-                  placeholder="Np. zrób analizę pod YouTube, zaproponuj mocny wstęp, tytuł, opis i CTA."
-                  style={{
-                    width: "100%",
-                    minHeight: 78,
-                    borderRadius: 14,
-                    border: `1px solid ${css.aiBorder}`,
-                    background: css.surfaceSoft,
-                    color: css.text,
-                    padding: 12,
-                    outline: "none",
-                    fontFamily: "inherit",
-                    fontSize: 12,
-                    lineHeight: 1.65,
-                  }}
-                />
-              </div>
+  <div
+    style={{
+      borderRadius: 16,
+      border: `1px solid ${css.aiBorder}`,
+      background: css.surface,
+      boxShadow: `0 12px 30px rgba(168, 85, 247, 0.14)`,
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        left: 14,
+        right: 14,
+        bottom: -14,
+        height: 28,
+        background: "rgba(168, 85, 247, 0.15)",
+        filter: "blur(18px)",
+        pointerEvents: "none",
+      }}
+    />
+
+    <textarea
+      value={videoAnalysisNotes}
+      onChange={(event) => setVideoAnalysisNotes(event.target.value)}
+      placeholder="Np. zrób analizę pod YouTube, zaproponuj mocny wstęp, tytuł, opis i CTA."
+      style={{
+        width: "100%",
+        minHeight: 78,
+        borderRadius: 16,
+        border: "none",
+        background: "transparent",
+        color: css.text,
+        padding: 12,
+        outline: "none",
+        fontFamily: "inherit",
+        fontSize: 12,
+        lineHeight: 1.65,
+        position: "relative",
+        zIndex: 1,
+      }}
+    />
+  </div>
+</div>
 
               <div style={{ marginTop: 13 }}>
                 <SectionLabel color={css.aiText}>Silnik analizy</SectionLabel>
@@ -1623,7 +1695,7 @@ export default function VideoStudio({
               )}
             </Card>
 
-            <Card css={css} minHeight={420}>
+          <Card css={css} variant="aiGlow" minHeight={420}>
               <SectionLabel color={css.accent}>Wynik analizy AI</SectionLabel>
 
               {!videoAnalysis && !analyzingVideo && (
@@ -2009,7 +2081,7 @@ export default function VideoStudio({
               )}
             </Card>
 
-            <Card css={css} minHeight={420}>
+            <Card css={css} variant="aiGlow" minHeight={420}>
               <SectionLabel color={css.accent}>Wygenerowany brief AI</SectionLabel>
 
               {!brief && !loading && (
