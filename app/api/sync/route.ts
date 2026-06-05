@@ -300,61 +300,166 @@ async function fetchFacebook(
   };
 }
 
+function getServerMetaToken(platform: "instagram" | "facebook") {
+  if (platform === "facebook") {
+    return (
+      process.env.FACEBOOK_SYSTEM_USER_ACCESS_TOKEN?.trim() ||
+      process.env.META_SYSTEM_USER_ACCESS_TOKEN?.trim() ||
+      ""
+    );
+  }
+
+  return "";
+}
+
+async function testFacebookPageToken(
+  pageId: string,
+  token: string
+): Promise<boolean> {
+  if (!pageId || !token) return false;
+
+  const testRes = await fetch(
+    `https://graph.facebook.com/v19.0/${pageId}/posts?` +
+      `fields=id&limit=1&access_token=${token}`
+  );
+
+  const testData = await testRes.json();
+
+  return !testData.error;
+}
+
 async function resolveMetaResource(
   token: string,
   platform: "instagram" | "facebook",
   savedAccountId: string
 ) {
+  const errors: string[] = [];
+
+  /**
+   * 1. Najpierw próbujemy token zapisany w Supabase.
+   * U Ciebie Facebook zapisuje Page Access Token, więc to powinno zadziałać bez /me/accounts.
+   */
+  if (platform === "facebook" && savedAccountId && savedAccountId !== "unknown") {
+    const storedTokenWorks = await testFacebookPageToken(savedAccountId, token);
+
+    if (storedTokenWorks) {
+      return {
+        accountId: savedAccountId,
+        token,
+      };
+    }
+
+    errors.push("Zapisany token Facebooka nie ma dostępu do /pageId/posts.");
+  }
+
+  /**
+   * 2. Jeśli Facebook nie działa z tokenem zapisanym w bazie,
+   * próbujemy token systemowy z ENV.
+   */
+  if (platform === "facebook" && savedAccountId && savedAccountId !== "unknown") {
+    const serverToken = getServerMetaToken("facebook");
+
+    if (serverToken) {
+      const serverTokenWorks = await testFacebookPageToken(savedAccountId, serverToken);
+
+      if (serverTokenWorks) {
+        return {
+          accountId: savedAccountId,
+          token: serverToken,
+        };
+      }
+
+      errors.push("System-user token też nie ma dostępu do /pageId/posts.");
+    } else {
+      errors.push("Brak FACEBOOK_SYSTEM_USER_ACCESS_TOKEN / META_SYSTEM_USER_ACCESS_TOKEN.");
+    }
+  }
+
+  /**
+   * 3. Instagram zostawiamy ostrożnie, bo u Ciebie działa.
+   */
+  if (platform === "instagram" && savedAccountId && savedAccountId !== "unknown") {
+    const igTestRes = await fetch(
+      `https://graph.facebook.com/v19.0/${savedAccountId}?` +
+        `fields=id,username&access_token=${token}`
+    );
+
+    const igTest = await igTestRes.json();
+
+    if (!igTest.error && igTest.id) {
+      return {
+        accountId: savedAccountId,
+        token,
+      };
+    }
+
+    errors.push(
+      `Instagram direct token error: ${
+        igTest.error?.message || "Nie udało się sprawdzić IG tokena."
+      }`
+    );
+  }
+
+  /**
+   * 4. Dopiero na końcu próbujemy /me/accounts.
+   * To działa tylko dla user tokena, nie dla page tokena.
+   */
   const pagesRes = await fetch(
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${token}`
+    `https://graph.facebook.com/v19.0/me/accounts?` +
+      `fields=id,name,access_token,instagram_business_account&` +
+      `access_token=${token}`
   );
 
   const pages = await pagesRes.json();
 
   if (pages.error) {
-    throw new Error(pages.error.message);
-  }
-
-  const pageList = (pages.data || []) as Array<{
-    id?: string;
-    name?: string;
-    access_token?: string;
-    instagram_business_account?: {
+    errors.push(`/me/accounts error: ${pages.error.message}`);
+  } else {
+    const pageList = (pages.data || []) as Array<{
       id?: string;
-    };
-  }>;
+      name?: string;
+      access_token?: string;
+      instagram_business_account?: {
+        id?: string;
+      };
+    }>;
 
-  if (platform === "facebook") {
-    const page =
-      pageList.find((item) => item.id === savedAccountId) || pageList[0];
+    if (platform === "facebook") {
+      const page =
+        pageList.find((item) => item.id === savedAccountId) || pageList[0];
 
-    if (!page?.id || !page.access_token) {
-      throw new Error(
-        "Nie znaleziono strony Facebook albo tokenu strony. Połącz Meta ponownie i wybierz stronę firmową."
-      );
+      if (page?.id && page.access_token) {
+        return {
+          accountId: page.id,
+          token: page.access_token,
+        };
+      }
+
+      errors.push("Nie znaleziono strony Facebook z access_token w /me/accounts.");
     }
 
-    return {
-      accountId: page.id,
-      token: page.access_token,
-    };
-  }
+    if (platform === "instagram") {
+      for (const page of pageList) {
+        if (!page.id || !page.access_token) continue;
 
-  for (const page of pageList) {
-    if (!page.id || !page.access_token) continue;
+        const igId = page.instagram_business_account?.id;
 
-    const igId = page.instagram_business_account?.id;
+        if (igId && (igId === savedAccountId || savedAccountId === "unknown")) {
+          return {
+            accountId: igId,
+            token: page.access_token,
+          };
+        }
+      }
 
-    if (igId && (igId === savedAccountId || savedAccountId === "unknown")) {
-      return {
-        accountId: igId,
-        token: page.access_token,
-      };
+      errors.push("Nie znaleziono Instagram Business Account w /me/accounts.");
     }
   }
 
   throw new Error(
-    "Nie znaleziono Instagram Business Account podpiętego do strony Meta. Sprawdź połączenie IG ze stroną Facebook w Meta Business Suite."
+    platform === "facebook"
+      ? `Nie udało się uzyskać dostępu do strony Facebook. Szczegóły: ${errors.join(" | ")}`
+      : `Nie znaleziono Instagram Business Account podpiętego do strony Meta. Szczegóły: ${errors.join(" | ")}`
   );
 }
 
