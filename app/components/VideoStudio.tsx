@@ -445,7 +445,7 @@ function Card({
         background: css.surface,
         border: `1px solid ${isAiGlow ? css.aiBorder : css.border}`,
         boxShadow: isAiGlow
-          ? `0 20px 50px rgba(0,0,0,0.35), 0 18px 40px rgba(168, 85, 247, 0.16)`
+          ? `0 20px 50px rgba(0,0,0,0.35), 0 18px 42px rgba(168, 85, 247, 0.16)`
           : "0 10px 24px rgba(0,0,0,0.18)",
         color: css.text,
         borderRadius: 18,
@@ -525,9 +525,7 @@ function ResultBlock({
       style={{
         background: css.surfaceSoft,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        boxShadow: accent
-          ? `0 10px 28px rgba(168, 85, 247, 0.10)`
-          : "none",
+        boxShadow: accent ? `0 10px 28px rgba(168, 85, 247, 0.10)` : "none",
         color: css.text,
         borderRadius: accent ? 18 : 14,
         padding: accent ? 14 : 13,
@@ -563,6 +561,7 @@ function ResultBlock({
             {label}
           </span>
         </SectionLabel>
+
         {children}
       </div>
     </div>
@@ -1309,14 +1308,14 @@ export default function VideoStudio({
     }
   }
 
-  const panelTitleStyle: CSSProperties = {
-    fontFamily: "var(--font-heading)",
-    fontSize: 26,
-    lineHeight: 1.05,
-    margin: "6px 0 8px",
-    color: css.text,
-    fontWeight: 400,
-  };
+ const panelTitleStyle: CSSProperties = {
+  fontFamily: "var(--font-heading)",
+  fontSize: 26,
+  lineHeight: 1.05,
+  margin: "6px 0 8px",
+  color: css.accent,
+  fontWeight: 500,
+};
 
   const primaryButton: CSSProperties = {
     width: "100%",
