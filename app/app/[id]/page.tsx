@@ -98,6 +98,19 @@ interface Account {
   connected: boolean;
   lastSync: string;
   manualAccountUrl?: string;
+
+  accountName?: string | null;
+  account_name?: string | null;
+  profileName?: string | null;
+  profile_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  profile_image_url?: string | null;
+  profileLikes?: number | null;
+  profile_likes?: number | null;
+  likes_count?: number | null;
+  total_likes?: number | null;
+  heart_count?: number | null;
 }
 
 interface PlatformConnection {
@@ -106,6 +119,15 @@ interface PlatformConnection {
   account_name: string;
   last_synced_at: string | null;
   connected: boolean;
+
+  username?: string | null;
+  avatar_url?: string | null;
+  profile_image_url?: string | null;
+  profile_name?: string | null;
+  profile_likes?: number | null;
+  likes_count?: number | null;
+  total_likes?: number | null;
+  heart_count?: number | null;
 }
 
 interface ManualLink {
@@ -136,6 +158,8 @@ interface DbPost {
   ai_score: number | null;
   ai_summary: string | null;
   fetched_at: string | null;
+  thumbnail_url: string | null;
+  reach: number | null;
 }
 
 interface Post {
@@ -152,6 +176,12 @@ interface Post {
   status: "opublikowany" | "zaplanowany" | "analiza";
   source: "import" | "manual_link" | "created_in_app" | "scheduled_in_app";
   url?: string;
+  ai: string;
+  url?: string;
+  thumbnail_url?: string | null;
+  media_url?: string | null;
+  image_url?: string | null;
+  cover_url?: string | null;
   ai: string;
 }
 
@@ -558,6 +588,7 @@ function summarizePosts(account: Account, posts: Post[]) {
 
 function mapDbPost(post: DbPost): Post {
   const reachValue = post.reach ?? post.impressions ?? 0;
+
   return {
     id: post.id,
     title: post.title || post.content?.slice(0, 80) || "Publikacja bez tytułu",
@@ -570,9 +601,17 @@ function mapDbPost(post: DbPost): Post {
     shares: post.shares ?? 0,
     saves: post.saves ?? 0,
     url: post.url || undefined,
+
+    thumbnail_url: post.thumbnail_url,
+    media_url: post.media_url,
+    image_url: post.image_url,
+    cover_url: post.cover_url,
+
     status: "opublikowany",
     source: "import",
-    ai: post.ai_summary || "Prawdziwy rekord pobrany z API. Analiza AI pojawi się po przeliczeniu wyników.",
+    ai:
+      post.ai_summary ||
+      "Prawdziwy rekord pobrany z API. Analiza AI pojawi się po przeliczeniu wyników.",
   };
 }
 
@@ -628,49 +667,32 @@ function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost
   return byPlatform;
 }
 
-function mergeConnections(
-  accounts: Account[],
-  connections: PlatformConnection[],
-  postsByPlatform: Record<Platform, Post[]>,
-  manualLinks: ManualLink[] = []
-) {
-  return accounts.map((account) => {
-    const connection = connections.find((item) => item.platform === account.id);
-    const accountLink = connection
-      ? manualLinks.find((link) => link.connection_id === connection.id && link.type === "account")
-      : null;
-
-    if (!connection) {
-      return {
-        ...account,
-        connected: false,
-        handle: "Niepodłączone",
-        lastSync: "Niepodłączone",
-        score: 0,
-        trend: 0,
-        posts: 0,
-        engRate: "0%",
-        reach: "0",
-        bestFormat: "Brak danych",
-        aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
-        manualAccountUrl: undefined,
-      };
-    }
-
-    const base = {
-      ...account,
-      connected: true,
-      handle: connection.account_name || account.name,
-      lastSync: formatLastSync(connection.last_synced_at),
-      manualAccountUrl: accountLink?.url,
-    };
-
-    return {
-      ...base,
-      ...summarizePosts(base, postsByPlatform[account.id] || []),
-    };
-  });
-}
+const base = {
+  ...account,
+  connected: true,
+  handle: connection.username || connection.account_name || account.name,
+  accountName: connection.account_name,
+  account_name: connection.account_name,
+  profileName: connection.profile_name || connection.account_name,
+  profile_name: connection.profile_name || connection.account_name,
+  username: connection.username || connection.account_name,
+  avatar_url: connection.avatar_url,
+  profile_image_url: connection.profile_image_url,
+  profileLikes:
+    connection.profile_likes ??
+    connection.likes_count ??
+    connection.total_likes ??
+    connection.heart_count ??
+    null,
+  profile_likes:
+    connection.profile_likes ??
+    connection.likes_count ??
+    connection.total_likes ??
+    connection.heart_count ??
+    null,
+  lastSync: formatLastSync(connection.last_synced_at),
+  manualAccountUrl: accountLink?.url,
+};
 
 function getPlatformName(platform: Platform) {
   return ACCOUNTS.find((account) => account.id === platform)?.name ?? platform;
@@ -843,7 +865,7 @@ export default function AppWorkspacePage() {
         supabase
           .schema("contentiq")
           .from("platform_connections")
-          .select("id, platform, account_name, last_synced_at, connected")
+          .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, last_synced_at, connected")
           .eq("workspace_id", resolvedWorkspaceId)
           .eq("connected", true)
           .then(({ data, error }) => {
@@ -866,13 +888,13 @@ export default function AppWorkspacePage() {
               supabase
                 .schema("contentiq")
                 .from("posts")
-                .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
+                .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
                 .in("connection_id", connectionIds)
                 .order("published_at", { ascending: false }),
               supabase
                 .schema("contentiq")
                 .from("manual_links")
-                .select("id, connection_id, type, url, title, created_at")
+                .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, last_synced_at, connected")
                 .in("connection_id", connectionIds)
                 .order("created_at", { ascending: false }),
             ]).then(([postsResult, linksResult]) => {
@@ -939,7 +961,40 @@ export default function AppWorkspacePage() {
   if (!mounted) {
     return null;
   }
+const getAccountField = (account: any, keys: string[], fallback = "") => {
+  for (const key of keys) {
+    if (account?.[key] !== undefined && account?.[key] !== null && account?.[key] !== "") {
+      return account[key];
+    }
+  }
 
+  return fallback;
+};
+
+const getPostThumb = (post: any) => {
+  return (
+    post?.thumbnail_url ||
+    post?.thumbnailUrl ||
+    post?.cover_url ||
+    post?.coverUrl ||
+    post?.image_url ||
+    post?.imageUrl ||
+    post?.media_url ||
+    post?.mediaUrl ||
+    null
+  );
+};
+
+const formatProfileNumber = (value: any) => {
+  const parsed = Number(value || 0);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) return "—";
+
+  return new Intl.NumberFormat("pl-PL", {
+    notation: parsed >= 10000 ? "compact" : "standard",
+    maximumFractionDigits: 1,
+  }).format(parsed);
+};
 
   return (
     <div style={{ ...st.root, background: css.bg, color: css.text }}>
@@ -1674,251 +1729,479 @@ export default function AppWorkspacePage() {
               </div>
             )}
 {/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}
- {activeTab === "accounts" && activeAccount && (
-              <div>
-                <button
-                  onClick={() => setActiveAccount(null)}
+
+{activeTab === "accounts" && activeAccount && (
+  <div>
+    <button
+      onClick={() => setActiveAccount(null)}
+      style={{
+        ...st.backBtn,
+        color: css.muted,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+      }}
+    >
+      ← Wszystkie konta
+    </button>
+
+    <div
+      style={{
+        ...st.accountSummary,
+        position: "relative",
+        overflow: "hidden",
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+      }}
+    >
+      <span
+        style={{
+          ...st.accountWatermark,
+          color: activeAccount.color,
+          opacity: 0.08,
+          fontSize: 170,
+          right: 24,
+          top: 10,
+        }}
+      >
+        {SOCIAL_ICONS[activeAccount.id]}
+      </span>
+
+      <div
+        style={{
+          height: 4,
+          background: activeAccount.color,
+          borderRadius: "14px 14px 0 0",
+          margin: "-20px -20px 18px",
+        }}
+      />
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(260px, 0.9fr) minmax(420px, 1.1fr)",
+          gap: 20,
+          alignItems: "center",
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {getAccountField(activeAccount, [
+            "avatar_url",
+            "avatarUrl",
+            "profile_image_url",
+            "profileImageUrl",
+            "picture",
+            "photo",
+          ]) ? (
+            <img
+              src={getAccountField(activeAccount, [
+                "avatar_url",
+                "avatarUrl",
+                "profile_image_url",
+                "profileImageUrl",
+                "picture",
+                "photo",
+              ])}
+              alt=""
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 22,
+                objectFit: "cover",
+                border: `1px solid ${css.border}`,
+                background: css.liveSoft,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 22,
+                display: "grid",
+                placeItems: "center",
+                background: `${activeAccount.color}18`,
+                border: `1px solid ${activeAccount.color}44`,
+                color: activeAccount.color,
+                fontSize: 26,
+                fontWeight: 900,
+              }}
+            >
+              {SOCIAL_ICONS[activeAccount.id]}
+            </div>
+          )}
+
+          <div>
+            <div
+              style={{
+                fontSize: 30,
+                lineHeight: 1.05,
+                fontFamily: "'DM Serif Display', serif",
+                color: css.text,
+              }}
+            >
+              {getAccountField(activeAccount, [
+                "profileName",
+                "profile_name",
+                "accountName",
+                "account_name",
+                "username",
+                "name",
+              ], activeAccount.name)}
+            </div>
+
+            <div style={{ fontSize: 13, color: css.muted, marginTop: 6 }}>
+              {activeAccount.handle}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 10,
+              }}
+            >
+              <span
+                style={{
+                  ...st.connectionPill,
+                  background: activeAccount.connected ? "#22c55e18" : "#f59e0b18",
+                  color: activeAccount.connected ? "#22c55e" : "#f59e0b",
+                }}
+              >
+                {activeAccount.connected ? "API podłączone" : "Do podłączenia"}
+              </span>
+
+              <span
+                style={{
+                  ...st.connectionPill,
+                  background: css.activeBg,
+                  color: css.muted,
+                }}
+              >
+                Sync: {activeAccount.lastSync}
+              </span>
+            </div>
+
+            {activeAccount.manualAccountUrl && (
+              <a
+                href={activeAccount.manualAccountUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  marginTop: 10,
+                  color: activeAccount.color,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  textDecoration: "none",
+                }}
+              >
+                Otwórz profil ↗
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+            gap: 10,
+          }}
+        >
+          {[
+            {
+              label: "Polubienia profilu",
+              value: formatProfileNumber(
+                getAccountField(activeAccount, [
+                  "profileLikes",
+                  "profile_likes",
+                  "likesCount",
+                  "likes_count",
+                  "totalLikes",
+                  "total_likes",
+                  "heart_count",
+                ])
+              ),
+              highlight: true,
+            },
+            {
+              label: "Publikacje",
+              value: String(activeAccount.posts),
+            },
+            {
+              label: "Engagement",
+              value: activeAccount.engRate,
+            },
+            {
+              label: "Śr. zasięg",
+              value: activeAccount.reach,
+            },
+            {
+              label: "Najlepszy format",
+              value: activeAccount.bestFormat,
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                background: item.highlight ? `${activeAccount.color}14` : css.liveSoft,
+                border: `1px solid ${item.highlight ? `${activeAccount.color}44` : css.border}`,
+                borderRadius: 15,
+                padding: "12px 10px",
+                minHeight: 86,
+              }}
+            >
+              <div
+                style={{
+                  color: item.highlight ? activeAccount.color : css.text,
+                  fontSize: item.highlight ? 23 : 21,
+                  lineHeight: 1.05,
+                  fontFamily: "'DM Serif Display', serif",
+                }}
+              >
+                {item.value}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 7,
+                  color: css.muted,
+                  fontSize: 10,
+                  lineHeight: 1.35,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: ".05em",
+                }}
+              >
+                {item.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          ...st.tileAI,
+          background: css.aiBg,
+          border: `1px solid ${css.aiBorder}`,
+          color: css.text,
+          marginTop: 18,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
+          ✦ AI analiza tej platformy
+        </div>
+
+        <span>{activeAccount.aiTag}</span>
+      </div>
+    </div>
+
+    <div
+      style={{
+        ...st.postsLabel,
+        color: css.muted,
+        marginTop: 28,
+      }}
+    >
+      Ostatnie publikacje — {postsByPlatform[activeAccount.id]?.length ?? 0}
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      {(postsByPlatform[activeAccount.id] ?? []).map((post) => {
+        const scoreColor = getScoreColor(post.score);
+        const thumbnail = getPostThumb(post);
+
+        return (
+          <div
+            key={post.id}
+            className="ciq-post-row"
+            style={{
+              background: css.surface,
+              border: `1px solid ${css.border}`,
+              borderRadius: 18,
+              padding: 14,
+              display: "grid",
+              gridTemplateColumns: "minmax(280px, 1fr) repeat(4, minmax(90px, 0.22fr)) 86px",
+              gap: 12,
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
+              {thumbnail ? (
+                <img
+                  src={thumbnail}
+                  alt=""
                   style={{
-                    ...st.backBtn,
-                    color: css.muted,
-                    background: css.surface,
+                    width: 58,
+                    height: 58,
+                    borderRadius: 13,
+                    objectFit: "cover",
                     border: `1px solid ${css.border}`,
+                    background: css.liveSoft,
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 13,
+                    background: `${activeAccount.color}18`,
+                    border: `1px solid ${activeAccount.color}44`,
+                    color: activeAccount.color,
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    flexShrink: 0,
                   }}
                 >
-                  ← Wszystkie konta
-                </button>
+                  {SOCIAL_ICONS[activeAccount.id]}
+                </div>
+              )}
+
+              <div style={{ minWidth: 0 }}>
+                <div
+                  style={{
+                    color: css.text,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    lineHeight: 1.45,
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {post.title}
+                </div>
 
                 <div
                   style={{
-                    ...st.accountSummary,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    marginTop: 7,
+                    color: css.muted,
+                    fontSize: 11,
                   }}
                 >
-                  <span
-                    style={{
-                      ...st.accountWatermark,
-                      color: activeAccount.color,
-                    }}
-                  >
-                    {SOCIAL_ICONS[activeAccount.id]}
-                  </span>
+                  <span>{post.date}</span>
+                  <span>•</span>
+                  <span>{post.type}</span>
 
-                  <div
-                    style={{
-                      height: 4,
-                      background: activeAccount.color,
-                      borderRadius: "14px 14px 0 0",
-                      margin: "-20px -20px 16px",
-                    }}
-                  />
-
-                  <div
-                    className="ciq-account-summary-row"
-                    style={st.accountSummaryRow}
-                  >
-                    <div>
-                      <div
+                  {post.url && (
+                    <>
+                      <span>•</span>
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style={{
-                          fontSize: 32,
-                          fontFamily: "'DM Serif Display', serif",
-                          color: css.text,
+                          color: activeAccount.color,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          textDecoration: "none",
                         }}
                       >
-                        {activeAccount.name}
-                      </div>
-
-                      <div style={{ fontSize: 13, color: css.muted }}>
-                        {activeAccount.handle}
-                      </div>
-
-                      {activeAccount.manualAccountUrl && (
-                        <a
-                          href={activeAccount.manualAccountUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: "inline-flex",
-                            marginTop: 8,
-                            color: activeAccount.color,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            textDecoration: "none",
-                          }}
-                        >
-                          Otwórz profil ↗
-                        </a>
-                      )}
-                    </div>
-
-                    <div className="ciq-account-metrics" style={st.accountMetrics}>
-                      {[
-                        ["AI Score", `${activeAccount.score}/100`],
-                        ["Posty", String(activeAccount.posts)],
-                        ["Engagement", activeAccount.engRate],
-                        ["Średni zasięg", activeAccount.reach],
-                        ["Najlepszy format", activeAccount.bestFormat],
-                      ].map(([label, value]) => (
-                        <div key={label}>
-                          <div style={{ ...st.metricValue, color: css.text }}>
-                            {value}
-                          </div>
-
-                          <div style={{ ...st.metricLabel, color: css.muted }}>
-                            {label}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      ...st.tileAI,
-                      background: css.aiBg,
-                      border: `1px solid ${css.aiBorder}`,
-                      color: css.text,
-                      marginTop: 16,
-                    }}
-                  >
-                    <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
-                      ✦ AI analiza tej platformy
-                    </div>
-
-                    <span>{activeAccount.aiTag}</span>
-                  </div>
-                </div>
-
-                <div style={{ ...st.postsLabel, color: css.muted }}>
-                  Ostatnie publikacje — {postsByPlatform[activeAccount.id]?.length ?? 0}
-                </div>
-
-                <div style={st.postsList}>
-                  {(postsByPlatform[activeAccount.id] ?? []).map((post) => {
-                    const scoreColor = getScoreColor(post.score);
-
-                    const metrics = [
-                      ["Zasięg", post.reach],
-                      [
-                        "Polubienia",
-                        post.likes > 0 ? post.likes.toLocaleString() : "—",
-                      ],
-                      ["Komentarze", String(post.comments)],
-                      ["Udostępnienia", post.shares ? String(post.shares) : "—"],
-                      ["Zapisy", post.saves ? String(post.saves) : "—"],
-                      ["Data", post.date],
-                      ["Typ", post.type],
-                    ];
-
-                    return (
-                      <div
-                        key={post.id}
-                        className="ciq-post-row"
-                        style={{
-                          ...st.postRow,
-                          background: css.surface,
-                          border: `1px solid ${css.border}`,
-                        }}
-                      >
-                        <div style={st.postLeft}>
-                          <div style={{ ...st.postTitle, color: css.text }}>
-                            {post.title}
-                          </div>
-
-                          {post.url && (
-                            <a
-                              href={post.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                display: "inline-flex",
-                                marginTop: 7,
-                                color: activeAccount.color,
-                                fontSize: 11,
-                                fontWeight: 800,
-                                textDecoration: "none",
-                              }}
-                            >
-                              Otwórz link ↗
-                            </a>
-                          )}
-
-                          <div style={st.postMeta}>
-                            {metrics.map(([label, value]) => (
-                              <span
-                                key={`${post.id}-${label}`}
-                                style={{ ...st.metaItem, color: css.muted }}
-                              >
-                                {label}: {value}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div style={st.postBadges}>
-                            <span
-                              style={{
-                                ...st.badge,
-                                background: `${activeAccount.color}18`,
-                                color: activeAccount.color,
-                              }}
-                            >
-                              {post.source === "scheduled_in_app"
-                                ? "Zaplanowany w aplikacji"
-                                : post.source === "created_in_app"
-                                  ? "Utworzony w aplikacji"
-                                  : post.source === "manual_link"
-                                    ? "Link ręczny"
-                                    : "Import / API"}
-                            </span>
-
-                            <span
-                              style={{
-                                ...st.badge,
-                                background: css.activeBg,
-                                color: css.muted,
-                              }}
-                            >
-                              {post.status}
-                            </span>
-                          </div>
-
-                          <div
-                            style={{
-                              ...st.postAI,
-                              background: css.aiBgSoft,
-                              border: `1px solid ${css.aiBorder}`,
-                              color: css.text,
-                            }}
-                          >
-                            <span style={{ color: css.aiText, fontWeight: 800 }}>
-                              ✦ AI
-                            </span>
-                            <span>{post.ai}</span>
-                          </div>
-                        </div>
-
-                        <div style={st.postScoreBox}>
-                          <div
-                            style={{
-                              fontSize: 30,
-                              fontWeight: 700,
-                              color: scoreColor,
-                              fontFamily: "'DM Serif Display', serif",
-                            }}
-                          >
-                            {post.score}
-                          </div>
-
-                          <div style={{ fontSize: 10, color: css.muted }}>
-                            AI Score
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        Otwórz ↗
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+
+            {[
+              ["Zasięg", post.reach],
+              ["Polubienia", post.likes > 0 ? post.likes.toLocaleString() : "—"],
+              ["Komentarze", String(post.comments)],
+              ["Udost.", post.shares ? String(post.shares) : "—"],
+            ].map(([label, value]) => (
+              <div key={`${post.id}-${label}`}>
+                <div
+                  style={{
+                    color: css.text,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                >
+                  {value}
+                </div>
+
+                <div
+                  style={{
+                    color: css.muted,
+                    fontSize: 10,
+                    marginTop: 5,
+                    fontWeight: 700,
+                  }}
+                >
+                  {label}
+                </div>
+              </div>
+            ))}
+
+            <div
+              style={{
+                justifySelf: "end",
+                display: "grid",
+                justifyItems: "center",
+                gap: 5,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  color: scoreColor,
+                  fontFamily: "'DM Serif Display', serif",
+                  lineHeight: 1,
+                }}
+              >
+                {post.score}
+              </div>
+
+              <div style={{ fontSize: 10, color: css.muted }}>AI Score</div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("content")}
+                style={{
+                  marginTop: 4,
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  color: css.muted,
+                  borderRadius: 999,
+                  padding: "5px 8px",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Szczegóły
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
  {/* ================= SZCZEGÓŁY KONTA ================= */}
  {activeTab === "brand" && (
               <BrandVoice dark={dark} workspaceId={workspaceId} />
