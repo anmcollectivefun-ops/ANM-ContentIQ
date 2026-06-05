@@ -927,6 +927,61 @@ const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null)
     ];
   }, [accounts]);
 
+  const compareRows = useMemo(() => {
+    return (Object.entries(postsByPlatform) as Array<[Platform, Post[]]>)
+      .flatMap(([platform, posts]) =>
+        posts.map((post) => {
+          const reachValue = Number(String(post.reach || "0").replace(/[^\d.-]/g, "")) || 0;
+          const engagement =
+            (post.likes || 0) +
+            (post.comments || 0) +
+            (post.shares || 0) +
+            (post.saves || 0);
+
+          return {
+            ...post,
+            platform,
+            platformName: getPlatformName(platform),
+            platformColor: getPlatformColor(platform),
+            reachValue,
+            engagement,
+            compareScore:
+              post.score ||
+              Math.min(
+                100,
+                Math.round(
+                  reachValue / 25 +
+                    (post.likes || 0) * 2 +
+                    (post.comments || 0) * 4 +
+                    (post.shares || 0) * 5 +
+                    (post.saves || 0) * 5
+                )
+              ),
+          };
+        })
+      )
+      .sort((a, b) => b.compareScore - a.compareScore)
+      .slice(0, 12);
+  }, [postsByPlatform]);
+
+  const compareAiText = useMemo(() => {
+    const apiCount = compareRows.filter((post) => post.source === "import").length;
+    const manualCount = compareRows.filter((post) => post.source === "manual_link").length;
+    const best = compareRows[0];
+
+    if (!compareRows.length) {
+      return "Nie ma jeszcze publikacji do porównania. Po synchronizacji lub dodaniu linków ręcznych zobaczysz tutaj ranking treści.";
+    }
+
+    if (!apiCount && manualCount) {
+      return `Masz ${manualCount} linków ręcznych. To dobry kontekst dla AI, ale porównanie wyników będzie pełne dopiero po pobraniu metryk z API.`;
+    }
+
+    return best
+      ? `Najmocniejsza treść w tym zestawieniu: ${best.title} (${best.platformName}). Porównuj podobne tematy i formaty, ale decyzje opieraj głównie na rekordach z API.`
+      : "Porównanie gotowe. Najbardziej wiarygodne są publikacje oznaczone jako Import / API.";
+  }, [compareRows]);
+
   async function getOrCreateWorkspace() {
     const { data: existing } = await supabase
       .schema("contentiq")
@@ -1862,41 +1917,110 @@ const formatProfileNumber = (value: any) => {
               </div>
             )}
 
+
 {/* ================= PODSUMOWANIE CONTENTU ================= */}
 {activeTab === "content" && (
   <div>
     <div
       style={{
         ...st.panel,
-        background: css.aiBg,
-        border: `1px solid ${css.aiBorder}`,
-        boxShadow: css.aiGlow,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
         color: css.text,
         position: "relative",
         overflow: "hidden",
         marginBottom: 18,
       }}
     >
-      <p style={{ ...st.smallLabel, color: css.aiText }}>
-        <Wand2 size={15} color={css.aiIcon} />
-        AI podsumowanie contentu
+      <div
+        style={{
+          position: "absolute",
+          inset: "auto 18px 18px auto",
+          fontSize: 120,
+          opacity: 0.04,
+          color: css.accent,
+          fontFamily: "var(--font-heading)",
+          pointerEvents: "none",
+        }}
+      >
+        #
+      </div>
+
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        Przegląd publikacji
       </p>
 
       <h2
         style={{
           ...st.sectionTitle,
-          color: css.text,
+          color: css.heading,
           fontFamily: "var(--font-heading)",
         }}
       >
-        Kluczowe wskaźniki contentu
+        Podsumowanie contentu
       </h2>
 
       <p style={{ ...st.sectionText, color: css.muted }}>
-        Tutaj widzisz najważniejsze wyniki z ostatnich treści: wyświetlenia,
-        polubienia, komentarze, udostępnienia, średnie wyniki oraz profil
-        powiązany z daną platformą.
+        Tutaj analizujesz konkretne publikacje, a nie całe konta. Rozwijaj
+        platformy, sprawdzaj miniatury, wyniki pojedynczych postów i wybieraj
+        treści, które warto przerobić na kolejny format.
       </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 10,
+          marginTop: 18,
+        }}
+      >
+        {[
+          ["Publikacje", "lista postów z platform"],
+          ["Miniatury", "szybki podgląd treści"],
+          ["Wyniki", "zasięg, reakcje, komentarze"],
+          ["AI", "później: naprawa i recykling"],
+        ].map(([title, text]) => (
+          <div
+            key={title}
+            style={{
+              background: css.liveSoft,
+              border: `1px solid ${css.border}`,
+              borderRadius: 16,
+              padding: 13,
+            }}
+          >
+            <div
+              style={{
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              {title}
+            </div>
+
+            <div
+              style={{
+                color: css.muted,
+                fontSize: 11,
+                lineHeight: 1.45,
+                marginTop: 7,
+              }}
+            >
+              {text}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
 
     <ContentSummaryImproved
@@ -1904,6 +2028,110 @@ const formatProfileNumber = (value: any) => {
       workspaceId={workspaceId}
       platform="tiktok"
     />
+  </div>
+)}
+{activeTab === "compare" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        color: css.text,
+        position: "relative",
+        overflow: "hidden",
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent, fontFamily: "var(--font-label)", letterSpacing: ".12em", textTransform: "uppercase" }}>
+        Por?wnanie publikacji
+      </p>
+
+      <h2 style={{ ...st.sectionTitle, color: css.heading, fontFamily: "var(--font-heading)" }}>
+        Por?wnanie contentu
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Ranking tre?ci z pod??czonych platform i link?w r?cznych. Dane z API s? prawdziwymi wynikami, a linki r?czne s? kontekstem bez metryk.
+      </p>
+
+      <div
+        style={{
+          marginTop: 18,
+          background: css.aiBg,
+          border: `1px solid ${css.aiBorder}`,
+          boxShadow: css.aiGlow,
+          color: css.text,
+          borderRadius: 20,
+          padding: "16px 18px",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
+          <Wand2 size={15} color={css.aiIcon} />
+          AI rekomendacja
+        </div>
+        <p style={{ margin: "8px 0 0", color: css.text, fontSize: 13, lineHeight: 1.65 }}>
+          {compareAiText}
+        </p>
+      </div>
+    </div>
+
+    {compareRows.length ? (
+      <div style={st.compareTable}>
+        {compareRows.map((post) => (
+          <div
+            key={`${post.platform}-${post.id}`}
+            style={{
+              ...st.compareRow,
+              background: css.surface,
+              border: `1px solid ${css.border}`,
+              color: css.text,
+              boxShadow: "none",
+            }}
+          >
+            <div>
+              <div style={{ ...st.smallLabel, color: post.platformColor, fontFamily: "var(--font-label)" }}>
+                {post.platformName}
+              </div>
+              <div style={{ color: css.muted, fontSize: 12, marginTop: 5 }}>
+                {post.source === "import" ? "Import / API" : "Link r?czny"}
+              </div>
+            </div>
+
+            <ScoreBar score={post.compareScore} />
+
+            <div>
+              <div style={{ color: css.heading, fontFamily: "var(--font-heading)", fontSize: 20, lineHeight: 1.15 }}>
+                {post.title}
+              </div>
+              <div style={{ color: css.muted, fontSize: 12, marginTop: 8 }}>
+                {post.date} ? {post.type}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+              {[
+                ["Zasi?g", post.reach || "0"],
+                ["Polubienia", post.likes || 0],
+                ["Komentarze", post.comments || 0],
+                ["Engagement", post.engagement],
+              ].map(([label, value]) => (
+                <div key={String(label)} style={{ background: css.liveSoft, border: `1px solid ${css.border}`, borderRadius: 14, padding: 10, boxShadow: "none" }}>
+                  <div style={{ color: css.muted, fontSize: 10, fontWeight: 800 }}>{label}</div>
+                  <div style={{ color: css.text, fontSize: 16, fontWeight: 900, marginTop: 4 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div style={{ ...st.panel, background: css.surface, border: `1px solid ${css.border}`, color: css.muted }}>
+        Brak tre?ci do por?wnania. Najpierw zsynchronizuj platformy albo dodaj linki r?czne w Integracjach.
+      </div>
+    )}
   </div>
 )}
 {/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}

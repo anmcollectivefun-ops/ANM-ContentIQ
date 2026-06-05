@@ -140,6 +140,8 @@ function getPostViews(post: DbPost) {
 
 function mapPost(post: DbPost, platform: Platform): UiPost {
   const description = post.content || post.ai_summary || "";
+  const thumbnail =
+    post.thumbnail_url || post.cover_url || post.image_url || post.media_url || null;
 
   return {
     id: post.id,
@@ -153,6 +155,7 @@ function mapPost(post: DbPost, platform: Platform): UiPost {
     type: post.post_type || "Post",
     url: post.url,
     published_at: post.published_at || post.fetched_at,
+    thumbnail_url: thumbnail,
     reach: n(post.reach),
     impressions: n(post.impressions),
     views: getPostViews(post),
@@ -165,14 +168,7 @@ function mapPost(post: DbPost, platform: Platform): UiPost {
     ai_summary:
       post.ai_summary ||
       "AI użyje tej publikacji jako kontekstu po pobraniu pełniejszych metryk.",
-         thumbnail_url:
-      post.thumbnail_url ||
-      post.cover_url ||
-      post.image_url ||
-      post.media_url ||
-      null,
   };
-   
 }
 
 function getTotals(posts: UiPost[]) {
@@ -217,10 +213,6 @@ function getTotals(posts: UiPost[]) {
   };
 }
 
-function platformMeta(platform: Platform) {
-  return PLATFORMS.find((item) => item.id === platform) || PLATFORMS[0];
-}
-
 function metricLabel(platform: Platform) {
   if (platform === "tiktok" || platform === "youtube") return "Wyświetlenia filmu";
   if (platform === "instagram" || platform === "facebook") return "Zasięg / wyświetlenia";
@@ -246,12 +238,14 @@ export default function ContentSummaryImproved({
 
   const css = dark
     ? {
-        bg: "#050505",
-        surface: "#111111",
-        surfaceSoft: "#0B0B0C",
-        text: "#F5F5F5",
-        muted: "#9CA3AF",
-        border: "#27272A",
+        bg: "#1A2233",
+        surface: "#050505",
+        surfaceSoft: "#0B0B0D",
+        text: "#FFFFFF",
+        muted: "#C9CED8",
+        border: "rgba(255,255,255,0.10)",
+        heading: "#8E443D",
+        accent: "#8E443D",
         aiBg: "rgba(109, 40, 217, 0.16)",
         aiBgSoft: "rgba(147, 51, 234, 0.12)",
         aiBorder: "rgba(192, 132, 252, 0.55)",
@@ -260,12 +254,14 @@ export default function ContentSummaryImproved({
         aiIcon: "#F0ABFC",
       }
     : {
-        bg: "#F6F6F6",
-        surface: "#FFFFFF",
-        surfaceSoft: "#FAFAFA",
-        text: "#111111",
-        muted: "#71717A",
-        border: "#E4E4E7",
+        bg: "#FFFFFF",
+        surface: "#B5937A",
+        surfaceSoft: "#F7F2EF",
+        text: "#2B2B2B",
+        muted: "#5F5A57",
+        border: "rgba(35,31,32,0.14)",
+        heading: "#231F20",
+        accent: "#231F20",
         aiBg: "rgba(124, 58, 237, 0.10)",
         aiBgSoft: "rgba(245, 243, 255, 0.95)",
         aiBorder: "rgba(124, 58, 237, 0.34)",
@@ -314,7 +310,7 @@ export default function ContentSummaryImproved({
             .schema("contentiq")
             .from("posts")
             .select(
-              "id, connection_id, platform_post_id, title, content, post_type, url, published_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at"
+              "id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at"
             )
             .in("connection_id", connectionIds)
             .gte("published_at", fromDate.toISOString())
@@ -325,7 +321,10 @@ export default function ContentSummaryImproved({
           posts = (postsData || []) as DbPost[];
         }
 
-        const connectionById = new Map(connections.map((connection) => [connection.id, connection]));
+        const connectionById = new Map(
+          connections.map((connection) => [connection.id, connection])
+        );
+
         const postsByPlatform = new Map<Platform, UiPost[]>();
 
         posts.forEach((post) => {
@@ -342,6 +341,7 @@ export default function ContentSummaryImproved({
           const platformConnections = connections.filter(
             (connection) => connection.platform === meta.id
           );
+
           const firstConnection = platformConnections[0];
 
           const accountName =
@@ -414,7 +414,7 @@ export default function ContentSummaryImproved({
 
         .ciq-post-row-grid {
           display: grid;
-          grid-template-columns: minmax(280px, 1.6fr) 110px 90px 90px 90px 120px;
+          grid-template-columns: minmax(320px, 1.6fr) 105px 88px 88px 88px 124px;
           gap: 12px;
           align-items: center;
         }
@@ -423,6 +423,10 @@ export default function ContentSummaryImproved({
           display: grid;
           grid-template-columns: 1.1fr .9fr;
           gap: 12px;
+        }
+
+        .ciq-summary-marker::-webkit-details-marker {
+          display: none;
         }
 
         @media(max-width: 1200px) {
@@ -451,13 +455,13 @@ export default function ContentSummaryImproved({
         style={{
           background: css.surface,
           border: `1px solid ${css.border}`,
-          borderRadius: 20,
+          borderRadius: 22,
           overflow: "hidden",
         }}
       >
         <div
           style={{
-            padding: 16,
+            padding: 18,
             borderBottom: `1px solid ${css.border}`,
             display: "flex",
             justifyContent: "space-between",
@@ -469,11 +473,12 @@ export default function ContentSummaryImproved({
           <div>
             <div
               style={{
-                color: css.muted,
-                fontSize: 10,
+                color: css.accent,
+                fontSize: 11,
                 fontWeight: 900,
-                letterSpacing: ".1em",
+                letterSpacing: ".12em",
                 textTransform: "uppercase",
+                fontFamily: "var(--font-label)",
               }}
             >
               Treści z platform
@@ -481,15 +486,30 @@ export default function ContentSummaryImproved({
 
             <h2
               style={{
-                margin: "5px 0 0",
-                color: css.text,
-                fontSize: 26,
+                margin: "6px 0 0",
+                color: css.heading,
+                fontSize: 28,
                 fontFamily: "var(--font-heading)",
-                fontWeight: 400,
+                fontWeight: 500,
+                lineHeight: 1.05,
               }}
             >
               Posty pobrane z social mediów
             </h2>
+
+            <p
+              style={{
+                margin: "8px 0 0",
+                color: css.muted,
+                fontSize: 13,
+                lineHeight: 1.6,
+                maxWidth: 740,
+              }}
+            >
+              Tu analizujesz konkretne publikacje, a nie całe konta. Rozwijaj platformy,
+              sprawdzaj miniatury, wyniki pojedynczych postów i treści, które warto
+              przerobić na kolejny format.
+            </p>
           </div>
 
           <select
@@ -502,7 +522,7 @@ export default function ContentSummaryImproved({
               color: css.text,
               padding: "10px 12px",
               fontWeight: 800,
-              fontFamily: "inherit",
+              fontFamily: "var(--font-body)",
             }}
           >
             <option value={7}>Ostatnich 7 dni</option>
@@ -538,21 +558,32 @@ export default function ContentSummaryImproved({
                 <div
                   key={label}
                   style={{
-                    borderRadius: 15,
+                    borderRadius: 16,
                     border: `1px solid ${css.border}`,
                     background: css.surfaceSoft,
                     padding: 13,
                   }}
                 >
-                  <div style={{ color: css.muted, fontSize: 11, fontWeight: 800 }}>
-                    {label}
-                  </div>
                   <div
                     style={{
-                      color: css.aiText,
+                      color: css.muted,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: ".06em",
+                      textTransform: "uppercase",
+                      fontFamily: "var(--font-label)",
+                    }}
+                  >
+                    {label}
+                  </div>
+
+                  <div
+                    style={{
+                      color: css.heading,
                       fontSize: 24,
                       fontFamily: "var(--font-heading)",
                       marginTop: 4,
+                      lineHeight: 1,
                     }}
                   >
                     {value}
@@ -585,11 +616,12 @@ export default function ContentSummaryImproved({
                       padding: 15,
                       cursor: "pointer",
                       display: "grid",
-                      gridTemplateColumns: "minmax(220px, 1fr) repeat(5, minmax(90px, .45fr)) 32px",
+                      gridTemplateColumns:
+                        "minmax(220px, 1fr) repeat(5, minmax(90px, .45fr)) 32px",
                       gap: 12,
                       alignItems: "center",
                       textAlign: "left",
-                      fontFamily: "inherit",
+                      fontFamily: "var(--font-body)",
                     }}
                   >
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -610,12 +642,19 @@ export default function ContentSummaryImproved({
                       </div>
 
                       <div>
-                        <div style={{ color: css.text, fontSize: 15, fontWeight: 900 }}>
+                        <div
+                          style={{
+                            color: css.text,
+                            fontSize: 15,
+                            fontWeight: 900,
+                          }}
+                        >
                           {group.label}
                         </div>
 
                         <div style={{ color: css.muted, fontSize: 12, marginTop: 3 }}>
-                          {group.connected ? group.accountName : "Niepodłączone"} · sync {group.lastSync}
+                          {group.connected ? group.accountName : "Niepodłączone"} · sync{" "}
+                          {group.lastSync}
                         </div>
                       </div>
                     </div>
@@ -628,10 +667,27 @@ export default function ContentSummaryImproved({
                       ["Udost.", formatCompact(totals.shares)],
                     ].map(([label, value]) => (
                       <div key={label}>
-                        <div style={{ color: css.muted, fontSize: 10, fontWeight: 800 }}>
+                        <div
+                          style={{
+                            color: css.muted,
+                            fontSize: 10,
+                            fontWeight: 800,
+                            letterSpacing: ".04em",
+                            textTransform: "uppercase",
+                            fontFamily: "var(--font-label)",
+                          }}
+                        >
                           {label}
                         </div>
-                        <div style={{ color: css.text, fontSize: 15, fontWeight: 900, marginTop: 3 }}>
+
+                        <div
+                          style={{
+                            color: css.text,
+                            fontSize: 15,
+                            fontWeight: 900,
+                            marginTop: 3,
+                          }}
+                        >
                           {value}
                         </div>
                       </div>
@@ -669,15 +725,26 @@ export default function ContentSummaryImproved({
                               padding: 12,
                             }}
                           >
-                            <div style={{ color: css.muted, fontSize: 10, fontWeight: 800 }}>
+                            <div
+                              style={{
+                                color: css.muted,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                letterSpacing: ".04em",
+                                textTransform: "uppercase",
+                                fontFamily: "var(--font-label)",
+                              }}
+                            >
                               {label}
                             </div>
+
                             <div
                               style={{
                                 color: group.color,
                                 fontSize: 21,
                                 fontFamily: "var(--font-heading)",
                                 marginTop: 4,
+                                lineHeight: 1,
                               }}
                             >
                               {value}
@@ -713,6 +780,7 @@ export default function ContentSummaryImproved({
                               textTransform: "uppercase",
                               letterSpacing: ".08em",
                               padding: "0 10px",
+                              fontFamily: "var(--font-label)",
                             }}
                           >
                             <span>Post</span>
@@ -727,60 +795,102 @@ export default function ContentSummaryImproved({
                             <details
                               key={post.id}
                               style={{
-                                borderRadius: 15,
+                                borderRadius: 16,
                                 border: `1px solid ${css.border}`,
                                 background: css.surface,
                                 overflow: "hidden",
                               }}
                             >
                               <summary
-                                className="ciq-post-row-grid"
+                                className="ciq-post-row-grid ciq-summary-marker"
                                 style={{
                                   listStyle: "none",
                                   cursor: "pointer",
                                   padding: 12,
                                 }}
                               >
-                                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                  <div
-                                    style={{
-                                      width: 54,
-                                      height: 54,
-                                      borderRadius: 12,
-                                      background: `${group.color}18`,
-                                      border: `1px solid ${group.color}44`,
-                                      display: "grid",
-                                      placeItems: "center",
-                                      color: group.color,
-                                      fontWeight: 900,
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    {group.icon}
-                                  </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    alignItems: "center",
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {post.thumbnail_url ? (
+                                    <img
+                                      src={post.thumbnail_url}
+                                      alt=""
+                                      style={{
+                                        width: 62,
+                                        height: 62,
+                                        borderRadius: 14,
+                                        objectFit: "cover",
+                                        border: `1px solid ${css.border}`,
+                                        background: css.surfaceSoft,
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width: 62,
+                                        height: 62,
+                                        borderRadius: 14,
+                                        background: `${group.color}18`,
+                                        border: `1px solid ${group.color}44`,
+                                        display: "grid",
+                                        placeItems: "center",
+                                        color: group.color,
+                                        fontWeight: 900,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {group.icon}
+                                    </div>
+                                  )}
 
-                                  <div>
+                                  <div style={{ minWidth: 0 }}>
                                     <div
                                       style={{
                                         color: css.text,
-                                        fontSize: 14,
-                                        fontWeight: 900,
-                                        lineHeight: 1.35,
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        lineHeight: 1.45,
+                                        maxWidth: 560,
+                                        overflow: "hidden",
+                                        display: "-webkit-box",
+                                        WebkitLineClamp: 3,
+                                        WebkitBoxOrient: "vertical",
                                       }}
                                     >
                                       {post.title}
                                     </div>
 
-                                    <div style={{ color: css.muted, fontSize: 12, marginTop: 4 }}>
+                                    <div
+                                      style={{
+                                        color: css.muted,
+                                        fontSize: 11,
+                                        marginTop: 4,
+                                      }}
+                                    >
                                       {post.type} · {formatDate(post.published_at)}
                                     </div>
                                   </div>
                                 </div>
 
-                                <strong style={{ color: css.text }}>{formatNumber(post.views)}</strong>
-                                <strong style={{ color: css.text }}>{formatNumber(post.likes)}</strong>
-                                <strong style={{ color: css.text }}>{formatNumber(post.comments)}</strong>
-                                <strong style={{ color: css.text }}>{formatNumber(post.shares)}</strong>
+                                <strong style={{ color: css.text, fontSize: 13 }}>
+                                  {formatNumber(post.views)}
+                                </strong>
+                                <strong style={{ color: css.text, fontSize: 13 }}>
+                                  {formatNumber(post.likes)}
+                                </strong>
+                                <strong style={{ color: css.text, fontSize: 13 }}>
+                                  {formatNumber(post.comments)}
+                                </strong>
+                                <strong style={{ color: css.text, fontSize: 13 }}>
+                                  {formatNumber(post.shares)}
+                                </strong>
 
                                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                   {post.url && (
@@ -799,6 +909,7 @@ export default function ContentSummaryImproved({
                                       Otwórz ↗
                                     </a>
                                   )}
+
                                   <span style={{ color: css.muted, fontSize: 11 }}>
                                     Szczegóły
                                   </span>
@@ -822,12 +933,13 @@ export default function ContentSummaryImproved({
                                 >
                                   <div
                                     style={{
-                                      color: css.aiText,
+                                      color: css.accent,
                                       fontSize: 10,
                                       fontWeight: 900,
                                       textTransform: "uppercase",
                                       letterSpacing: ".08em",
                                       marginBottom: 8,
+                                      fontFamily: "var(--font-label)",
                                     }}
                                   >
                                     Opis posta
@@ -840,6 +952,7 @@ export default function ContentSummaryImproved({
                                       fontSize: 12,
                                       lineHeight: 1.7,
                                       whiteSpace: "pre-wrap",
+                                      fontWeight: 400,
                                     }}
                                   >
                                     {post.description || "Brak opisu posta w pobranych danych."}
@@ -890,12 +1003,13 @@ export default function ContentSummaryImproved({
                                 >
                                   <div
                                     style={{
-                                      color: css.aiText,
+                                      color: css.accent,
                                       fontSize: 10,
                                       fontWeight: 900,
                                       textTransform: "uppercase",
                                       letterSpacing: ".08em",
                                       marginBottom: 8,
+                                      fontFamily: "var(--font-label)",
                                     }}
                                   >
                                     Statystyki posta
