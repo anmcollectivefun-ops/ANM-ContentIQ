@@ -413,12 +413,16 @@ function SectionLabel({
   return (
     <div
       style={{
-        fontSize: 10,
+        fontFamily: "var(--font-label)",
+        fontSize: 11,
         fontWeight: 900,
         textTransform: "uppercase",
-        letterSpacing: "0.1em",
+        letterSpacing: "0.12em",
         color,
         marginBottom: 8,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
       }}
     >
       {children}
@@ -1346,8 +1350,6 @@ export default function VideoStudio({
       }
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800;9..40,900&family=DM+Serif+Display&display=swap');
-
         * {
           box-sizing: border-box;
         }
@@ -1407,11 +1409,14 @@ export default function VideoStudio({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
-          <SectionLabel color={css.aiText}>Stwórz z AI swoje video</SectionLabel>
+          <SectionLabel color={css.aiText}>
+            <Wand2 size={15} color={css.aiIcon} />
+            Stwórz z AI swoje video
+          </SectionLabel>
 
           <div className="video-section-grid">
             <Card css={css}>
-              <SectionLabel color={css.aiText}>Dodaj video</SectionLabel>
+              <SectionLabel color={css.accent}>Dodaj video</SectionLabel>
 
               <h2 style={panelTitleStyle}>Upload video</h2>
 
@@ -1470,7 +1475,7 @@ export default function VideoStudio({
               )}
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Platforma video</SectionLabel>
+                <SectionLabel color={css.accent}>Platforma video</SectionLabel>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {PLATFORMS.map((item) => (
@@ -1488,7 +1493,10 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-  <SectionLabel color={css.aiText}>Sugestia dla AI</SectionLabel>
+  <SectionLabel color={css.aiText}>
+                  <Wand2 size={15} color={css.aiIcon} />
+                  Sugestia dla AI
+                </SectionLabel>
 
   <div
     style={{
@@ -1537,7 +1545,10 @@ export default function VideoStudio({
 </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Silnik analizy</SectionLabel>
+                <SectionLabel color={css.aiText}>
+                  <Wand2 size={15} color={css.aiIcon} />
+                  Silnik analizy
+                </SectionLabel>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[
@@ -1567,7 +1578,7 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Link opcjonalny</SectionLabel>
+                <SectionLabel color={css.accent}>Link opcjonalny</SectionLabel>
 
                 <input
                   value={videoReferenceUrl}
@@ -1576,7 +1587,7 @@ export default function VideoStudio({
                   style={{
                     width: "100%",
                     borderRadius: 14,
-                    border: `1px solid ${css.aiBorder}`,
+                    border: `1px solid ${css.border}`,
                     background: css.surfaceSoft,
                     color: css.text,
                     padding: 12,
@@ -1695,7 +1706,10 @@ export default function VideoStudio({
             </Card>
 
           <Card css={css} variant="aiGlow" minHeight={420}>
-              <SectionLabel color={css.accent}>Wynik analizy AI</SectionLabel>
+              <SectionLabel color={css.aiText}>
+                <Wand2 size={15} color={css.aiIcon} />
+                Wynik analizy AI
+              </SectionLabel>
 
               {!videoAnalysis && !analyzingVideo && (
                 <div
@@ -2081,7 +2095,10 @@ export default function VideoStudio({
             </Card>
 
             <Card css={css} variant="aiGlow" minHeight={420}>
-              <SectionLabel color={css.accent}>Wygenerowany brief AI</SectionLabel>
+              <SectionLabel color={css.aiText}>
+                <Wand2 size={15} color={css.aiIcon} />
+                Wygenerowany brief AI
+              </SectionLabel>
 
               {!brief && !loading && (
                 <div

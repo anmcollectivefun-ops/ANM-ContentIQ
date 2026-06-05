@@ -148,15 +148,6 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
-function unique(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
-function extractHashtags(text: string | null | undefined) {
-  if (!text) return [];
-  return unique((text.match(/#[\p{L}\p{N}_-]+/gu) || []).slice(0, 32));
-}
-
 function safeFileName(fileName: string) {
   const dotIndex = fileName.lastIndexOf(".");
   const extension = dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : "";
@@ -379,12 +370,16 @@ function SectionLabel({
   return (
     <div
       style={{
-        fontSize: 10,
+        fontFamily: "var(--font-label)",
+        fontSize: 11,
         fontWeight: 900,
         textTransform: "uppercase",
-        letterSpacing: "0.1em",
+        letterSpacing: "0.12em",
         color,
         marginBottom: 8,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 7,
       }}
     >
       {children}
@@ -395,20 +390,24 @@ function SectionLabel({
 function Card({
   children,
   css,
-  accent = false,
+  variant = "default",
   minHeight,
 }: {
   children: React.ReactNode;
   css: Record<string, string>;
-  accent?: boolean;
+  variant?: "default" | "aiGlow";
   minHeight?: number;
 }) {
+  const isAiGlow = variant === "aiGlow";
+
   return (
     <section
       style={{
-        background: accent ? css.aiBg : css.surface,
-        border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        boxShadow: accent ? css.aiGlow : "none",
+        background: css.surface,
+        border: `1px solid ${isAiGlow ? css.aiBorder : css.border}`,
+        boxShadow: isAiGlow
+          ? `0 20px 50px rgba(0,0,0,0.35), 0 18px 42px rgba(168, 85, 247, 0.16)`
+          : "0 10px 24px rgba(0,0,0,0.18)",
         color: css.text,
         borderRadius: 18,
         padding: 16,
@@ -417,7 +416,22 @@ function Card({
         overflow: "hidden",
       }}
     >
-      {children}
+      {isAiGlow && (
+        <div
+          style={{
+            position: "absolute",
+            left: 20,
+            right: 20,
+            bottom: -18,
+            height: 42,
+            background: "rgba(168, 85, 247, 0.18)",
+            filter: "blur(22px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
     </section>
   );
 }
@@ -436,9 +450,9 @@ function ResultBox({
   return (
     <div
       style={{
-        background: accent ? css.aiBg : css.surfaceSoft,
+        background: css.surfaceSoft,
         border: `1px solid ${accent ? css.aiBorder : css.border}`,
-        boxShadow: accent ? css.aiGlow : "none",
+        boxShadow: accent ? `0 10px 28px rgba(168, 85, 247, 0.10)` : "none",
         color: css.text,
         borderRadius: accent ? 18 : 14,
         padding: accent ? 14 : 13,
@@ -446,11 +460,28 @@ function ResultBox({
         overflow: "hidden",
       }}
     >
-      <SectionLabel color={accent ? css.aiText : css.accent}>
-        {accent && <Wand2 size={15} color={css.aiIcon} />}
-        {label}
-      </SectionLabel>
-      {children}
+      {accent && (
+        <div
+          style={{
+            position: "absolute",
+            left: 14,
+            right: 14,
+            bottom: -14,
+            height: 28,
+            background: "rgba(168, 85, 247, 0.14)",
+            filter: "blur(18px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <SectionLabel color={accent ? css.aiText : css.accent}>
+          {accent && <Wand2 size={15} color={css.aiIcon} />}
+          {label}
+        </SectionLabel>
+        {children}
+      </div>
     </div>
   );
 }
@@ -540,8 +571,8 @@ export default function ShortStudio({
   const css: Record<string, string> = dark
     ? {
         bg: "#1A2233",
-        surface: "#070707",
-        surfaceSoft: "#101010",
+        surface: "#050505",
+        surfaceSoft: "#0B0B0D",
         text: "#FFFFFF",
         muted: "#C9CED8",
         border: "rgba(255,255,255,0.10)",
@@ -1065,58 +1096,6 @@ export default function ShortStudio({
 
       if (insertError) throw new Error(insertError.message);
 
-      const draftBody = rows
-        .map((item) =>
-          [
-            `PLATFORMA: ${getPlatformInfo(item.platform)?.name || item.platform}`,
-            `HOOK:\n${item.hook || videoAnalysis.hook}`,
-            `OPIS POSTA:\n${item.caption || videoAnalysis.caption}`,
-            `HASHTAGI:\n${safeArray(item.hashtags).join(" ")}`,
-            videoReferenceUrl.trim() ? `LINK:\n${videoReferenceUrl.trim()}` : "",
-            videoAnalysis.transcript ? `NAPISY / TRANSKRYPCJA:\n${videoAnalysis.transcript}` : "",
-            videoAnalysis.visual_summary ? `NOTATKA TECHNICZNA:\n${videoAnalysis.visual_summary}` : "",
-          ]
-            .filter(Boolean)
-            .join("\n\n")
-        )
-        .join("\n\n---\n\n");
-
-      const { error: draftInsertError } = await supabase
-        .schema("contentiq")
-        .from("content_drafts")
-        .insert({
-          workspace_id: videoUpload.workspace_id,
-          title: videoAnalysis.title || videoAnalysis.detected_topic || "Propozycja posta z filmu",
-          body: draftBody,
-          topic: videoAnalysis.detected_topic || videoAnalysis.title,
-          content_type: "Short Studio / analyzed video post",
-          target_platforms: selectedPlatforms,
-          ai_feedback: [
-            "Propozycja posta wygenerowana z filmu i sugestii użytkownika.",
-            videoAnalysis.template_summary,
-            videoAnalysisNotes.trim() ? `Sugestia użytkownika: ${videoAnalysisNotes.trim()}` : "",
-          ]
-            .filter(Boolean)
-            .join("\n\n"),
-          status: "template",
-          media: [
-            {
-              kind: "cover",
-              asset_type: "video",
-              storage_bucket: TEMP_VIDEO_BUCKET,
-              storage_path: videoUpload.storage_path,
-              file_name: videoUpload.file_name,
-              mime_type: videoUpload.mime_type,
-              file_size: videoUpload.file_size,
-              preview_text: videoAnalysis.hook || videoAnalysis.title || videoUpload.file_name,
-              source: "short_studio",
-              status: "temporary",
-            },
-          ],
-        });
-
-      if (draftInsertError) throw new Error(draftInsertError.message);
-
       const { error: updateError } = await supabase
         .schema("contentiq")
         .from("short_video_uploads")
@@ -1134,7 +1113,7 @@ export default function ShortStudio({
       if (updateError) throw new Error(updateError.message);
 
       setVideoStatus("template_ready");
-      showToast("✓ Zapisano propozycję posta w Szablonach short");
+      showToast("✓ Zapisano szablon shorta dla wybranych platform");
     } catch (err) {
       setVideoError(
         explainSupabaseVideoError(err instanceof Error ? err.message : String(err))
@@ -1256,24 +1235,22 @@ export default function ShortStudio({
 
       const { error: insertError } = await supabase
         .schema("contentiq")
-        .from("inspirations")
+        .from("content_drafts")
         .insert({
           workspace_id: wsId,
-          source_kind: "short",
-          source_studio: "Short Studio",
           title: result.idea_title || topic.slice(0, 80),
-          description: result.main_angle || result.ai_summary,
           body,
-          platforms: selectedPlatforms,
-          hashtags: extractHashtags(body),
+          topic,
+          content_type: "Short Studio / multi-platform video",
+          target_platforms: selectedPlatforms,
           ai_score: avgScore,
           ai_feedback: result.ai_summary,
-          status: "active",
+          status: "draft",
         });
 
       if (insertError) throw new Error(insertError.message);
 
-      showToast("✓ Zapisano jako inspirację short");
+      showToast("✓ Zapisano jako szkic");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1335,8 +1312,8 @@ export default function ShortStudio({
     fontSize: 26,
     lineHeight: 1.05,
     margin: "6px 0 8px",
-    color: css.text,
-    fontWeight: 400,
+    color: css.accent,
+    fontWeight: 500,
   };
 
   const buttonPrimary: CSSProperties = {
@@ -1368,7 +1345,6 @@ export default function ShortStudio({
       }
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800;9..40,900&family=DM+Serif+Display&display=swap');
 
         * {
           box-sizing: border-box;
@@ -1428,10 +1404,13 @@ export default function ShortStudio({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
-          <SectionLabel color={css.aiText}>Stwórz z AI swój short</SectionLabel>
+          <SectionLabel color={css.aiText}>
+            <Wand2 size={15} color={css.aiIcon} />
+            Stwórz z AI swój short
+          </SectionLabel>
           <div className="short-section-grid">
-            <Card css={css} accent>
-              <SectionLabel color={css.aiText}>Dodaj film</SectionLabel>
+            <Card css={css}>
+              <SectionLabel color={css.accent}>Dodaj film</SectionLabel>
 
               <h2 style={panelTitleStyle}>Upload shorta</h2>
 
@@ -1446,7 +1425,7 @@ export default function ShortStudio({
                 style={{
                   width: "100%",
                   borderRadius: 14,
-                  border: `1px dashed ${css.aiBorder}`,
+                  border: `1px dashed ${css.border}`,
                   background: css.surfaceSoft,
                   color: css.text,
                   padding: 12,
@@ -1490,24 +1469,7 @@ export default function ShortStudio({
               )}
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Platformy treści i zapisu szablonu</SectionLabel>
-
-                <div
-                  style={{
-                    marginBottom: 8,
-                    borderRadius: 12,
-                    border: `1px solid ${css.aiBorder}`,
-                    background: css.aiBgSoft,
-                    color: css.text,
-                    padding: "9px 10px",
-                    fontSize: 12,
-                    lineHeight: 1.55,
-                  }}
-                >
-                  Wybierz kanały, pod które AI ma dopasować opis, hook, hashtagi i
-                  CTA. Te same platformy decydują też, w której grupie pojawi się
-                  zapisany szablon shorta.
-                </div>
+                <SectionLabel color={css.accent}>Platforma szablonu</SectionLabel>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {SHORT_PLATFORMS.map((item) => (
@@ -1525,48 +1487,62 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Sugestia dla AI</SectionLabel>
+                <SectionLabel color={css.aiText}>
+                  <Wand2 size={15} color={css.aiIcon} />
+                  Sugestia dla AI
+                </SectionLabel>
 
                 <div
                   style={{
-                    marginBottom: 8,
-                    borderRadius: 12,
+                    borderRadius: 16,
                     border: `1px solid ${css.aiBorder}`,
-                    background: css.aiBgSoft,
-                    color: css.text,
-                    padding: "9px 10px",
-                    fontSize: 12,
-                    lineHeight: 1.55,
+                    background: css.surface,
+                    boxShadow: `0 12px 30px rgba(168, 85, 247, 0.14)`,
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                 >
-                  To pole jest briefem dla AI. Wpisz cel posta, odbiorcę, CTA, link
-                  albo konkretny przekaz. Bez sugestii AI bazuje głównie na napisach
-                  i klatkach, więc może dobrze opisać film, ale nie trafić w intencję
-                  Twojej publikacji.
-                </div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 14,
+                      right: 14,
+                      bottom: -14,
+                      height: 28,
+                      background: "rgba(168, 85, 247, 0.15)",
+                      filter: "blur(18px)",
+                      pointerEvents: "none",
+                    }}
+                  />
 
-                <textarea
-                  value={videoAnalysisNotes}
-                  onChange={(event) => setVideoAnalysisNotes(event.target.value)}
-                  placeholder="Np. napisz post o aplikacji eventowej ANM Collective. Zachęć do kliknięcia linku i pokaż, że ułatwia planowanie wesel, 18. urodzin i eventów."
-                  style={{
-                    width: "100%",
-                    minHeight: 78,
-                    borderRadius: 14,
-                    border: `1px solid ${css.aiBorder}`,
-                    background: css.surfaceSoft,
-                    color: css.text,
-                    padding: 12,
-                    outline: "none",
-                    fontFamily: "inherit",
-                    fontSize: 12,
-                    lineHeight: 1.65,
-                  }}
-                />
+                  <textarea
+                    value={videoAnalysisNotes}
+                    onChange={(event) => setVideoAnalysisNotes(event.target.value)}
+                    placeholder="Np. przygotuj opis sprzedażowy, mocny hook, CTA do obserwowania i hashtagi pod wybrane platformy."
+                    style={{
+                      width: "100%",
+                      minHeight: 78,
+                      borderRadius: 16,
+                      border: "none",
+                      background: "transparent",
+                      color: css.text,
+                      padding: 12,
+                      outline: "none",
+                      fontFamily: "inherit",
+                      fontSize: 12,
+                      lineHeight: 1.65,
+                      position: "relative",
+                      zIndex: 1,
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Silnik analizy</SectionLabel>
+                <SectionLabel color={css.aiText}>
+                  <Wand2 size={15} color={css.aiIcon} />
+                  Silnik analizy
+                </SectionLabel>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {[
@@ -1596,7 +1572,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.aiText}>Link opcjonalny</SectionLabel>
+                <SectionLabel color={css.accent}>Link opcjonalny</SectionLabel>
 
                 <input
                   value={videoReferenceUrl}
@@ -1605,7 +1581,7 @@ export default function ShortStudio({
                   style={{
                     width: "100%",
                     borderRadius: 14,
-                    border: `1px solid ${css.aiBorder}`,
+                    border: `1px solid ${css.border}`,
                     background: css.surfaceSoft,
                     color: css.text,
                     padding: 12,
@@ -1723,8 +1699,11 @@ export default function ShortStudio({
               )}
             </Card>
 
-            <Card css={css} minHeight={420}>
-              <SectionLabel color={css.accent}>Wynik wygenerowanej treści od AI</SectionLabel>
+            <Card css={css} variant="aiGlow" minHeight={420}>
+              <SectionLabel color={css.aiText}>
+                <Wand2 size={15} color={css.aiIcon} />
+                Wynik wygenerowanej treści od AI
+              </SectionLabel>
 
               {!videoAnalysis && !analyzingVideo && (
                 <div
@@ -2103,8 +2082,11 @@ export default function ShortStudio({
               )}
             </Card>
 
-            <Card css={css} minHeight={420}>
-              <SectionLabel color={css.accent}>Wygenerowana treść AI</SectionLabel>
+            <Card css={css} variant="aiGlow" minHeight={420}>
+              <SectionLabel color={css.aiText}>
+                <Wand2 size={15} color={css.aiIcon} />
+                Wygenerowana treść AI
+              </SectionLabel>
 
               {!result && !loading && (
                 <div
@@ -2323,7 +2305,7 @@ export default function ShortStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {saving ? "Zapisuję..." : "Inspiracja"}
+                      {saving ? "Zapisuję..." : "Szkic"}
                     </button>
                   </div>
 
