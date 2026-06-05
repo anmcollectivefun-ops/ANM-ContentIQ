@@ -26,12 +26,13 @@ const PLATFORM_CONFIG: Record<string, {
     clientIdEnv: "LINKEDIN_CLIENT_ID",
     scope: "openid profile email r_member_social w_member_social r_organization_social w_organization_social",
   },
-  tiktok: {
-    authUrl: "https://www.tiktok.com/v2/auth/authorize/",
-    clientIdEnv: "TIKTOK_CLIENT_KEY",
-    scope: "user.info.basic",
-    analyticsScope: "user.info.basic,video.list",
-  },
+ tiktok: {
+  authUrl: "https://www.tiktok.com/v2/auth/authorize/",
+  clientIdEnv: "TIKTOK_CLIENT_KEY",
+  scope: "user.info.basic,user.info.profile,user.info.stats",
+  analyticsScope:
+    "user.info.basic,user.info.profile,user.info.stats,video.list",
+},
   youtube: {
     authUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     clientIdEnv: "GOOGLE_CLIENT_ID",
@@ -101,19 +102,33 @@ function getMetaConfigId(platform: string, mode: string) {
     || env("FACEBOOK_LOGIN_CONFIG_ID");
 }
 
-function getOAuthScope(platform: string, config: { scope: string; analyticsScope?: string }, mode: string) {
+function getOAuthScope(
+  platform: string,
+  config: { scope: string; analyticsScope?: string },
+  mode: string
+) {
   if (platform === "tiktok") {
-    const scopes = new Set(["user.info.basic"]);
+    const scopes = new Set([
+      "user.info.basic",
+      "user.info.profile",
+      "user.info.stats",
+    ]);
 
     if (env("TIKTOK_ENABLE_VIDEO_LIST") === "1" || mode === "analytics") {
       scopes.add("video.list");
     }
 
-    if (env("TIKTOK_ENABLE_UPLOAD") === "1" || env("TIKTOK_ENABLE_PUBLISHING") === "1") {
+    if (
+      env("TIKTOK_ENABLE_UPLOAD") === "1" ||
+      env("TIKTOK_ENABLE_PUBLISHING") === "1"
+    ) {
       scopes.add("video.upload");
     }
 
-    if (env("TIKTOK_ENABLE_DIRECT_PUBLISH") === "1" || env("TIKTOK_ENABLE_PUBLISHING") === "1") {
+    if (
+      env("TIKTOK_ENABLE_DIRECT_PUBLISH") === "1" ||
+      env("TIKTOK_ENABLE_PUBLISHING") === "1"
+    ) {
       scopes.add("video.publish");
     }
 
@@ -126,7 +141,9 @@ function getOAuthScope(platform: string, config: { scope: string; analyticsScope
 
   if (platform === "facebook" && mode === "publishing") {
     const wantsPublishing = env("FACEBOOK_ENABLE_PUBLISHING") === "1";
-    return wantsPublishing ? "pages_read_engagement,pages_show_list,pages_manage_posts" : config.scope;
+    return wantsPublishing
+      ? "pages_read_engagement,pages_show_list,pages_manage_posts"
+      : config.scope;
   }
 
   return config.scope;
