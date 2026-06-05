@@ -211,8 +211,7 @@ async function fetchFacebook(
 
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${pageId}/posts?` +
-      `fields=id,message,created_time,permalink_url,full_picture,picture,shares,` +
-      `comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
+      `fields=id,message,created_time,permalink_url,full_picture,picture,shares&` +
       `access_token=${token}&limit=25`
   );
 
@@ -222,6 +221,7 @@ async function fetchFacebook(
   const posts = await Promise.all(
     (data.data || []).map(async (post: Record<string, unknown>) => {
       let insights: InsightMetric[] = [];
+
       const metricSets = [
         "post_impressions,post_impressions_unique,post_engaged_users,post_clicks",
         "post_impressions_unique,post_engaged_users",
@@ -229,25 +229,48 @@ async function fetchFacebook(
       ];
 
       for (const metrics of metricSets) {
-        const insightRes = await fetch(
-          `https://graph.facebook.com/v19.0/${post.id}/insights?` +
-            `metric=${metrics}&access_token=${token}`
-        );
-        const insightData = await insightRes.json();
+        try {
+          const insightRes = await fetch(
+            `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+              `metric=${metrics}&access_token=${token}`
+          );
 
-        if (!insightData.error) {
-          insights = insightData.data || [];
-          break;
+          const insightData = await insightRes.json();
+
+          if (!insightData.error) {
+            insights = insightData.data || [];
+            break;
+          }
+        } catch {
+          // Insights są dodatkiem. Jeśli Meta ich nie odda, post nadal zapisujemy.
         }
       }
 
-      const shares = post.shares as { count?: number } | undefined;
-      const comments = post.comments as
-        | { summary?: { total_count?: number } }
-        | undefined;
-      const reactions = post.reactions as
-        | { summary?: { total_count?: number } }
-        | undefined;
+      let engagementDetails: {
+        likes?: number;
+        comments?: number;
+        shares?: number;
+      } = {};
+
+      try {
+        const engagementRes = await fetch(
+          `https://graph.facebook.com/v19.0/${post.id}?` +
+            `fields=shares,comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
+            `access_token=${token}`
+        );
+
+        const engagementData = await engagementRes.json();
+
+        if (!engagementData.error) {
+          engagementDetails = {
+            likes: engagementData.reactions?.summary?.total_count || 0,
+            comments: engagementData.comments?.summary?.total_count || 0,
+            shares: engagementData.shares?.count || 0,
+          };
+        }
+      } catch {
+        // Jeśli Meta zablokuje reakcje/komentarze, nie wywalamy całej synchronizacji.
+      }
 
       const image = firstString(post.full_picture, post.picture);
 
@@ -265,9 +288,9 @@ async function fetchFacebook(
 
         reach: getInsightValue(insights, "post_impressions_unique"),
         impressions: getInsightValue(insights, "post_impressions"),
-        likes: reactions?.summary?.total_count || 0,
-        comments: comments?.summary?.total_count || 0,
-        shares: shares?.count || 0,
+        likes: engagementDetails.likes || 0,
+        comments: engagementDetails.comments || 0,
+        shares: engagementDetails.shares || 0,
         clicks: getInsightValue(insights, "post_clicks"),
       };
     })
@@ -856,21 +879,13 @@ async function fetchPlatformPosts(
       return fetchInstagram(meta.token, meta.accountId);
     }
 
-    case "facebook": {
-      const meta = await resolveMetaResource(token, "facebook", accountId);
+  case "facebook": {
+  ensureAccountId(connection.platform, accountId);
 
-      if (meta.accountId !== accountId) {
-        await supabase
-          .schema("contentiq")
-          .from("platform_connections")
-          .update({ account_id: meta.accountId })
-          .eq("id", connection.id);
-
-        connection.account_id = meta.accountId;
-      }
-
-      return fetchFacebook(meta.token, meta.accountId);
-    }
+  // Facebook w tej aplikacji zapisuje już Page Access Token w Supabase.
+  // Nie używamy /me/accounts ani fallbacków, bo mogą podmienić dobry Page Token.
+  return fetchFacebook(token, accountId);
+}
 
     case "linkedin":
       ensureAccountId(connection.platform, accountId);

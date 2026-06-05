@@ -58,6 +58,42 @@ function getMetaAppId(platform: string) {
 function getMetaAppSecret(platform: string) {
   return env("META_APP_SECRET");
 }
+
+function getUsedMetaLoginConfigId(platform: string) {
+  if (platform === "facebook") {
+    return (
+      env("FACEBOOK_LOGIN_CONFIG_ID") ||
+      env("FACEBOOK_LOGIN_ANALYTICS_CONFIG_ID") ||
+      env("FACEBOOK_LOGIN_PUBLISHING_CONFIG_ID") ||
+      env("META_LOGIN_CONFIG_ID") ||
+      null
+    );
+  }
+
+  if (platform === "instagram") {
+    return (
+      env("INSTAGRAM_LOGIN_CONFIG_ID") ||
+      env("INSTAGRAM_LOGIN_ANALYTICS_CONFIG_ID") ||
+      env("INSTAGRAM_LOGIN_PUBLISHING_CONFIG_ID") ||
+      env("META_LOGIN_CONFIG_ID") ||
+      null
+    );
+  }
+
+  return null;
+}
+
+function getMetaTokenSource(platform: string) {
+  if (platform === "facebook") {
+    return "facebook_oauth_user_token_to_page_token";
+  }
+
+  if (platform === "instagram") {
+    return "instagram_oauth_user_token_to_page_token";
+  }
+
+  return "oauth";
+}
  
 async function exchangeMeta(platform: string, code: string, redirectUri: string): Promise<TokenResult> {
   const clientId = getMetaAppId(platform);
@@ -469,6 +505,10 @@ export async function GET(
         access_token: tokenData.access_token,
         token_expires_at: expiresAt,
         pages,
+
+        login_config_id: getUsedMetaLoginConfigId(platform),
+        token_source: getMetaTokenSource(platform),
+        token_type: "user_access_token_before_page_selection",
       }), {
         httpOnly: true,
         sameSite: "lax",
