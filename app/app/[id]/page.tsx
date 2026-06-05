@@ -528,7 +528,12 @@ function IconView({
   return <Icon size={size} strokeWidth={strokeWidth} />;
 }
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-
+function compactMetric(value: number) {
+  return new Intl.NumberFormat("pl-PL", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(Number(value || 0));
+}
 function formatLastSync(value: string | null) {
   if (!value) return "Nie zsynchronizowano";
 
@@ -927,60 +932,161 @@ const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null)
     ];
   }, [accounts]);
 
-  const compareRows = useMemo(() => {
-    return (Object.entries(postsByPlatform) as Array<[Platform, Post[]]>)
-      .flatMap(([platform, posts]) =>
-        posts.map((post) => {
-          const reachValue = Number(String(post.reach || "0").replace(/[^\d.-]/g, "")) || 0;
-          const engagement =
-            (post.likes || 0) +
-            (post.comments || 0) +
-            (post.shares || 0) +
-            (post.saves || 0);
+  const comparisonRows = useMemo(() => {
+    const platformMeta: Record<
+      string,
+      { name: string; color: string; icon: string }
+    > = {
+      tiktok: { name: "TikTok", color: "#7DD3FC", icon: "♪" },
+      instagram: { name: "Instagram", color: "#E1306C", icon: "◎" },
+      facebook: { name: "Facebook", color: "#1877F2", icon: "f" },
+      youtube: { name: "YouTube", color: "#FF0033", icon: "▶" },
+      linkedin: { name: "LinkedIn", color: "#0A66C2", icon: "in" },
+      spotify: { name: "Spotify", color: "#1DB954", icon: "◉" },
+      blog: { name: "Blog", color: "#22C55E", icon: "✎" },
+    };
 
-          return {
-            ...post,
-            platform,
-            platformName: getPlatformName(platform),
-            platformColor: getPlatformColor(platform),
-            reachValue,
-            engagement,
-            compareScore:
-              post.score ||
-              Math.min(
-                100,
-                Math.round(
-                  reachValue / 25 +
-                    (post.likes || 0) * 2 +
-                    (post.comments || 0) * 4 +
-                    (post.shares || 0) * 5 +
-                    (post.saves || 0) * 5
-                )
-              ),
-          };
-        })
-      )
-      .sort((a, b) => b.compareScore - a.compareScore)
-      .slice(0, 12);
-  }, [postsByPlatform]);
+    return Object.entries(postsByPlatform || {}).map(([platformId, posts]) => {
+      const safePosts = Array.isArray(posts) ? posts : [];
 
-  const compareAiText = useMemo(() => {
-    const apiCount = compareRows.filter((post) => post.source === "import").length;
-    const manualCount = compareRows.filter((post) => post.source === "manual_link").length;
-    const best = compareRows[0];
+      const totals = safePosts.reduce(
+        (acc, post) => {
+          const reach = Number(String(post.reach || "0").replace(/[^\d.-]/g, ""));
+          const likes = Number(post.likes || 0);
+          const comments = Number(post.comments || 0);
+          const shares = Number(post.shares || 0);
+          const score = Number(post.score || 0);
 
-    if (!compareRows.length) {
-      return "Nie ma jeszcze publikacji do porównania. Po synchronizacji lub dodaniu linków ręcznych zobaczysz tutaj ranking treści.";
-    }
+          acc.reach += reach;
+          acc.likes += likes;
+          acc.comments += comments;
+          acc.shares += shares;
+          acc.engagement += likes + comments + shares;
+          acc.score += score;
+          return acc;
+        },
+        {
+          reach: 0,
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          engagement: 0,
+          score: 0,
+        }
+      );
 
-    if (!apiCount && manualCount) {
-      return `Masz ${manualCount} linków ręcznych. To dobry kontekst dla AI, ale porównanie wyników będzie pełne dopiero po pobraniu metryk z API.`;
-    }
+      const count = safePosts.length || 1;
+      const avgReach = Math.round(totals.reach / count);
+      const avgEngagement = Math.round(totals.engagement / count);
+      const avgScore = Math.round(totals.score / count);
 
-    return best
-      ? `Najmocniejsza treść w tym zestawieniu: ${best.title} (${best.platformName}). Porównuj podobne tematy i formaty, ale decyzje opieraj głównie na rekordach z API.`
-      : "Porównanie gotowe. Najbardziej wiarygodne są publikacje oznaczone jako Import / API.";
-  }, [compareRows]);
+      const bestPost = [...safePosts].sort((a, b) => {
+        const aPower =
+          Number(a.score || 0) * 2 +
+          Number(String(a.reach || "0").replace(/[^\d.-]/g, "")) +
+          Number(a.likes || 0) * 4 +
+          Number(a.comments || 0) * 8 +
+          Number(a.shares || 0) * 10;
+
+        const bPower =
+          Number(b.score || 0) * 2 +
+          Number(String(b.reach || "0").replace(/[^\d.-]/g, "")) +
+          Number(b.likes || 0) * 4 +
+          Number(b.comments || 0) * 8 +
+          Number(b.shares || 0) * 10;
+
+        return bPower - aPower;
+      })[0];
+
+      const meta = platformMeta[platformId] || {
+        name: platformId,
+        color: css.accent,
+        icon: "•",
+      };
+
+      return {
+        id: platformId,
+        name: meta.name,
+        color: meta.color,
+        icon: meta.icon,
+        posts: safePosts,
+        postsCount: safePosts.length,
+        reach: totals.reach,
+        avgReach,
+        engagement: totals.engagement,
+        avgEngagement,
+        likes: totals.likes,
+        comments: totals.comments,
+        shares: totals.shares,
+        avgScore,
+        bestPost,
+      };
+    });
+  }, [postsByPlatform, css.accent]);
+
+  const comparisonInsights = useMemo(() => {
+    const rowsWithPosts = comparisonRows.filter((row) => row.postsCount > 0);
+
+    const leader = [...rowsWithPosts].sort((a, b) => {
+      const aPower = a.avgScore * 3 + a.avgEngagement * 2 + a.avgReach;
+      const bPower = b.avgScore * 3 + b.avgEngagement * 2 + b.avgReach;
+      return bPower - aPower;
+    })[0];
+
+    const needsBoost = [...rowsWithPosts].sort((a, b) => {
+      const aWeakness = a.avgScore * 2 + a.avgEngagement + a.avgReach * 0.2;
+      const bWeakness = b.avgScore * 2 + b.avgEngagement + b.avgReach * 0.2;
+      return aWeakness - bWeakness;
+    })[0];
+
+    const allPosts = rowsWithPosts.flatMap((row) =>
+      row.posts.map((post) => ({
+        ...post,
+        platformId: row.id,
+        platformName: row.name,
+        platformColor: row.color,
+      }))
+    );
+
+    const formatMap = allPosts.reduce((acc, post) => {
+      const type = post.type || "post";
+
+      if (!acc[type]) {
+        acc[type] = {
+          type,
+          count: 0,
+          reach: 0,
+          engagement: 0,
+          score: 0,
+        };
+      }
+
+      acc[type].count += 1;
+      acc[type].reach += Number(String(post.reach || "0").replace(/[^\d.-]/g, ""));
+      acc[type].engagement +=
+        Number(post.likes || 0) +
+        Number(post.comments || 0) +
+        Number(post.shares || 0);
+      acc[type].score += Number(post.score || 0);
+
+      return acc;
+    }, {} as Record<string, { type: string; count: number; reach: number; engagement: number; score: number }>);
+
+    const bestFormat = Object.values(formatMap).sort((a, b) => {
+      const aPower = a.score / a.count + a.engagement / a.count + a.reach / a.count;
+      const bPower = b.score / b.count + b.engagement / b.count + b.reach / b.count;
+      return bPower - aPower;
+    })[0];
+
+    return {
+      leader,
+      needsBoost,
+      bestFormat,
+      allPosts,
+    };
+  }, [comparisonRows]);
+
+
 
   async function getOrCreateWorkspace() {
     const { data: existing } = await supabase
@@ -2030,110 +2136,6 @@ const formatProfileNumber = (value: any) => {
     />
   </div>
 )}
-{activeTab === "compare" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        color: css.text,
-        position: "relative",
-        overflow: "hidden",
-        marginBottom: 18,
-      }}
-    >
-      <p style={{ ...st.smallLabel, color: css.accent, fontFamily: "var(--font-label)", letterSpacing: ".12em", textTransform: "uppercase" }}>
-        Por?wnanie publikacji
-      </p>
-
-      <h2 style={{ ...st.sectionTitle, color: css.heading, fontFamily: "var(--font-heading)" }}>
-        Por?wnanie contentu
-      </h2>
-
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Ranking tre?ci z pod??czonych platform i link?w r?cznych. Dane z API s? prawdziwymi wynikami, a linki r?czne s? kontekstem bez metryk.
-      </p>
-
-      <div
-        style={{
-          marginTop: 18,
-          background: css.aiBg,
-          border: `1px solid ${css.aiBorder}`,
-          boxShadow: css.aiGlow,
-          color: css.text,
-          borderRadius: 20,
-          padding: "16px 18px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
-          <Wand2 size={15} color={css.aiIcon} />
-          AI rekomendacja
-        </div>
-        <p style={{ margin: "8px 0 0", color: css.text, fontSize: 13, lineHeight: 1.65 }}>
-          {compareAiText}
-        </p>
-      </div>
-    </div>
-
-    {compareRows.length ? (
-      <div style={st.compareTable}>
-        {compareRows.map((post) => (
-          <div
-            key={`${post.platform}-${post.id}`}
-            style={{
-              ...st.compareRow,
-              background: css.surface,
-              border: `1px solid ${css.border}`,
-              color: css.text,
-              boxShadow: "none",
-            }}
-          >
-            <div>
-              <div style={{ ...st.smallLabel, color: post.platformColor, fontFamily: "var(--font-label)" }}>
-                {post.platformName}
-              </div>
-              <div style={{ color: css.muted, fontSize: 12, marginTop: 5 }}>
-                {post.source === "import" ? "Import / API" : "Link r?czny"}
-              </div>
-            </div>
-
-            <ScoreBar score={post.compareScore} />
-
-            <div>
-              <div style={{ color: css.heading, fontFamily: "var(--font-heading)", fontSize: 20, lineHeight: 1.15 }}>
-                {post.title}
-              </div>
-              <div style={{ color: css.muted, fontSize: 12, marginTop: 8 }}>
-                {post.date} ? {post.type}
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-              {[
-                ["Zasi?g", post.reach || "0"],
-                ["Polubienia", post.likes || 0],
-                ["Komentarze", post.comments || 0],
-                ["Engagement", post.engagement],
-              ].map(([label, value]) => (
-                <div key={String(label)} style={{ background: css.liveSoft, border: `1px solid ${css.border}`, borderRadius: 14, padding: 10, boxShadow: "none" }}>
-                  <div style={{ color: css.muted, fontSize: 10, fontWeight: 800 }}>{label}</div>
-                  <div style={{ color: css.text, fontSize: 16, fontWeight: 900, marginTop: 4 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div style={{ ...st.panel, background: css.surface, border: `1px solid ${css.border}`, color: css.muted }}>
-        Brak tre?ci do por?wnania. Najpierw zsynchronizuj platformy albo dodaj linki r?czne w Integracjach.
-      </div>
-    )}
-  </div>
-)}
 {/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}
 
 {activeTab === "accounts" && activeAccount && (
@@ -2640,6 +2642,484 @@ const formatProfileNumber = (value: any) => {
   </div>
 )}
 
+{/* ================= PORÓWNANIE CONTENTU ================= */}
+{activeTab === "compare" && (
+  <div style={{ display: "grid", gap: 18 }}>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        color: css.text,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          right: 24,
+          top: 12,
+          fontSize: 120,
+          lineHeight: 1,
+          color: css.accent,
+          opacity: 0.05,
+          fontFamily: "var(--font-heading)",
+          pointerEvents: "none",
+        }}
+      >
+        ≠
+      </div>
+
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        Porównanie contentu
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.heading,
+          fontFamily: "var(--font-heading)",
+        }}
+      >
+        Które konto ciągnie wynik, a które trzeba podkręcić?
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted, maxWidth: 860 }}>
+        Ten widok nie pokazuje tylko liczb. Porównuje platformy jak system:
+        gdzie content działa najlepiej, gdzie warto przenieść format, które konto
+        wymaga poprawy i na którym profilu warto się wzorować.
+      </p>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gap: 12,
+      }}
+    >
+      {[
+        {
+          label: "Wzoruj się na",
+          value: comparisonInsights.leader?.name || "Brak danych",
+          text: comparisonInsights.leader
+            ? `To konto ma najlepszy miks jakości, zaangażowania i średniego wyniku AI. Przenieś z niego formaty i styl hooków na słabsze platformy.`
+            : "Podłącz i zsynchronizuj konta, żeby AI mogło wskazać lidera.",
+          color: comparisonInsights.leader?.color || css.accent,
+          ai: true,
+        },
+        {
+          label: "Podkręć najpierw",
+          value: comparisonInsights.needsBoost?.name || "Brak danych",
+          text: comparisonInsights.needsBoost
+            ? `Tu wynik jest najniższy względem reszty. Zacznij od mocniejszych hooków, krótszych opisów i recyklingu najlepszego formatu z konta lidera.`
+            : "Brak platformy do poprawy.",
+          color: comparisonInsights.needsBoost?.color || css.accent,
+          ai: true,
+        },
+        {
+          label: "Najlepszy format",
+          value: comparisonInsights.bestFormat?.type || "Brak danych",
+          text: comparisonInsights.bestFormat
+            ? `Ten typ treści ma najlepszą średnią skuteczność. Warto przygotować jego wariant na inne platformy.`
+            : "Po pobraniu większej liczby postów AI wskaże najmocniejszy format.",
+          color: css.accent,
+          ai: false,
+        },
+        {
+          label: "Akcja na 7 dni",
+          value: "Test cross-platform",
+          text:
+            "Wybierz najlepszy post z konta lidera i przerób go na 2–3 warianty: short, carousel/opis oraz post edukacyjny.",
+          color: css.aiText,
+          ai: true,
+        },
+      ].map((item) => (
+        <div
+          key={item.label}
+          style={{
+            background: css.surface,
+            border: `1px solid ${item.ai ? css.aiBorder : css.border}`,
+            boxShadow: item.ai
+              ? "0 18px 42px rgba(168,85,247,0.14)"
+              : "none",
+            borderRadius: 20,
+            padding: 16,
+            position: "relative",
+            overflow: "hidden",
+            minHeight: 168,
+          }}
+        >
+          {item.ai && (
+            <div
+              style={{
+                position: "absolute",
+                left: 18,
+                right: 18,
+                bottom: -18,
+                height: 36,
+                background: "rgba(168,85,247,0.18)",
+                filter: "blur(20px)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                color: item.ai ? css.aiText : css.accent,
+                fontFamily: "var(--font-label)",
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              {item.ai && <Wand2 size={15} color={css.aiIcon} />}
+              {item.label}
+            </div>
+
+            <div
+              style={{
+                marginTop: 10,
+                color: item.color,
+                fontFamily: "var(--font-heading)",
+                fontSize: 28,
+                lineHeight: 1.05,
+              }}
+            >
+              {item.value}
+            </div>
+
+            <p
+              style={{
+                margin: "10px 0 0",
+                color: css.muted,
+                fontSize: 12,
+                lineHeight: 1.6,
+              }}
+            >
+              {item.text}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        borderRadius: 24,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: 18,
+          borderBottom: `1px solid ${css.border}`,
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 16,
+          alignItems: "flex-end",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: css.accent,
+              fontFamily: "var(--font-label)",
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Mapa wyników
+          </div>
+
+          <h3
+            style={{
+              margin: "6px 0 0",
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 30,
+              lineHeight: 1.05,
+            }}
+          >
+            Platformy obok siebie
+          </h3>
+        </div>
+
+        <div style={{ color: css.muted, fontSize: 12 }}>
+          Porównanie liczone z ostatnio pobranych publikacji.
+        </div>
+      </div>
+
+      <div style={{ padding: 14, display: "grid", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "minmax(180px, 1.2fr) repeat(5, minmax(90px, .7fr)) minmax(220px, 1.4fr)",
+            gap: 10,
+            color: css.muted,
+            fontFamily: "var(--font-label)",
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: ".08em",
+            textTransform: "uppercase",
+            padding: "0 10px",
+          }}
+        >
+          <span>Platforma</span>
+          <span>Posty</span>
+          <span>Śr. zasięg</span>
+          <span>Eng.</span>
+          <span>AI Score</span>
+          <span>Status</span>
+          <span>AI wniosek</span>
+        </div>
+
+        {comparisonRows.map((row) => {
+          const isLeader = comparisonInsights.leader?.id === row.id;
+          const isWeak = comparisonInsights.needsBoost?.id === row.id;
+
+          return (
+            <div
+              key={row.id}
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "minmax(180px, 1.2fr) repeat(5, minmax(90px, .7fr)) minmax(220px, 1.4fr)",
+                gap: 10,
+                alignItems: "center",
+                background: css.surfaceSoft,
+                border: `1px solid ${
+                  isLeader ? row.color : isWeak ? css.aiBorder : css.border
+                }`,
+                borderRadius: 18,
+                padding: 12,
+                boxShadow: isWeak ? "0 14px 34px rgba(168,85,247,0.10)" : "none",
+              }}
+            >
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    display: "grid",
+                    placeItems: "center",
+                    background: `${row.color}18`,
+                    border: `1px solid ${row.color}44`,
+                    color: row.color,
+                    fontWeight: 900,
+                  }}
+                >
+                  {row.icon}
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: css.text,
+                      fontWeight: 900,
+                      fontSize: 14,
+                    }}
+                  >
+                    {row.name}
+                  </div>
+
+                  <div style={{ color: css.muted, fontSize: 11, marginTop: 3 }}>
+                    {isLeader
+                      ? "konto wzorcowe"
+                      : isWeak
+                        ? "do poprawy"
+                        : "stabilne"}
+                  </div>
+                </div>
+              </div>
+
+              <strong style={{ color: css.text }}>{row.postsCount}</strong>
+              <strong style={{ color: css.text }}>{compactMetric(row.avgReach)}</strong>
+              <strong style={{ color: css.text }}>
+                {compactMetric(row.avgEngagement)}
+              </strong>
+
+              <strong
+                style={{
+                  color: getScoreColor(row.avgScore),
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 23,
+                }}
+              >
+                {row.avgScore || "—"}
+              </strong>
+
+              <div>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    borderRadius: 999,
+                    padding: "5px 8px",
+                    background: isLeader
+                      ? `${row.color}18`
+                      : isWeak
+                        ? css.aiBgSoft
+                        : css.liveSoft,
+                    color: isLeader ? row.color : isWeak ? css.aiText : css.muted,
+                    border: `1px solid ${
+                      isLeader ? `${row.color}44` : isWeak ? css.aiBorder : css.border
+                    }`,
+                    fontSize: 10,
+                    fontWeight: 900,
+                    textTransform: "uppercase",
+                    letterSpacing: ".05em",
+                  }}
+                >
+                  {isLeader ? "wzór" : isWeak ? "podkręcić" : "ok"}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  color: css.muted,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                {isLeader
+                  ? "Z tego konta kopiuj strukturę tematów, rytm publikacji i typ hooków."
+                  : isWeak
+                    ? "Tu warto przetestować format z konta lidera i mocniejsze CTA."
+                    : "Utrzymuj regularność i szukaj jednego formatu do skalowania."}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow: "0 20px 50px rgba(168,85,247,0.13)",
+        borderRadius: 24,
+        padding: 18,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 22,
+          right: 22,
+          bottom: -22,
+          height: 46,
+          background: "rgba(168,85,247,0.18)",
+          filter: "blur(24px)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            color: css.aiText,
+            fontFamily: "var(--font-label)",
+            fontWeight: 900,
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <Wand2 size={15} color={css.aiIcon} />
+          AI playbook na następny tydzień
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 12,
+            marginTop: 14,
+          }}
+        >
+          {[
+            {
+              title: "1. Przenieś zwycięski schemat",
+              text: comparisonInsights.leader
+                ? `Weź najlepszy post z ${comparisonInsights.leader.name} i przygotuj wariant na ${comparisonInsights.needsBoost?.name || "słabszą platformę"}. Nie kopiuj 1:1 — zmień hook i CTA pod kontekst platformy.`
+                : "Najpierw zsynchronizuj platformy, żeby znaleźć zwycięski schemat.",
+            },
+            {
+              title: "2. Popraw słabsze konto",
+              text: comparisonInsights.needsBoost
+                ? `${comparisonInsights.needsBoost.name} wymaga najmocniejszej interwencji. Zacznij od 3 testów: krótszy hook, mocniejsze pytanie na końcu i format edukacyjny.`
+                : "Po pobraniu danych AI wskaże konto do poprawy.",
+            },
+            {
+              title: "3. Testuj format, nie tylko temat",
+              text: comparisonInsights.bestFormat
+                ? `Najlepiej wypada format ${comparisonInsights.bestFormat.type}. Przygotuj 3 warianty tego formatu z innymi tematami.`
+                : "Zbierz więcej postów, żeby AI mogło wybrać najmocniejszy format.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background: css.surfaceSoft,
+                border: `1px solid ${css.aiBorder}`,
+                borderRadius: 18,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  color: css.aiText,
+                  fontSize: 13,
+                  fontWeight: 900,
+                  marginBottom: 7,
+                }}
+              >
+                {item.title}
+              </div>
+
+              <div
+                style={{
+                  color: css.text,
+                  fontSize: 12,
+                  lineHeight: 1.65,
+                }}
+              >
+                {item.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 {selectedPostDetails && (
   <div
     style={{
@@ -3053,6 +3533,7 @@ const formatProfileNumber = (value: any) => {
     </div>
   </div>
 )}
+
  {/* ================= SZCZEGÓŁY KONTA ================= */}
  {activeTab === "brand" && (
               <BrandVoice dark={dark} workspaceId={workspaceId} />
@@ -3062,14 +3543,10 @@ const formatProfileNumber = (value: any) => {
               <AIChat dark={dark} workspaceId={workspaceId} />
             )}
  
-
-
-
  {/* ================= HARMONOGRAM ================= */}
    {activeTab === "calendar" && (
   <Schedule dark={dark} workspaceId={workspaceId} />
 )}
-
  {/* ================= CONTENT STUDIO ================= */}
  {activeTab === "studio" && (
               <div>
