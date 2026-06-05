@@ -1673,16 +1673,7 @@ export default function AppWorkspacePage() {
                 </div>
               </div>
             )}
-
- {/* ================= SZCZEGÓŁY KONTA ================= */}
- {activeTab === "brand" && (
-              <BrandVoice dark={dark} workspaceId={workspaceId} />
-            )}
- {/* ================= CZAT AI ================= */}
- {activeTab === "chat" && (
-              <AIChat dark={dark} workspaceId={workspaceId} />
-            )}
- {/* ================= SZCZEGÓŁY KONTA ================= */}
+{/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}
  {activeTab === "accounts" && activeAccount && (
               <div>
                 <button
@@ -1928,8 +1919,15 @@ export default function AppWorkspacePage() {
                 </div>
               </div>
             )}
-
-
+ {/* ================= SZCZEGÓŁY KONTA ================= */}
+ {activeTab === "brand" && (
+              <BrandVoice dark={dark} workspaceId={workspaceId} />
+            )}
+ {/* ================= CZAT AI ================= */}
+ {activeTab === "chat" && (
+              <AIChat dark={dark} workspaceId={workspaceId} />
+            )}
+ 
 
 {/* ================= PODSUMOWANIE CONTENTU ================= */}
 {activeTab === "content" && (

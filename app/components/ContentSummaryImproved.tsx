@@ -29,6 +29,12 @@ interface DbPost {
   post_type: string | null;
   url: string | null;
   published_at: string | null;
+
+  thumbnail_url: string | null;
+  media_url: string | null;
+  image_url: string | null;
+  cover_url: string | null;
+
   reach: number | null;
   impressions: number | null;
   likes: number | null;
@@ -49,6 +55,7 @@ interface UiPost {
   type: string;
   url: string | null;
   published_at: string | null;
+  thumbnail_url: string | null;
   reach: number;
   impressions: number;
   views: number;
@@ -157,7 +164,14 @@ function mapPost(post: DbPost, platform: Platform): UiPost {
     ai_summary:
       post.ai_summary ||
       "AI użyje tej publikacji jako kontekstu po pobraniu pełniejszych metryk.",
+         thumbnail_url:
+      post.thumbnail_url ||
+      post.cover_url ||
+      post.image_url ||
+      post.media_url ||
+      null,
   };
+   
 }
 
 function getTotals(posts: UiPost[]) {
