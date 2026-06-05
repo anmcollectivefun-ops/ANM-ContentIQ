@@ -2812,11 +2812,23 @@ const darkVars = {
   accentSoft: "rgba(142, 68, 61, 0.18)",
   accentBorder: "rgba(142, 68, 61, 0.55)",
   activeBg: "rgba(142, 68, 61, 0.20)",
+  activeText: "#FFFFFF",
+  activeShadow: "0 16px 36px rgba(142, 68, 61, 0.22)",
   hoverBg: "rgba(255,255,255,0.06)",
 
   heading: "#8E443D",
   card: "#050505",
   cardAlt: "#0B0B0D",
+  sidebarButton: "rgba(255,255,255,0.035)",
+  sidebarShadow: "18px 0 44px rgba(0,0,0,0.28)",
+  groupIconBg: "rgba(255,255,255,0.06)",
+  groupIconText: "#F7D2CC",
+  groupText: "#DDE3EE",
+  sectionTitle: "#F7D2CC",
+  subItemText: "#EEF2FF",
+  subItemMuted: "#AEB7C7",
+  subItemActive: "rgba(142, 68, 61, 0.18)",
+  subItemActiveBorder: "rgba(142, 68, 61, 0.62)",
 
   aiBg: "rgba(109, 40, 217, 0.16)",
   aiBgSoft: "rgba(147, 51, 234, 0.12)",
@@ -2829,6 +2841,7 @@ const darkVars = {
 
   logoBg: "#8E443D",
   logoText: "#FFFFFF",
+  logoShadow: "0 12px 28px rgba(142, 68, 61, 0.28)",
 };
 
 const lightVars = {
@@ -2844,11 +2857,23 @@ const lightVars = {
   accentSoft: "rgba(181, 147, 122, 0.22)",
   accentBorder: "rgba(35,31,32,0.24)",
   activeBg: "rgba(181, 147, 122, 0.28)",
+  activeText: "#231F20",
+  activeShadow: "0 16px 36px rgba(35,31,32,0.10)",
   hoverBg: "rgba(35,31,32,0.06)",
 
   heading: "#231F20",
   card: "#B5937A",
   cardAlt: "#F7F2EF",
+  sidebarButton: "rgba(255,255,255,0.72)",
+  sidebarShadow: "18px 0 44px rgba(35,31,32,0.08)",
+  groupIconBg: "rgba(35,31,32,0.08)",
+  groupIconText: "#231F20",
+  groupText: "#4E4642",
+  sectionTitle: "#231F20",
+  subItemText: "#2B2B2B",
+  subItemMuted: "#6E655F",
+  subItemActive: "rgba(181, 147, 122, 0.32)",
+  subItemActiveBorder: "rgba(35,31,32,0.22)",
 
   aiBg: "rgba(124, 58, 237, 0.10)",
   aiBgSoft: "rgba(245, 243, 255, 0.95)",
@@ -2861,6 +2886,7 @@ const lightVars = {
 
   logoBg: "#231F20",
   logoText: "#FFFFFF",
+  logoShadow: "0 12px 28px rgba(35,31,32,0.14)",
 };
 
 // ─── STATIC STYLES ────────────────────────────────────────────────────────────
