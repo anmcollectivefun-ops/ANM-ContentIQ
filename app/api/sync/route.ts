@@ -211,7 +211,7 @@ async function fetchFacebook(
 
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${pageId}/posts?` +
-      `fields=id,message,created_time,permalink_url,full_picture,picture,shares&` +
+      `fields=id,message,created_time,permalink_url,full_picture,picture,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)&` +
       `access_token=${token}&limit=25`
   );
 
@@ -223,9 +223,9 @@ async function fetchFacebook(
       let insights: InsightMetric[] = [];
 
       const metricSets = [
+        "post_total_media_view,post_total_media_view_unique,post_clicks",
         "post_impressions,post_impressions_unique,post_engaged_users,post_clicks",
-        "post_impressions_unique,post_engaged_users",
-        "post_impressions",
+        "post_video_views,post_video_views_unique,post_clicks",
       ];
 
       for (const metrics of metricSets) {
@@ -241,28 +241,76 @@ async function fetchFacebook(
             insights = insightData.data || [];
             break;
           }
-        } catch {}
+
+          console.warn("Facebook insights error:", {
+            postId: post.id,
+            metrics,
+            error: insightData.error,
+          });
+        } catch (err) {
+          console.warn("Facebook insights fetch failed:", {
+            postId: post.id,
+            metrics,
+            error: err,
+          });
+        }
       }
 
-      let likes = 0;
-      let comments = 0;
-      let shares = 0;
+      const sharesObj = post.shares as { count?: number } | undefined;
 
-      try {
-        const engagementRes = await fetch(
-          `https://graph.facebook.com/v19.0/${post.id}?` +
-            `fields=shares,comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
-            `access_token=${token}`
-        );
+      const reactionsObj = post.reactions as
+        | { summary?: { total_count?: number } }
+        | undefined;
 
-        const engagementData = await engagementRes.json();
+      const commentsObj = post.comments as
+        | { summary?: { total_count?: number } }
+        | undefined;
 
-        if (!engagementData.error) {
-          likes = engagementData.reactions?.summary?.total_count || 0;
-          comments = engagementData.comments?.summary?.total_count || 0;
-          shares = engagementData.shares?.count || 0;
+      let likes = Number(reactionsObj?.summary?.total_count || 0);
+      let comments = Number(commentsObj?.summary?.total_count || 0);
+      let shares = Number(sharesObj?.count || 0);
+
+      if (!likes && !comments && !shares) {
+        try {
+          const engagementRes = await fetch(
+            `https://graph.facebook.com/v19.0/${post.id}?` +
+              `fields=shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)&` +
+              `access_token=${token}`
+          );
+
+          const engagementData = await engagementRes.json();
+
+          if (!engagementData.error) {
+            likes = Number(engagementData.reactions?.summary?.total_count || 0);
+            comments = Number(
+              engagementData.comments?.summary?.total_count || 0
+            );
+            shares = Number(engagementData.shares?.count || 0);
+          } else {
+            console.warn("Facebook engagement error:", {
+              postId: post.id,
+              error: engagementData.error,
+            });
+          }
+        } catch (err) {
+          console.warn("Facebook engagement fetch failed:", {
+            postId: post.id,
+            error: err,
+          });
         }
-      } catch {}
+      }
+
+      const reach =
+        Number(getInsightValue(insights, "post_total_media_view_unique") || 0) ||
+        Number(getInsightValue(insights, "post_impressions_unique") || 0) ||
+        Number(getInsightValue(insights, "post_video_views_unique") || 0);
+
+      const impressions =
+        Number(getInsightValue(insights, "post_total_media_view") || 0) ||
+        Number(getInsightValue(insights, "post_impressions") || 0) ||
+        Number(getInsightValue(insights, "post_video_views") || 0);
+
+      const clicks = Number(getInsightValue(insights, "post_clicks") || 0);
 
       const image = firstString(post.full_picture, post.picture);
 
@@ -278,12 +326,12 @@ async function fetchFacebook(
         image_url: firstString(post.full_picture),
         cover_url: firstString(post.picture),
 
-        reach: Number(getInsightValue(insights, "post_impressions_unique") || 0),
-        impressions: Number(getInsightValue(insights, "post_impressions") || 0),
+        reach,
+        impressions,
         likes,
         comments,
         shares,
-        clicks: Number(getInsightValue(insights, "post_clicks") || 0),
+        clicks,
       };
     })
   );
@@ -314,7 +362,6 @@ async function fetchFacebook(
     posts,
   };
 }
-
 function getServerMetaToken(platform: "instagram" | "facebook") {
   if (platform === "facebook") {
     return (
