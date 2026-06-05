@@ -111,6 +111,14 @@ interface Account {
   likes_count?: number | null;
   total_likes?: number | null;
   heart_count?: number | null;
+  followers?: number | null;
+followers_count?: number | null;
+follower_count?: number | null;
+total_followers?: number | null;
+fan_count?: number | null;
+page_likes?: number | null;
+page_fans?: number | null;
+subscriber_count?: number | null;
 }
 
 interface PlatformConnection {
@@ -128,6 +136,14 @@ interface PlatformConnection {
   likes_count?: number | null;
   total_likes?: number | null;
   heart_count?: number | null;
+  followers?: number | null;
+followers_count?: number | null;
+follower_count?: number | null;
+total_followers?: number | null;
+fan_count?: number | null;
+page_likes?: number | null;
+page_fans?: number | null;
+subscriber_count?: number | null;
 }
 
 interface ManualLink {
@@ -682,7 +698,8 @@ function mergeConnections(
 
     const accountLink = connection
       ? manualLinks.find(
-          (link) => link.connection_id === connection.id && link.type === "account"
+          (link) =>
+            link.connection_id === connection.id && link.type === "account"
         )
       : null;
 
@@ -698,8 +715,10 @@ function mergeConnections(
         engRate: "0%",
         reach: "0",
         bestFormat: "Brak danych",
-        aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
+        aiTag:
+          "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
         manualAccountUrl: undefined,
+
         accountName: null,
         account_name: null,
         profileName: null,
@@ -707,8 +726,21 @@ function mergeConnections(
         username: null,
         avatar_url: null,
         profile_image_url: null,
+
         profileLikes: null,
         profile_likes: null,
+        likes_count: null,
+        total_likes: null,
+        heart_count: null,
+
+        followers: null,
+        followers_count: null,
+        follower_count: null,
+        total_followers: null,
+        fan_count: null,
+        page_likes: null,
+        page_fans: null,
+        subscriber_count: null,
       };
     }
 
@@ -717,24 +749,51 @@ function mergeConnections(
       connection.likes_count ??
       connection.total_likes ??
       connection.heart_count ??
+      connection.page_likes ??
+      connection.page_fans ??
+      null;
+
+    const followersCount =
+      connection.followers ??
+      connection.followers_count ??
+      connection.follower_count ??
+      connection.total_followers ??
+      connection.fan_count ??
+      connection.subscriber_count ??
       null;
 
     const base = {
       ...account,
       connected: true,
       handle: connection.username || connection.account_name || account.name,
+
       accountName: connection.account_name,
       account_name: connection.account_name,
+
       profileName: connection.profile_name || connection.account_name,
       profile_name: connection.profile_name || connection.account_name,
+
       username: connection.username || connection.account_name,
-      avatar_url: connection.avatar_url,
-      profile_image_url: connection.profile_image_url,
+
+      avatar_url: connection.avatar_url ?? null,
+      profile_image_url: connection.profile_image_url ?? null,
+
       profileLikes,
       profile_likes: profileLikes,
       likes_count: connection.likes_count ?? null,
       total_likes: connection.total_likes ?? null,
       heart_count: connection.heart_count ?? null,
+
+      followers: followersCount,
+      followers_count: followersCount,
+      follower_count: followersCount,
+      total_followers: followersCount,
+
+      fan_count: connection.fan_count ?? null,
+      page_likes: connection.page_likes ?? null,
+      page_fans: connection.page_fans ?? null,
+      subscriber_count: connection.subscriber_count ?? null,
+
       lastSync: formatLastSync(connection.last_synced_at),
       manualAccountUrl: accountLink?.url,
     };
@@ -917,7 +976,7 @@ export default function AppWorkspacePage() {
         supabase
           .schema("contentiq")
           .from("platform_connections")
-          .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, last_synced_at, connected")
+          .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, followers, followers_count, follower_count, total_followers, fan_count, page_likes, page_fans, subscriber_count, last_synced_at, connected")
           .eq("workspace_id", resolvedWorkspaceId)
           .eq("connected", true)
           .then(({ data, error }) => {
@@ -1897,14 +1956,18 @@ const formatProfileNumber = (value: any) => {
                 color: css.text,
               }}
             >
-              {getAccountField(activeAccount, [
-                "profileName",
-                "profile_name",
-                "accountName",
-                "account_name",
-                "username",
-                "name",
-              ], activeAccount.name)}
+              {getAccountField(
+                activeAccount,
+                [
+                  "profileName",
+                  "profile_name",
+                  "accountName",
+                  "account_name",
+                  "username",
+                  "name",
+                ],
+                activeAccount.name
+              )}
             </div>
 
             <div style={{ fontSize: 13, color: css.muted, marginTop: 6 }}>
@@ -1969,9 +2032,21 @@ const formatProfileNumber = (value: any) => {
         >
           {[
             {
-              label: "Polubienia profilu",
+              label:
+                activeAccount.id === "facebook"
+                  ? "Obserwujący / polubienia"
+                  : activeAccount.id === "youtube"
+                    ? "Subskrybenci"
+                    : "Obserwujący",
               value: formatProfileNumber(
                 getAccountField(activeAccount, [
+                  "followers",
+                  "followers_count",
+                  "follower_count",
+                  "total_followers",
+                  "fan_count",
+                  "subscriber_count",
+
                   "profileLikes",
                   "profile_likes",
                   "likesCount",
@@ -1979,6 +2054,8 @@ const formatProfileNumber = (value: any) => {
                   "totalLikes",
                   "total_likes",
                   "heart_count",
+                  "page_likes",
+                  "page_fans",
                 ])
               ),
               highlight: true,
@@ -2004,7 +2081,9 @@ const formatProfileNumber = (value: any) => {
               key={item.label}
               style={{
                 background: item.highlight ? `${activeAccount.color}14` : css.liveSoft,
-                border: `1px solid ${item.highlight ? `${activeAccount.color}44` : css.border}`,
+                border: `1px solid ${
+                  item.highlight ? `${activeAccount.color}44` : css.border
+                }`,
                 borderRadius: 15,
                 padding: "12px 10px",
                 minHeight: 86,
@@ -2088,7 +2167,8 @@ const formatProfileNumber = (value: any) => {
               borderRadius: 18,
               padding: 14,
               display: "grid",
-              gridTemplateColumns: "minmax(280px, 1fr) repeat(4, minmax(90px, 0.22fr)) 86px",
+              gridTemplateColumns:
+                "minmax(280px, 1fr) repeat(4, minmax(90px, 0.22fr)) 86px",
               gap: 12,
               alignItems: "center",
             }}
