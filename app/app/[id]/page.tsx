@@ -148,6 +148,12 @@ interface DbPost {
   post_type: string | null;
   url: string | null;
   published_at: string | null;
+
+  thumbnail_url: string | null;
+  media_url: string | null;
+  image_url: string | null;
+  cover_url: string | null;
+
   reach: number | null;
   impressions: number | null;
   likes: number | null;
@@ -158,8 +164,6 @@ interface DbPost {
   ai_score: number | null;
   ai_summary: string | null;
   fetched_at: string | null;
-  thumbnail_url: string | null;
-  reach: number | null;
 }
 
 interface Post {
@@ -176,12 +180,12 @@ interface Post {
   status: "opublikowany" | "zaplanowany" | "analiza";
   source: "import" | "manual_link" | "created_in_app" | "scheduled_in_app";
   url?: string;
-  ai: string;
-  url?: string;
+
   thumbnail_url?: string | null;
   media_url?: string | null;
   image_url?: string | null;
   cover_url?: string | null;
+
   ai: string;
 }
 
@@ -667,32 +671,80 @@ function buildPostsByPlatform(connections: PlatformConnection[], dbPosts: DbPost
   return byPlatform;
 }
 
-const base = {
-  ...account,
-  connected: true,
-  handle: connection.username || connection.account_name || account.name,
-  accountName: connection.account_name,
-  account_name: connection.account_name,
-  profileName: connection.profile_name || connection.account_name,
-  profile_name: connection.profile_name || connection.account_name,
-  username: connection.username || connection.account_name,
-  avatar_url: connection.avatar_url,
-  profile_image_url: connection.profile_image_url,
-  profileLikes:
-    connection.profile_likes ??
-    connection.likes_count ??
-    connection.total_likes ??
-    connection.heart_count ??
-    null,
-  profile_likes:
-    connection.profile_likes ??
-    connection.likes_count ??
-    connection.total_likes ??
-    connection.heart_count ??
-    null,
-  lastSync: formatLastSync(connection.last_synced_at),
-  manualAccountUrl: accountLink?.url,
-};
+function mergeConnections(
+  accounts: Account[],
+  connections: PlatformConnection[],
+  postsByPlatform: Record<Platform, Post[]>,
+  manualLinks: ManualLink[] = []
+) {
+  return accounts.map((account) => {
+    const connection = connections.find((item) => item.platform === account.id);
+
+    const accountLink = connection
+      ? manualLinks.find(
+          (link) => link.connection_id === connection.id && link.type === "account"
+        )
+      : null;
+
+    if (!connection) {
+      return {
+        ...account,
+        connected: false,
+        handle: "Niepodłączone",
+        lastSync: "Niepodłączone",
+        score: 0,
+        trend: 0,
+        posts: 0,
+        engRate: "0%",
+        reach: "0",
+        bestFormat: "Brak danych",
+        aiTag: "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
+        manualAccountUrl: undefined,
+        accountName: null,
+        account_name: null,
+        profileName: null,
+        profile_name: null,
+        username: null,
+        avatar_url: null,
+        profile_image_url: null,
+        profileLikes: null,
+        profile_likes: null,
+      };
+    }
+
+    const profileLikes =
+      connection.profile_likes ??
+      connection.likes_count ??
+      connection.total_likes ??
+      connection.heart_count ??
+      null;
+
+    const base = {
+      ...account,
+      connected: true,
+      handle: connection.username || connection.account_name || account.name,
+      accountName: connection.account_name,
+      account_name: connection.account_name,
+      profileName: connection.profile_name || connection.account_name,
+      profile_name: connection.profile_name || connection.account_name,
+      username: connection.username || connection.account_name,
+      avatar_url: connection.avatar_url,
+      profile_image_url: connection.profile_image_url,
+      profileLikes,
+      profile_likes: profileLikes,
+      likes_count: connection.likes_count ?? null,
+      total_likes: connection.total_likes ?? null,
+      heart_count: connection.heart_count ?? null,
+      lastSync: formatLastSync(connection.last_synced_at),
+      manualAccountUrl: accountLink?.url,
+    };
+
+    return {
+      ...base,
+      ...summarizePosts(base, postsByPlatform[account.id] || []),
+    };
+  });
+}
 
 function getPlatformName(platform: Platform) {
   return ACCOUNTS.find((account) => account.id === platform)?.name ?? platform;
@@ -885,19 +937,23 @@ export default function AppWorkspacePage() {
             }
 
             Promise.all([
-              supabase
-                .schema("contentiq")
-                .from("posts")
-                .select("id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at")
-                .in("connection_id", connectionIds)
-                .order("published_at", { ascending: false }),
-              supabase
-                .schema("contentiq")
-                .from("manual_links")
-                .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, last_synced_at, connected")
-                .in("connection_id", connectionIds)
-                .order("created_at", { ascending: false }),
-            ]).then(([postsResult, linksResult]) => {
+  supabase
+    .schema("contentiq")
+    .from("posts")
+    .select(
+      "id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at"
+    )
+    .in("connection_id", connectionIds)
+    .order("published_at", { ascending: false }),
+
+  supabase
+    .schema("contentiq")
+    .from("manual_links")
+    .select("id, connection_id, type, url, title, created_at")
+    .in("connection_id", connectionIds)
+    .order("created_at", { ascending: false }),
+])
+.then(([postsResult, linksResult]) => {
               if (postsResult.error) {
                 console.error("Posts load error:", postsResult.error.message);
               }
