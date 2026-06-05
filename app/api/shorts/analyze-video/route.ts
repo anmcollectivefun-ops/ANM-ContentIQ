@@ -32,6 +32,20 @@ function cleanJsonAnswer(answer: string) {
     .trim();
 }
 
+function parseAiJsonAnswer(answer: string) {
+  const cleaned = cleanJsonAnswer(answer);
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const repaired = cleaned
+      .replace(/([\[,]\s*)(#[\p{L}\p{N}_-]+)/gu, '$1"$2"')
+      .replace(/(#[\p{L}\p{N}_-]+)(\s*[\],])/gu, '"$1"$2')
+      .replace(/,\s*([}\]])/g, "$1");
+
+    return JSON.parse(repaired);
+  }
+}
 // Ścisły schemat JSON dla Gemini, gwarantujący 100% zgodności z Twoim frontendem
 const geminiResponseSchema = {
   type: Type.OBJECT,
@@ -152,6 +166,23 @@ function getDataUrlParts(dataUrl: string) {
   };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTemporaryGeminiError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  return (
+    message.includes("503") ||
+    message.includes("UNAVAILABLE") ||
+    lower.includes("high demand") ||
+    lower.includes("try again later") ||
+    lower.includes("temporarily")
+  );
+}
+
 function buildVideoAnalysisPrompt(body: AnalyzeVideoBody) {
   const userContext = [
     body.custom_user_notes?.trim()
@@ -216,7 +247,6 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
     return fallbackAnalysis(body.file_name || "short video", false);
   }
 
-  // Przygotowanie zawartości w nowym formacie płaskiej tablicy dla SDK @google/genai
   const contents = [
     buildVideoAnalysisPrompt(body),
     ...frameParts.map((frame) => ({
@@ -227,23 +257,43 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
     })),
   ];
 
-  // Używamy darmowego i ultraszybkiego modelu multimodalnego gemini-2.5-flash
-  const response = await ai.models.generateContent({
-    model: process.env.GEMINI_VIDEO_ANALYSIS_MODEL?.trim() || "gemini-2.5-flash",
-    contents: contents,
-    config: {
-      // Wymuszenie czystego formatu JSON dopasowanego bezpośrednio do interfejsu
-      responseMimeType: "application/json",
-      responseSchema: geminiResponseSchema,
-    },
-  });
+  const configuredModel = process.env.GEMINI_VIDEO_ANALYSIS_MODEL?.trim();
+  const fallbackModels = (process.env.GEMINI_VIDEO_ANALYSIS_FALLBACK_MODELS || "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+  const models = Array.from(
+    new Set([configuredModel || "gemini-2.5-flash", ...fallbackModels, "gemini-2.0-flash"])
+  );
 
-  const text = response.text;
-  if (!text) throw new Error("Model Gemini zwr?ci? pust? odpowied?.");
-  
-  return JSON.parse(text);
+  let lastError: unknown = null;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: geminiResponseSchema,
+          },
+        });
+
+        const text = response.text;
+        if (!text) throw new Error("Model Gemini zwr?ci? pust? odpowied?.");
+
+        return parseAiJsonAnswer(text);
+      } catch (error) {
+        lastError = error;
+        if (!isTemporaryGeminiError(error)) throw error;
+        await sleep(1200 + attempt * 1800);
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
-
 async function analyzeWithDeepSeek(body: AnalyzeVideoBody, frames: string[]) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const userContext = [
@@ -268,12 +318,13 @@ async function analyzeWithDeepSeek(body: AnalyzeVideoBody, frames: string[]) {
   });
 
   const response = await openai.chat.completions.create({
-    model: "deepseek-reasoner",
+    model: process.env.DEEPSEEK_VIDEO_ANALYSIS_MODEL?.trim() || "deepseek-chat",
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
-          "Jesteś strategiem short video. Nie widzisz obrazów, więc nie udawaj analizy klatek. Odpowiadasz wyłącznie poprawnym obiektem JSON po polsku, bez żadnego formatowania markdown.",
+          "Jeste? strategiem short video. Nie widzisz obraz?w, wi?c nie udawaj analizy klatek. Odpowiadasz wy??cznie poprawnym obiektem JSON po polsku. Wszystkie hashtagi musz? by? stringami w tablicy, np. [\"#wesele\", \"#event\"]. Bez markdown i bez tekstu poza JSON.",
       },
       {
         role: "user",
@@ -294,7 +345,7 @@ ${userContext ? `${userContext}\n\n` : ""}${outputSchemaText()}
   });
 
   const answer = response.choices[0]?.message?.content || "";
-  return JSON.parse(cleanJsonAnswer(answer));
+  return parseAiJsonAnswer(answer);
 }
 
 export async function POST(req: Request) {
