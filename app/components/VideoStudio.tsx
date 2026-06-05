@@ -1034,6 +1034,20 @@ export default function VideoStudio({
             .filter(Boolean)
             .join("\n\n"),
           status: "template",
+          media: [
+            {
+              kind: "cover",
+              asset_type: "video",
+              storage_bucket: TEMP_VIDEO_BUCKET,
+              storage_path: videoUpload.storage_path,
+              file_name: videoUpload.file_name,
+              mime_type: videoUpload.mime_type,
+              file_size: videoUpload.file_size,
+              preview_text: videoAnalysis.hook || videoAnalysis.title || videoUpload.file_name,
+              source: "video_studio",
+              status: "temporary",
+            },
+          ],
         });
 
       if (draftInsertError) throw new Error(draftInsertError.message);

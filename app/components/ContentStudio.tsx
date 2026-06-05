@@ -73,6 +73,7 @@ interface LocalMediaItem {
 }
 
 interface UploadedMediaItem {
+  kind: "cover" | "attachment";
   storage_bucket: string;
   storage_path: string;
   file_name: string;
@@ -717,6 +718,7 @@ function ContentActions({
       if (uploadError) throw new Error(uploadError.message);
 
       const record: UploadedMediaItem = {
+        kind: uploaded.length === 0 ? "cover" : "attachment",
         storage_bucket: STORAGE_BUCKET,
         storage_path: path,
         file_name: item.name,
@@ -807,7 +809,7 @@ function ContentActions({
       const wsId = await getOrCreateWorkspaceUuid();
       if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
 
-      const { error } = await supabase
+      const { data: draft, error } = await supabase
         .schema("contentiq")
         .from("content_drafts")
         .insert({
@@ -821,10 +823,19 @@ function ContentActions({
           ai_feedback: generated.platform_notes,
           status: "template",
           media: [],
-        });
+        })
+        .select("id")
+        .single();
 
       if (error) throw new Error(error.message);
-      showToast("✓ Zapisano szablon", "ok");
+
+      await uploadMediaForDraft({
+        wsId,
+        draftId: draft.id,
+        status: "temporary",
+      });
+
+      showToast("✓ Zapisano szablon z okładką", "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {

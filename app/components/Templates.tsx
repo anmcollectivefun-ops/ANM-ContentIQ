@@ -24,7 +24,24 @@ interface TemplateDraft {
   target_platforms: string[] | null;
   ai_score: number | null;
   ai_feedback: string | null;
+  media: DraftMediaItem[] | null;
   created_at: string | null;
+}
+
+interface DraftMediaItem {
+  kind?: string | null;
+  asset_type?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  status?: string | null;
+  public_url?: string | null;
+  url?: string | null;
+  data_url?: string | null;
+  preview_text?: string | null;
+  source?: string | null;
 }
 
 interface ShortTemplateRow {
@@ -65,6 +82,7 @@ interface UnifiedTemplate {
   ai_feedback: string | null;
   image_url: string | null;
   video_url: string | null;
+  cover_label: string | null;
   created_at: string | null;
   original: TemplateDraft | ShortTemplateRow;
 }
@@ -144,6 +162,24 @@ function extractImageUrl(text: string | null | undefined) {
   return plain?.[0] || null;
 }
 
+function safeMedia(value: DraftMediaItem[] | null | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getMediaUrl(item: DraftMediaItem | null | undefined) {
+  return item?.public_url || item?.url || item?.data_url || null;
+}
+
+function getCoverMedia(template: TemplateDraft) {
+  const media = safeMedia(template.media);
+  return (
+    media.find((item) => item.kind === "cover") ||
+    media.find((item) => item.asset_type === "image") ||
+    media.find((item) => item.asset_type === "video") ||
+    null
+  );
+}
+
 function extractHashtags(text: string | null | undefined) {
   if (!text) return [];
   return unique((text.match(/#[\p{L}\p{N}_-]+/gu) || []).slice(0, 24));
@@ -159,6 +195,10 @@ function draftToUnified(template: TemplateDraft): UnifiedTemplate {
   const body = template.body || "";
   const hashtags = extractHashtags(body);
   const platforms = safeArray(template.target_platforms);
+  const cover = getCoverMedia(template);
+  const coverUrl = getMediaUrl(cover);
+  const coverAssetType = (cover?.asset_type || "").toLowerCase();
+  const fallbackImageUrl = extractImageUrl(body);
 
   return {
     id: template.id,
@@ -172,8 +212,9 @@ function draftToUnified(template: TemplateDraft): UnifiedTemplate {
     hashtags,
     ai_score: template.ai_score,
     ai_feedback: template.ai_feedback,
-    image_url: extractImageUrl(body),
-    video_url: null,
+    image_url: coverAssetType === "image" ? coverUrl || fallbackImageUrl : fallbackImageUrl,
+    video_url: coverAssetType === "video" ? coverUrl : null,
+    cover_label: cover?.preview_text || cover?.file_name || null,
     created_at: template.created_at,
     original: template,
   };
@@ -206,6 +247,7 @@ function shortTemplateToUnified(template: ShortTemplateRow): UnifiedTemplate {
     ai_feedback: template.ai_summary,
     image_url: null,
     video_url: template.video_public_url || null,
+    cover_label: template.thumbnail_text || template.title || template.video_storage_path,
     created_at: template.created_at,
     original: template,
   };
@@ -325,7 +367,7 @@ export default function Templates({
         const { data: drafts, error: draftsError } = await supabase
           .schema("contentiq")
           .from("content_drafts")
-          .select("id,title,body,topic,content_type,target_platforms,ai_score,ai_feedback,created_at")
+          .select("id,title,body,topic,content_type,target_platforms,ai_score,ai_feedback,media,created_at")
           .eq("workspace_id", ws.id)
           .eq("status", "template")
           .order("created_at", { ascending: false });
@@ -497,6 +539,20 @@ export default function Templates({
 
     if (template.video_url) {
       return <video src={template.video_url} muted preload="metadata" style={{ width: "100%", height: 132, objectFit: "cover", background: "#000", display: "block" }} />;
+    }
+
+    if (template.cover_label) {
+      return (
+        <div style={{ height: 132, background: `linear-gradient(135deg, ${pColor}20, ${css.aiBg})`, display: "flex", flexDirection: "column", justifyContent: "center", gap: 7, padding: 16, borderBottom: `1px solid ${css.border}` }}>
+          <div style={{ width: 42, height: 42, borderRadius: 14, background: `${pColor}22`, color: pColor, display: "grid", placeItems: "center", fontWeight: 900, fontSize: 12, border: `1px solid ${pColor}44` }}>
+            {template.kind === "creative" ? "IMG" : "VID"}
+          </div>
+          <div style={{ color: css.text, fontSize: 12, fontWeight: 900, lineHeight: 1.35 }}>
+            {getSummary(template.cover_label, 58)}
+          </div>
+          <div style={{ color: css.muted, fontSize: 10 }}>Okładka szablonu</div>
+        </div>
+      );
     }
 
     return (

@@ -318,6 +318,20 @@ export default function CreativeStudio({
           ai_score: null,
           ai_feedback: `Prompt graficzny: ${item.style}, ${item.assetType}, ${item.format}.`,
           status: "template",
+          media: item.generatedImageUrl
+            ? [
+                {
+                  kind: "cover",
+                  asset_type: "image",
+                  data_url: item.generatedImageUrl,
+                  mime_type: item.generatedImageMimeType || "image/png",
+                  file_name: `${item.title}.png`,
+                  preview_text: item.title,
+                  source: "creative_studio",
+                  status: "generated",
+                },
+              ]
+            : [],
         });
 
       if (insertError) throw new Error(insertError.message);
