@@ -1,16 +1,68 @@
 // Pobiera realne dane z platform i zapisuje do Supabase contentiq.posts
- 
+// Poprawiona wersja: zapisuje również profil konta, obserwujących, polubienia strony/profilu i miniaturki postów.
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { calculatePerformanceScore, getMetricEngagement, getMetricReach } from "@/lib/performanceScore";
- 
+import {
+  calculatePerformanceScore,
+  getMetricEngagement,
+  getMetricReach,
+} from "@/lib/performanceScore";
+
 const SYNCABLE_PLATFORMS = new Set([
-  "instagram", "facebook", "linkedin", "tiktok", "youtube", "blog", "spotify",
+  "instagram",
+  "facebook",
+  "linkedin",
+  "tiktok",
+  "youtube",
+  "blog",
+  "spotify",
 ]);
 
 type InsightMetric = {
   name?: string;
   values?: Array<{ value?: unknown }>;
+};
+
+type PlatformProfile = {
+  profile_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  profile_image_url?: string | null;
+
+  followers?: number | null;
+  followers_count?: number | null;
+  follower_count?: number | null;
+  total_followers?: number | null;
+
+  profile_likes?: number | null;
+  likes_count?: number | null;
+  total_likes?: number | null;
+  heart_count?: number | null;
+
+  fan_count?: number | null;
+  page_likes?: number | null;
+  page_fans?: number | null;
+  subscriber_count?: number | null;
+
+  total_posts?: number | null;
+};
+
+type FetchPlatformResult = {
+  profile?: PlatformProfile;
+  posts: Record<string, unknown>[];
+};
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type SyncConnection = {
+  id: string;
+  platform: string;
+  account_id: string | null;
+  access_token: string | null;
+  refresh_token?: string | null;
+  token_expires_at?: string | null;
+  connected: boolean;
 };
 
 function getInsightValue(insights: InsightMetric[], name: string) {
@@ -19,115 +71,240 @@ function getInsightValue(insights: InsightMetric[], name: string) {
 
 function ensureAccountId(platform: string, accountId: string | null) {
   if (!accountId || accountId === "unknown") {
-    throw new Error(`Brakuje ID konta dla ${platform}. Połącz konto ponownie albo uzupełnij wymagane ID w ustawieniach.`);
+    throw new Error(
+      `Brakuje ID konta dla ${platform}. Połącz konto ponownie albo uzupełnij wymagane ID w ustawieniach.`
+    );
   }
 }
 
 function estimateScore(post: Record<string, unknown>) {
   return calculatePerformanceScore(post);
 }
- 
+
+function numberOrNull(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return null;
+}
+
+function getBestThumbnail(thumbnails: Record<string, any> | undefined) {
+  return (
+    thumbnails?.maxres?.url ||
+    thumbnails?.standard?.url ||
+    thumbnails?.high?.url ||
+    thumbnails?.medium?.url ||
+    thumbnails?.default?.url ||
+    null
+  );
+}
+
 // ─── FETCHERS ────────────────────────────────────────────────────────────────
- 
-async function fetchInstagram(token: string, accountId: string) {
+
+async function fetchInstagram(
+  token: string,
+  accountId: string
+): Promise<FetchPlatformResult> {
+  const profileRes = await fetch(
+    `https://graph.facebook.com/v19.0/${accountId}?` +
+      `fields=id,username,profile_picture_url,followers_count,media_count&` +
+      `access_token=${token}`
+  );
+
+  const profile = await profileRes.json();
+  if (profile.error) throw new Error(profile.error.message);
+
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${accountId}/media?` +
-    `fields=id,caption,media_type,timestamp,permalink,like_count,comments_count&` +
-    `access_token=${token}&limit=25`
+      `fields=id,caption,media_type,media_url,thumbnail_url,timestamp,permalink,like_count,comments_count&` +
+      `access_token=${token}&limit=25`
   );
+
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
- 
-  const posts = await Promise.all((data.data || []).map(async (post: Record<string, unknown>) => {
-    let insights: InsightMetric[] = [];
-    const insightMetricSets = [
-      "reach,impressions,saved,shares",
-      "reach,views,saved,shares",
-    ];
 
-    for (const metrics of insightMetricSets) {
-      const insightRes = await fetch(
-        `https://graph.facebook.com/v19.0/${post.id}/insights?` +
-        `metric=${metrics}&access_token=${token}`
-      );
-      const insightData = await insightRes.json();
+  const posts = await Promise.all(
+    (data.data || []).map(async (post: Record<string, unknown>) => {
+      let insights: InsightMetric[] = [];
+      const insightMetricSets = [
+        "reach,impressions,saved,shares",
+        "reach,views,saved,shares",
+      ];
 
-      if (!insightData.error) {
-        insights = insightData.data || [];
-        break;
+      for (const metrics of insightMetricSets) {
+        const insightRes = await fetch(
+          `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+            `metric=${metrics}&access_token=${token}`
+        );
+        const insightData = await insightRes.json();
+
+        if (!insightData.error) {
+          insights = insightData.data || [];
+          break;
+        }
       }
-    }
 
-    return {
-      platform_post_id: post.id,
-      content: post.caption || "",
-      post_type: String(post.media_type || "").toLowerCase(),
-      url: post.permalink,
-      published_at: post.timestamp,
-      reach: getInsightValue(insights, "reach"),
-      impressions: getInsightValue(insights, "impressions") || getInsightValue(insights, "views"),
-      likes: Number(post.like_count || 0),
-      comments: Number(post.comments_count || 0),
-      saves: getInsightValue(insights, "saved"),
-      shares: getInsightValue(insights, "shares"),
-    };
-  }));
+      const mediaUrl = firstString(post.media_url);
+      const thumbnailUrl = firstString(post.thumbnail_url, post.media_url);
 
-  return posts;
+      return {
+        platform_post_id: post.id,
+        content: post.caption || "",
+        post_type: String(post.media_type || "").toLowerCase(),
+        url: post.permalink,
+        published_at: post.timestamp,
+
+        thumbnail_url: thumbnailUrl,
+        media_url: mediaUrl,
+        image_url: mediaUrl,
+        cover_url: thumbnailUrl,
+
+        reach: getInsightValue(insights, "reach"),
+        impressions:
+          getInsightValue(insights, "impressions") ||
+          getInsightValue(insights, "views"),
+        likes: Number(post.like_count || 0),
+        comments: Number(post.comments_count || 0),
+        saves: getInsightValue(insights, "saved"),
+        shares: getInsightValue(insights, "shares"),
+      };
+    })
+  );
+
+  const followers = numberOrNull(profile.followers_count);
+
+  return {
+    profile: {
+      profile_name: profile.username || null,
+      username: profile.username || null,
+      avatar_url: profile.profile_picture_url || null,
+      profile_image_url: profile.profile_picture_url || null,
+
+      followers,
+      followers_count: followers,
+      follower_count: followers,
+      total_followers: followers,
+
+      total_posts: numberOrNull(profile.media_count),
+    },
+    posts,
+  };
 }
- 
-async function fetchFacebook(token: string, pageId: string) {
+
+async function fetchFacebook(
+  token: string,
+  pageId: string
+): Promise<FetchPlatformResult> {
+  const profileRes = await fetch(
+    `https://graph.facebook.com/v19.0/${pageId}?` +
+      `fields=id,name,fan_count,followers_count,picture.type(large)&` +
+      `access_token=${token}`
+  );
+
+  const profile = await profileRes.json();
+  if (profile.error) throw new Error(profile.error.message);
+
   const res = await fetch(
     `https://graph.facebook.com/v19.0/${pageId}/posts?` +
-    `fields=id,message,created_time,permalink_url,shares,` +
-    `comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
-    `access_token=${token}&limit=25`
+      `fields=id,message,created_time,permalink_url,full_picture,picture,shares,` +
+      `comments.limit(0).summary(true),reactions.limit(0).summary(true)&` +
+      `access_token=${token}&limit=25`
   );
+
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
- 
-  return Promise.all((data.data || []).map(async (post: Record<string, unknown>) => {
-    let insights: InsightMetric[] = [];
-    const metricSets = [
-      "post_impressions,post_impressions_unique,post_engaged_users,post_clicks",
-      "post_impressions_unique,post_engaged_users",
-      "post_impressions",
-    ];
 
-    for (const metrics of metricSets) {
-      const insightRes = await fetch(
-        `https://graph.facebook.com/v19.0/${post.id}/insights?` +
-        `metric=${metrics}&access_token=${token}`
-      );
-      const insightData = await insightRes.json();
+  const posts = await Promise.all(
+    (data.data || []).map(async (post: Record<string, unknown>) => {
+      let insights: InsightMetric[] = [];
+      const metricSets = [
+        "post_impressions,post_impressions_unique,post_engaged_users,post_clicks",
+        "post_impressions_unique,post_engaged_users",
+        "post_impressions",
+      ];
 
-      if (!insightData.error) {
-        insights = insightData.data || [];
-        break;
+      for (const metrics of metricSets) {
+        const insightRes = await fetch(
+          `https://graph.facebook.com/v19.0/${post.id}/insights?` +
+            `metric=${metrics}&access_token=${token}`
+        );
+        const insightData = await insightRes.json();
+
+        if (!insightData.error) {
+          insights = insightData.data || [];
+          break;
+        }
       }
-    }
 
-    const shares = post.shares as { count?: number } | undefined;
-    const comments = post.comments as { summary?: { total_count?: number } } | undefined;
-    const reactions = post.reactions as { summary?: { total_count?: number } } | undefined;
+      const shares = post.shares as { count?: number } | undefined;
+      const comments = post.comments as
+        | { summary?: { total_count?: number } }
+        | undefined;
+      const reactions = post.reactions as
+        | { summary?: { total_count?: number } }
+        | undefined;
 
-    return {
-      platform_post_id: post.id,
-      content: post.message || "",
-      post_type: "post",
-      url: post.permalink_url,
-      published_at: post.created_time,
-      reach: getInsightValue(insights, "post_impressions_unique"),
-      impressions: getInsightValue(insights, "post_impressions"),
-      likes: reactions?.summary?.total_count || 0,
-      comments: comments?.summary?.total_count || 0,
-      shares: shares?.count || 0,
-      clicks: getInsightValue(insights, "post_clicks"),
-    };
-  }));
+      const image = firstString(post.full_picture, post.picture);
+
+      return {
+        platform_post_id: post.id,
+        content: post.message || "",
+        post_type: "post",
+        url: post.permalink_url,
+        published_at: post.created_time,
+
+        thumbnail_url: image,
+        media_url: image,
+        image_url: firstString(post.full_picture),
+        cover_url: firstString(post.picture),
+
+        reach: getInsightValue(insights, "post_impressions_unique"),
+        impressions: getInsightValue(insights, "post_impressions"),
+        likes: reactions?.summary?.total_count || 0,
+        comments: comments?.summary?.total_count || 0,
+        shares: shares?.count || 0,
+        clicks: getInsightValue(insights, "post_clicks"),
+      };
+    })
+  );
+
+  const followers = numberOrNull(profile.followers_count);
+  const fans = numberOrNull(profile.fan_count);
+  const avatar = profile.picture?.data?.url || null;
+
+  return {
+    profile: {
+      profile_name: profile.name || null,
+      username: profile.name || null,
+      avatar_url: avatar,
+      profile_image_url: avatar,
+
+      followers: followers ?? fans,
+      followers_count: followers ?? fans,
+      follower_count: followers ?? fans,
+      total_followers: followers ?? fans,
+
+      fan_count: fans,
+      page_likes: fans,
+      page_fans: fans,
+      profile_likes: fans,
+      likes_count: fans,
+      total_likes: fans,
+    },
+    posts,
+  };
 }
 
-async function resolveMetaResource(token: string, platform: "instagram" | "facebook", savedAccountId: string) {
+async function resolveMetaResource(
+  token: string,
+  platform: "instagram" | "facebook",
+  savedAccountId: string
+) {
   if (savedAccountId && savedAccountId !== "unknown") {
     const directFields = platform === "instagram" ? "id,username" : "id,name";
     const directRes = await fetch(
@@ -140,7 +317,9 @@ async function resolveMetaResource(token: string, platform: "instagram" | "faceb
     }
   }
 
-  const pagesRes = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`);
+  const pagesRes = await fetch(
+    `https://graph.facebook.com/v19.0/me/accounts?access_token=${token}`
+  );
   const pages = await pagesRes.json();
   if (pages.error) throw new Error(pages.error.message);
 
@@ -153,7 +332,9 @@ async function resolveMetaResource(token: string, platform: "instagram" | "faceb
   if (platform === "facebook") {
     const page = pageList.find((item) => item.id === savedAccountId) || pageList[0];
     if (!page?.id || !page.access_token) {
-      throw new Error("Nie znaleziono strony Facebook albo tokenu strony. Połącz Meta ponownie.");
+      throw new Error(
+        "Nie znaleziono strony Facebook albo tokenu strony. Połącz Meta ponownie."
+      );
     }
     return { accountId: page.id, token: page.access_token };
   }
@@ -170,13 +351,19 @@ async function resolveMetaResource(token: string, platform: "instagram" | "faceb
     }
   }
 
-  throw new Error("Nie znaleziono Instagram Business Account podpiętego do strony Meta. Sprawdź połączenie IG z Facebook Page.");
+  throw new Error(
+    "Nie znaleziono Instagram Business Account podpiętego do strony Meta. Sprawdź połączenie IG z Facebook Page."
+  );
 }
- 
+
 async function fetchLinkedIn(token: string, authorId: string) {
-  const authorUrn = authorId.startsWith("urn:li:") ? authorId : `urn:li:person:${authorId}`;
+  const authorUrn = authorId.startsWith("urn:li:")
+    ? authorId
+    : `urn:li:person:${authorId}`;
   const res = await fetch(
-    `https://api.linkedin.com/rest/posts?q=author&author=${encodeURIComponent(authorUrn)}&count=20`,
+    `https://api.linkedin.com/rest/posts?q=author&author=${encodeURIComponent(
+      authorUrn
+    )}&count=20`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -199,9 +386,20 @@ async function fetchLinkedIn(token: string, authorId: string) {
   });
 }
 
-async function fetchTikTok(token: string) {
+async function fetchTikTok(token: string): Promise<FetchPlatformResult> {
+  const profileRes = await fetch(
+    "https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name,follower_count,following_count,likes_count,video_count",
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const profileData = await profileRes.json();
+
   const res = await fetch(
-    "https://open.tiktokapis.com/v2/video/list/?fields=id,title,video_description,duration,share_url,create_time,view_count,like_count,comment_count,share_count",
+    "https://open.tiktokapis.com/v2/video/list/?fields=id,title,video_description,duration,share_url,create_time,cover_image_url,view_count,like_count,comment_count,share_count",
     {
       method: "POST",
       headers: {
@@ -211,28 +409,65 @@ async function fetchTikTok(token: string) {
       body: JSON.stringify({ max_count: 20 }),
     }
   );
+
   const data = await res.json();
   if (data.error?.code && data.error.code !== "ok") {
     throw new Error(data.error.message || data.error.code);
   }
 
-  return (data.data?.videos || []).map((video: Record<string, unknown>) => ({
-    platform_post_id: video.id,
-    title: video.title || "",
-    content: video.video_description || "",
-    post_type: "video",
-    url: video.share_url,
-    published_at: video.create_time
-      ? new Date(Number(video.create_time) * 1000).toISOString()
-      : null,
-    reach: Number(video.view_count || 0),
-    likes: Number(video.like_count || 0),
-    comments: Number(video.comment_count || 0),
-    shares: Number(video.share_count || 0),
-  }));
+  const profile = profileData?.data?.user || {};
+
+  const posts = (data.data?.videos || []).map((video: Record<string, unknown>) => {
+    const cover = firstString(video.cover_image_url);
+
+    return {
+      platform_post_id: video.id,
+      title: video.title || "",
+      content: video.video_description || "",
+      post_type: "video",
+      url: video.share_url,
+      published_at: video.create_time
+        ? new Date(Number(video.create_time) * 1000).toISOString()
+        : null,
+
+      thumbnail_url: cover,
+      media_url: cover,
+      image_url: cover,
+      cover_url: cover,
+
+      reach: Number(video.view_count || 0),
+      likes: Number(video.like_count || 0),
+      comments: Number(video.comment_count || 0),
+      shares: Number(video.share_count || 0),
+    };
+  });
+
+  const followers = numberOrNull(profile.follower_count);
+  const likes = numberOrNull(profile.likes_count);
+
+  return {
+    profile: {
+      profile_name: profile.display_name || null,
+      username: profile.display_name || null,
+      avatar_url: profile.avatar_url || null,
+      profile_image_url: profile.avatar_url || null,
+
+      followers,
+      followers_count: followers,
+      follower_count: followers,
+      total_followers: followers,
+
+      profile_likes: likes,
+      likes_count: likes,
+      total_likes: likes,
+
+      total_posts: numberOrNull(profile.video_count),
+    },
+    posts,
+  };
 }
- 
-async function fetchYouTube(token: string) {
+
+async function fetchYouTube(token: string): Promise<FetchPlatformResult> {
   const channelRes = await fetch(
     "https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true",
     { headers: { Authorization: `Bearer ${token}` } }
@@ -242,7 +477,29 @@ async function fetchYouTube(token: string) {
 
   const channel = channelData.items?.[0];
   const uploadsPlaylistId = channel?.contentDetails?.relatedPlaylists?.uploads;
-  if (!uploadsPlaylistId) return [];
+
+  const channelThumb =
+    channel?.snippet?.thumbnails?.high?.url ||
+    channel?.snippet?.thumbnails?.default?.url ||
+    null;
+  const subscribers = numberOrNull(channel?.statistics?.subscriberCount);
+
+  const profile: PlatformProfile = {
+    profile_name: channel?.snippet?.title || null,
+    username: channel?.snippet?.customUrl || channel?.snippet?.title || null,
+    avatar_url: channelThumb,
+    profile_image_url: channelThumb,
+
+    subscriber_count: subscribers,
+    followers_count: subscribers,
+    total_followers: subscribers,
+
+    total_posts: numberOrNull(channel?.statistics?.videoCount),
+  };
+
+  if (!uploadsPlaylistId) {
+    return { profile, posts: [] };
+  }
 
   const playlistRes = await fetch(
     `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=25`,
@@ -258,77 +515,104 @@ async function fetchYouTube(token: string) {
     })
     .filter(Boolean)
     .join(",");
-  if (!videoIds) return [];
- 
+
+  if (!videoIds) {
+    return { profile, posts: [] };
+  }
+
   const statsRes = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const statsData = await statsRes.json();
- 
-  return (statsData.items || []).map((video: Record<string, unknown>) => {
-    const stats = video.statistics as Record<string, unknown> || {};
-    const snippet = video.snippet as Record<string, unknown> || {};
+  if (statsData.error) throw new Error(statsData.error.message);
+
+  const posts = (statsData.items || []).map((video: Record<string, unknown>) => {
+    const stats = (video.statistics as Record<string, unknown>) || {};
+    const snippet = (video.snippet as Record<string, unknown>) || {};
+    const thumbnails = snippet.thumbnails as Record<string, any> | undefined;
+    const thumbnail = getBestThumbnail(thumbnails);
+
     return {
       platform_post_id: video.id,
       title: snippet.title,
       content: snippet.description,
       post_type: "video",
       published_at: snippet.publishedAt,
+
+      thumbnail_url: thumbnail,
+      media_url: thumbnail,
+      image_url: thumbnail,
+      cover_url: thumbnail,
+
       reach: parseInt(String(stats.viewCount || 0)),
       likes: parseInt(String(stats.likeCount || 0)),
       comments: parseInt(String(stats.commentCount || 0)),
     };
   });
+
+  return { profile, posts };
 }
- 
+
 async function fetchSpotify(token: string, showId: string) {
-  const res = await fetch(
-    `https://api.spotify.com/v1/shows/${showId}/episodes?limit=20`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const res = await fetch(`https://api.spotify.com/v1/shows/${showId}/episodes?limit=20`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
- 
-  return (data.items || []).map((ep: Record<string, unknown>) => ({
-    platform_post_id: ep.id,
-    title: ep.name,
-    content: ep.description,
-    post_type: "podcast",
-    published_at: ep.release_date ? new Date(ep.release_date as string).toISOString() : null,
-    reach: ep.duration_ms,
-  }));
+
+  return (data.items || []).map((ep: Record<string, unknown>) => {
+    const images = (ep.images as Array<{ url?: string }> | undefined) || [];
+    const image = images[0]?.url || null;
+
+    return {
+      platform_post_id: ep.id,
+      title: ep.name,
+      content: ep.description,
+      post_type: "podcast",
+      published_at: ep.release_date ? new Date(ep.release_date as string).toISOString() : null,
+
+      thumbnail_url: image,
+      media_url: image,
+      image_url: image,
+      cover_url: image,
+
+      reach: ep.duration_ms,
+    };
+  });
 }
- 
+
 async function fetchBlog(basicAuth: string, blogUrl: string) {
-  const res = await fetch(
-    `${blogUrl.replace(/\/$/, "")}/wp-json/wp/v2/posts?per_page=20&_embed`,
-    { headers: basicAuth ? { Authorization: `Basic ${basicAuth}` } : {} }
-  );
+  const res = await fetch(`${blogUrl.replace(/\/$/, "")}/wp-json/wp/v2/posts?per_page=20&_embed`, {
+    headers: basicAuth ? { Authorization: `Basic ${basicAuth}` } : {},
+  });
   const data = await res.json();
   if (!Array.isArray(data)) throw new Error("Blog API error");
- 
-  return data.map((post: Record<string, unknown>) => ({
-    platform_post_id: String(post.id),
-    title: (post.title as Record<string, unknown>)?.rendered || "",
-    content: (post.excerpt as Record<string, unknown>)?.rendered || "",
-    post_type: "article",
-    url: post.link,
-    published_at: post.date,
-  }));
+
+  return data.map((post: Record<string, unknown>) => {
+    const embedded = post._embedded as Record<string, any> | undefined;
+    const featured = embedded?.["wp:featuredmedia"]?.[0];
+    const image =
+      featured?.source_url ||
+      featured?.media_details?.sizes?.medium?.source_url ||
+      featured?.media_details?.sizes?.thumbnail?.source_url ||
+      null;
+
+    return {
+      platform_post_id: String(post.id),
+      title: (post.title as Record<string, unknown>)?.rendered || "",
+      content: (post.excerpt as Record<string, unknown>)?.rendered || "",
+      post_type: "article",
+      url: post.link,
+      published_at: post.date,
+
+      thumbnail_url: image,
+      media_url: image,
+      image_url: image,
+      cover_url: image,
+    };
+  });
 }
-
-type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
-
-type SyncConnection = {
-  id: string;
-  platform: string;
-  account_id: string | null;
-  access_token: string | null;
-  refresh_token?: string | null;
-  token_expires_at?: string | null;
-  connected: boolean;
-};
 
 function isExpiringSoon(expiresAt?: string | null) {
   if (!expiresAt) return false;
@@ -341,7 +625,9 @@ async function refreshAccessToken(supabase: SupabaseClient, connection: SyncConn
   }
 
   let tokenUrl = "";
-  let headers: Record<string, string> = { "Content-Type": "application/x-www-form-urlencoded" };
+  let headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
   let body: URLSearchParams;
 
   if (connection.platform === "youtube") {
@@ -384,8 +670,13 @@ async function refreshAccessToken(supabase: SupabaseClient, connection: SyncConn
 
   const res = await fetch(tokenUrl, { method: "POST", headers, body });
   const data = await res.json();
+
   if (!res.ok || data.error) {
-    throw new Error(`Nie udało się odświeżyć tokenu ${connection.platform}: ${data.error_description || data.error || res.status}`);
+    throw new Error(
+      `Nie udało się odświeżyć tokenu ${connection.platform}: ${
+        data.error_description || data.error || res.status
+      }`
+    );
   }
 
   const nextToken = data.access_token as string;
@@ -409,69 +700,96 @@ async function refreshAccessToken(supabase: SupabaseClient, connection: SyncConn
   connection.access_token = nextToken;
   connection.refresh_token = nextRefresh;
   connection.token_expires_at = expiresAt;
+
   return nextToken;
 }
 
 function summarizeSyncedPosts(posts: Record<string, unknown>[]) {
   const totalReach = posts.reduce((sum, post) => sum + getMetricReach(post), 0);
-  const totalEngagement = posts.reduce((sum, post) => sum + getMetricEngagement(post), 0);
+  const totalEngagement = posts.reduce(
+    (sum, post) => sum + getMetricEngagement(post),
+    0
+  );
   const scores = posts.map(estimateScore).filter((score) => score > 0);
 
   return {
     total_posts: posts.length,
     avg_reach: posts.length ? Math.round(totalReach / posts.length) : 0,
-    avg_engagement: totalReach > 0 ? Number(((totalEngagement / totalReach) * 100).toFixed(2)) : 0,
-    ai_score: scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : 0,
+    avg_engagement:
+      totalReach > 0
+        ? Number(((totalEngagement / totalReach) * 100).toFixed(2))
+        : 0,
+    ai_score: scores.length
+      ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+      : 0,
   };
 }
 
-async function fetchPlatformPosts(supabase: SupabaseClient, connection: SyncConnection): Promise<Record<string, unknown>[]> {
+async function fetchPlatformPosts(
+  supabase: SupabaseClient,
+  connection: SyncConnection
+): Promise<FetchPlatformResult> {
   const token = await refreshAccessToken(supabase, connection);
   const accountId = connection.account_id || "";
 
   switch (connection.platform) {
     case "instagram": {
       const meta = await resolveMetaResource(token, "instagram", accountId);
+
       if (meta.accountId !== accountId) {
         await supabase
           .schema("contentiq")
           .from("platform_connections")
           .update({ account_id: meta.accountId })
           .eq("id", connection.id);
+
         connection.account_id = meta.accountId;
       }
+
       return fetchInstagram(meta.token, meta.accountId);
     }
+
     case "facebook": {
       const meta = await resolveMetaResource(token, "facebook", accountId);
+
       if (meta.accountId !== accountId) {
         await supabase
           .schema("contentiq")
           .from("platform_connections")
           .update({ account_id: meta.accountId })
           .eq("id", connection.id);
+
         connection.account_id = meta.accountId;
       }
+
       return fetchFacebook(meta.token, meta.accountId);
     }
+
     case "linkedin":
       ensureAccountId(connection.platform, accountId);
-      return fetchLinkedIn(token, accountId);
+      return { posts: await fetchLinkedIn(token, accountId) };
+
     case "tiktok":
       return fetchTikTok(token);
+
     case "youtube":
       return fetchYouTube(token);
+
     case "spotify":
       ensureAccountId(connection.platform, accountId);
       if (accountId.includes("@") || accountId.length < 12) {
-        throw new Error("Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz.");
+        throw new Error(
+          "Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz."
+        );
       }
-      return fetchSpotify(token, accountId);
+      return { posts: await fetchSpotify(token, accountId) };
+
     case "blog":
       ensureAccountId(connection.platform, accountId);
-      return fetchBlog(token, accountId);
+      return { posts: await fetchBlog(token, accountId) };
+
     default:
-      return [];
+      return { posts: [] };
   }
 }
 
@@ -480,7 +798,9 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
     throw new Error(`Unsupported platform: ${connection.platform}`);
   }
 
-  const posts = await fetchPlatformPosts(supabase, connection);
+  const result = await fetchPlatformPosts(supabase, connection);
+  const posts = result.posts || [];
+  const profile = result.profile || {};
 
   const { error: deleteError } = await supabase
     .schema("contentiq")
@@ -491,11 +811,12 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
   if (deleteError) throw new Error(deleteError.message);
 
   if (posts.length > 0) {
-    const rows = posts.map(post => ({
+    const rows = posts.map((post) => ({
       ...post,
       connection_id: connection.id,
       ai_score: estimateScore(post),
-      ai_summary: "Wynik liczony z miksu zasięgu, reakcji i współczynnika zaangażowania.",
+      ai_summary:
+        "Wynik liczony z miksu zasięgu, reakcji i współczynnika zaangażowania.",
       fetched_at: new Date().toISOString(),
     }));
 
@@ -508,12 +829,22 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
   }
 
   const stats = summarizeSyncedPosts(posts);
+
+  const profileFollowers =
+    profile.followers ??
+    profile.followers_count ??
+    profile.follower_count ??
+    profile.total_followers ??
+    profile.fan_count ??
+    profile.subscriber_count ??
+    null;
+
   const { error: statsError } = await supabase
     .schema("contentiq")
     .from("account_stats")
     .insert({
       connection_id: connection.id,
-      followers: null,
+      followers: profileFollowers,
       following: null,
       total_posts: stats.total_posts,
       avg_reach: stats.avg_reach,
@@ -524,11 +855,70 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
 
   if (statsError) throw new Error(statsError.message);
 
-  await supabase
+  const { error: connectionUpdateError } = await supabase
     .schema("contentiq")
     .from("platform_connections")
-    .update({ last_synced_at: new Date().toISOString() })
+    .update({
+      profile_name: profile.profile_name ?? null,
+      username: profile.username ?? null,
+      avatar_url: profile.avatar_url ?? null,
+      profile_image_url: profile.profile_image_url ?? null,
+
+      followers:
+        profile.followers ??
+        profile.followers_count ??
+        profile.follower_count ??
+        profile.total_followers ??
+        null,
+      followers_count:
+        profile.followers_count ??
+        profile.followers ??
+        profile.follower_count ??
+        profile.total_followers ??
+        null,
+      follower_count:
+        profile.follower_count ??
+        profile.followers_count ??
+        profile.followers ??
+        profile.total_followers ??
+        null,
+      total_followers:
+        profile.total_followers ??
+        profile.followers_count ??
+        profile.followers ??
+        profile.follower_count ??
+        null,
+
+      profile_likes:
+        profile.profile_likes ??
+        profile.likes_count ??
+        profile.total_likes ??
+        profile.heart_count ??
+        profile.page_likes ??
+        profile.page_fans ??
+        null,
+      likes_count:
+        profile.likes_count ??
+        profile.profile_likes ??
+        profile.total_likes ??
+        null,
+      total_likes:
+        profile.total_likes ??
+        profile.likes_count ??
+        profile.profile_likes ??
+        null,
+      heart_count: profile.heart_count ?? null,
+
+      fan_count: profile.fan_count ?? null,
+      page_likes: profile.page_likes ?? null,
+      page_fans: profile.page_fans ?? null,
+      subscriber_count: profile.subscriber_count ?? null,
+
+      last_synced_at: new Date().toISOString(),
+    })
     .eq("id", connection.id);
+
+  if (connectionUpdateError) throw new Error(connectionUpdateError.message);
 
   return {
     connection_id: connection.id,
@@ -539,16 +929,27 @@ async function syncConnection(supabase: SupabaseClient, connection: SyncConnecti
       : "API odpowiedziało poprawnie, ale nie zwróciło żadnych publikacji.",
   };
 }
- 
+
 // ─── MAIN HANDLER ────────────────────────────────────────────────────────────
- 
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
- 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
- 
-  let body: { connection_id?: string; platform?: string; workspace_id?: string; all?: boolean };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: {
+    connection_id?: string;
+    platform?: string;
+    workspace_id?: string;
+    all?: boolean;
+  };
+
   try {
     body = await req.json();
   } catch {
@@ -563,7 +964,9 @@ export async function POST(req: NextRequest) {
     const { data: connections, error } = await supabase
       .schema("contentiq")
       .from("platform_connections")
-      .select("id, platform, account_id, access_token, refresh_token, token_expires_at, connected")
+      .select(
+        "id, platform, account_id, access_token, refresh_token, token_expires_at, connected"
+      )
       .eq("workspace_id", body.workspace_id)
       .eq("connected", true);
 
@@ -572,6 +975,7 @@ export async function POST(req: NextRequest) {
     }
 
     const results = [];
+
     for (const connection of (connections || []) as SyncConnection[]) {
       try {
         results.push(await syncConnection(supabase, connection));
@@ -600,18 +1004,23 @@ export async function POST(req: NextRequest) {
   }
 
   if (!body.connection_id || !body.platform) {
-    return NextResponse.json({ error: "Missing connection_id or platform" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing connection_id or platform" },
+      { status: 400 }
+    );
   }
 
   const { data: connection, error: fetchError } = await supabase
     .schema("contentiq")
     .from("platform_connections")
-    .select("id, platform, account_id, access_token, refresh_token, token_expires_at, connected")
+    .select(
+      "id, platform, account_id, access_token, refresh_token, token_expires_at, connected"
+    )
     .eq("id", body.connection_id)
     .eq("platform", body.platform)
     .eq("connected", true)
     .single();
- 
+
   if (fetchError || !connection) {
     return NextResponse.json({ error: "Connection not found" }, { status: 404 });
   }
@@ -621,6 +1030,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     console.error(`Sync error [${body.platform}]:`, err);
-    return NextResponse.json({ error: `Fetch failed: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error: `Fetch failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      },
+      { status: 500 }
+    );
   }
 }
