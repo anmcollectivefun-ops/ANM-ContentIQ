@@ -7,7 +7,14 @@ import OpenAI from "openai";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
-type AiMode = "generate" | "analyze" | "adapt" | "recommend" | "hooks" | "chat";
+type AiMode =
+  | "generate"
+  | "analyze"
+  | "adapt"
+  | "recommend"
+  | "hooks"
+  | "strategy"
+  | "chat";
 
 type RequestBody = {
   mode?: AiMode;
@@ -62,6 +69,13 @@ Tworzysz mocne pierwsze zdania, otwarcia video, nagłówki i intro dopasowane do
 Każdy hook ma zatrzymać uwagę odbiorcy w pierwszych sekundach.
 Uwzględniasz różnice między LinkedIn, Instagramem, TikTokiem, YouTube, Facebookiem, blogiem i Spotify.
 Tworzysz różne typy hooków: problemowy, liczbowy, pytanie, kontrowersyjny, case study, błąd, obietnica, storytelling.
+Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
+
+  strategy: `Jesteś AI Strategiem ContentIQ. Tworzysz miesięczne strategie contentu dla konkretnego workspace użytkownika.
+Korzystasz z danych aplikacji: opublikowanych postów, metryk, inspiracji, szablonów, harmonogramu i podłączonych platform.
+Nie zgadujesz wyników. Jeżeli danych brakuje, wpisujesz to w missing_data i jasno zaznaczasz założenia.
+Strategia ma być praktyczna: daty, godziny, platformy, rodzaje treści, tytuły, kąty komunikacji, formaty i powody decyzji.
+Plan ma pomagać twórcy działać codziennie, dlatego uwzględnia dzisiejsze powiadomienie i alerty strategiczne.
 Odpowiadaj wyłącznie w formacie JSON zgodnym ze schematem, który otrzymasz.`,
 
   chat: `Jesteś asystentem ANM ContentIQ — platformy do zarządzania contentem.
@@ -172,6 +186,52 @@ const JSON_SCHEMAS: Record<Exclude<AiMode, "chat">, string> = {
     }
   ],
   "ai_summary": "krótkie podsumowanie, jaki kierunek hooków będzie najlepszy"
+}`,
+
+  strategy: `Zwróć dokładnie taki JSON, bez markdown i bez komentarzy:
+{
+  "strategy_name": "nazwa strategii",
+  "period_start": "YYYY-MM-DD",
+  "period_end": "YYYY-MM-DD",
+  "main_goal": "główny cel strategii",
+  "positioning": "pozycjonowanie marki na ten okres",
+  "ai_summary": "krótkie podsumowanie strategii",
+  "content_pillars": [
+    {
+      "name": "filar contentu",
+      "description": "opis filaru",
+      "platforms": ["linkedin", "instagram"]
+    }
+  ],
+  "platform_distribution": [
+    {
+      "platform": "linkedin",
+      "posts_per_month": 8,
+      "cadence": "2 razy w tygodniu",
+      "best_days": ["wtorek", "czwartek"],
+      "best_hours": ["09:00", "12:00"],
+      "reasoning": "dlaczego taka częstotliwość i platforma"
+    }
+  ],
+  "weekly_plan": [
+    {
+      "week": 1,
+      "date": "YYYY-MM-DD",
+      "time": "09:00",
+      "platform": "linkedin",
+      "content_kind": "content",
+      "title": "tytuł publikacji",
+      "angle": "kąt komunikacji",
+      "format": "format",
+      "description": "co dokładnie opublikować",
+      "source_recommendation": "na jakich danych lub założeniach opiera się sugestia",
+      "status": "planned"
+    }
+  ],
+  "today_notification": "komunikat dla twórcy na dziś",
+  "strategy_alerts": ["ważna sugestia strategiczna"],
+  "assumptions": ["założenie AI, jeśli brakuje danych"],
+  "missing_data": ["dane, których brakuje do większej pewności"]
 }`,
 };
 
@@ -296,6 +356,25 @@ ${JSON_SCHEMAS.hooks}
     `.trim();
   }
 
+  if (mode === "strategy") {
+    return `
+Brief użytkownika:
+${prompt}
+
+Dane z aplikacji ContentIQ:
+${historicalData ? JSON.stringify(historicalData) : "{}"}
+
+Wymagania:
+- utwórz plan na minimum 20 i maksimum 40 pozycji,
+- plan obejmuje 4 tygodnie,
+- wpisy w weekly_plan muszą mieć daty z okresu strategii,
+- używaj tylko platform przekazanych w danych lub briefie,
+- jeżeli dane o wynikach są puste, oprzyj decyzje na szablonach, inspiracjach i briefie, ale wpisz brak metryk w missing_data.
+
+${JSON_SCHEMAS.strategy}
+    `.trim();
+  }
+
   return prompt;
 }
 
@@ -358,7 +437,7 @@ export async function POST(req: Request) {
     let parsedData: unknown = null;
     let parseError: string | null = null;
 
-    if (["generate", "analyze", "adapt", "recommend", "hooks"].includes(mode)) {
+    if (["generate", "analyze", "adapt", "recommend", "hooks", "strategy"].includes(mode)) {
       try {
         const cleaned = cleanJsonAnswer(rawAnswer);
         parsedData = JSON.parse(cleaned);

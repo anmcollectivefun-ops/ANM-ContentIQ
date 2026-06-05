@@ -30,6 +30,7 @@ import {
   Sun,
   Video,
   WandSparkles,
+  BrainCircuit,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -44,6 +45,7 @@ import ShortStudio from "@/app/components/ShortStudio";
 import CreativeStudio from "@/app/components/CreativeStudio";
 import { calculatePerformanceScore } from "@/lib/performanceScore";
 import Inspirations from "@/app/components/Inspirations";
+import AIStrategist from "@/app/components/AIStrategist";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -79,7 +81,7 @@ type TabId =
 |"inspirationsVideo"
 |"inspirationsShort"
 |"inspirationsCreative"
-  
+  | "strategist"
 ;
 
 interface Account {
@@ -244,6 +246,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "chat", label: "AI Chat", icon: "chat" },
       { id: "brand", label: "Brand Voice", icon: "brand" },
       { id: "partner", label: "AI Partner", icon: "partner" },
+       { id: "strategist", label: "AI Strateg", icon: "strategist" },
     ],
   },
   {
@@ -456,6 +459,7 @@ const NAV_ICONS = {
   groupInspirations: Sparkles,
   groupAi: Sparkles,
   groupSettings: Settings,
+  strategist: BrainCircuit,
 } satisfies Record<string, LucideIcon>;
 
 type NavIconName = keyof typeof NAV_ICONS;
@@ -1235,6 +1239,9 @@ export default function AppWorkspacePage() {
                       boxShadow: isActive ? css.activeShadow : "none",
                     }}
                   >
+
+
+
                     <span
                       style={{
                         ...st.navIcon,
@@ -2457,7 +2464,42 @@ export default function AppWorkspacePage() {
                 <AIPartner dark={dark} workspaceId={workspaceId} />
               </div>
     )}
+    {/* ================= AI strateg ================= */}
+{activeTab === "strategist" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.accent }}>
+        AI Strateg
+      </p>
 
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "'DM Serif Display', serif",
+        }}
+      >
+        Strategia contentu na najbliższy okres
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        AI analizuje Twoje materiały, szablony, inspiracje, harmonogram i połączone platformy, a następnie układa realny miesięczny plan publikacji.
+      </p>
+    </div>
+
+    <AIStrategist
+      dark={dark}
+      workspaceId={workspaceId}
+    />
+  </div>
+)}
  {/* ================= INTEGRACJE ================= */}
  {activeTab === "integrations" && (
               <div className="ciq-integrations-grid" style={st.integrationsGrid}>
