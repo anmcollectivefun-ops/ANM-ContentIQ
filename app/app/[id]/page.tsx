@@ -1862,7 +1862,50 @@ const formatProfileNumber = (value: any) => {
               </div>
             )}
 
+{/* ================= PODSUMOWANIE CONTENTU ================= */}
+{activeTab === "content" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.aiBg,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow: css.aiGlow,
+        color: css.text,
+        position: "relative",
+        overflow: "hidden",
+        marginBottom: 18,
+      }}
+    >
+      <p style={{ ...st.smallLabel, color: css.aiText }}>
+        <Wand2 size={15} color={css.aiIcon} />
+        AI podsumowanie contentu
+      </p>
 
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "var(--font-heading)",
+        }}
+      >
+        Kluczowe wskaźniki contentu
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Tutaj widzisz najważniejsze wyniki z ostatnich treści: wyświetlenia,
+        polubienia, komentarze, udostępnienia, średnie wyniki oraz profil
+        powiązany z daną platformą.
+      </p>
+    </div>
+
+    <ContentSummaryImproved
+      dark={dark}
+      workspaceId={workspaceId}
+      platform="tiktok"
+    />
+  </div>
+)}
 {/* ================= SZCZEGÓŁY KONTA po wejsciu ================= */}
 
 {activeTab === "accounts" && activeAccount && (
@@ -2792,50 +2835,7 @@ const formatProfileNumber = (value: any) => {
             )}
  
 
-{/* ================= PODSUMOWANIE CONTENTU ================= */}
-{activeTab === "content" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.aiBg,
-        border: `1px solid ${css.aiBorder}`,
-        boxShadow: css.aiGlow,
-        color: css.text,
-        position: "relative",
-        overflow: "hidden",
-        marginBottom: 18,
-      }}
-    >
-      <p style={{ ...st.smallLabel, color: css.aiText }}>
-        <Wand2 size={15} color={css.aiIcon} />
-        AI podsumowanie contentu
-      </p>
 
-      <h2
-        style={{
-          ...st.sectionTitle,
-          color: css.text,
-          fontFamily: "var(--font-heading)",
-        }}
-      >
-        Kluczowe wskaźniki contentu
-      </h2>
-
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Tutaj widzisz najważniejsze wyniki z ostatnich treści: wyświetlenia,
-        polubienia, komentarze, udostępnienia, średnie wyniki oraz profil
-        powiązany z daną platformą.
-      </p>
-    </div>
-
-    <ContentSummaryImproved
-      dark={dark}
-      workspaceId={workspaceId}
-      platform="tiktok"
-    />
-  </div>
-)}
 
  {/* ================= HARMONOGRAM ================= */}
    {activeTab === "calendar" && (

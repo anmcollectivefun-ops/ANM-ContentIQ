@@ -4,6 +4,7 @@
 // AI Chat który zna dane z Supabase — posty, wyniki, brand voice
 
 import { useEffect, useRef, useState } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Message {
@@ -38,8 +39,32 @@ export default function AIChat({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const css = dark
-    ? { bg: "#060d18", surface: "#0d1829", text: "#e8f0ff", muted: "#4a6480", border: "#1a2740", accent: "#818cf8", userBg: "#1a2740", aiBg: "#0f1d2e" }
-    : { bg: "#f0f4f8", surface: "#ffffff", text: "#0f172a", muted: "#64748b", border: "#e2e8f0", accent: "#6366f1", userBg: "#e0e7ff", aiBg: "#f8fafc" };
+    ? {
+        bg: "#1A2233",
+        surface: "#070707",
+        text: "#FFFFFF",
+        muted: "#C9CED8",
+        border: "rgba(255,255,255,0.10)",
+        accent: "#8E443D",
+        userBg: "rgba(142,68,61,0.24)",
+        aiBg: "rgba(109, 40, 217, 0.16)",
+        aiBorder: "rgba(192, 132, 252, 0.55)",
+        aiText: "#D8B4FE",
+        aiGlow: "0 0 28px rgba(168, 85, 247, 0.28)",
+      }
+    : {
+        bg: "#FFFFFF",
+        surface: "#B5937A",
+        text: "#231F20",
+        muted: "#5F5A57",
+        border: "rgba(35,31,32,0.14)",
+        accent: "#231F20",
+        userBg: "rgba(181,147,122,0.28)",
+        aiBg: "rgba(124, 58, 237, 0.10)",
+        aiBorder: "rgba(124, 58, 237, 0.34)",
+        aiText: "#6D28D9",
+        aiGlow: "0 0 26px rgba(124, 58, 237, 0.18)",
+      };
 
   // Pobierz kontekst z Supabase
   async function loadContext() {
@@ -218,12 +243,15 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
         {messages.map((msg, i) => (
           <div key={i} className="msg" style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
             {msg.role === "assistant" && (
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0, marginTop: 2 }}>✦</div>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: css.aiBg, border: `1px solid ${css.aiBorder}`, boxShadow: css.aiGlow, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+                <Wand2 size={15} color={css.aiText} />
+              </div>
             )}
             <div style={{
               maxWidth: "75%", padding: "12px 14px", borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-              background: msg.role === "user" ? css.accent + "25" : css.surface,
-              border: `1px solid ${msg.role === "user" ? css.accent + "40" : css.border}`,
+              background: msg.role === "user" ? css.userBg : css.aiBg,
+              border: `1px solid ${msg.role === "user" ? css.accent + "40" : css.aiBorder}`,
+              boxShadow: msg.role === "user" ? "none" : css.aiGlow,
               fontSize: 13, lineHeight: 1.7, color: css.text, whiteSpace: "pre-wrap",
             }}>
               {msg.content}

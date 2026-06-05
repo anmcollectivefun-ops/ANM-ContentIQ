@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties } from "react";
+import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type CreativePlatform =
@@ -181,28 +182,34 @@ export default function CreativeStudio({
 
   const css: Record<string, string> = dark
     ? {
-        bg: "#050505",
-        surface: "#111111",
-        surfaceSoft: "#0B0B0C",
-        text: "#F5F5F5",
-        muted: "#A1A1AA",
-        border: "#27272A",
-        accent: "#E5E7EB",
-        aiBg: "#0C1117",
-        aiBorder: "#1E3A4C",
-        aiText: "#7DD3FC",
+        bg: "#1A2233",
+        surface: "#070707",
+        surfaceSoft: "#101010",
+        text: "#FFFFFF",
+        muted: "#C9CED8",
+        border: "rgba(255,255,255,0.10)",
+        accent: "#8E443D",
+        aiBg: "rgba(109, 40, 217, 0.16)",
+        aiBgSoft: "rgba(147, 51, 234, 0.12)",
+        aiBorder: "rgba(192, 132, 252, 0.55)",
+        aiText: "#D8B4FE",
+        aiGlow: "0 0 28px rgba(168, 85, 247, 0.28)",
+        aiIcon: "#F0ABFC",
       }
     : {
-        bg: "#F7F7F7",
-        surface: "#FFFFFF",
-        surfaceSoft: "#FAFAFA",
-        text: "#111111",
-        muted: "#71717A",
-        border: "#E4E4E7",
-        accent: "#111111",
-        aiBg: "#F0F9FF",
-        aiBorder: "#BAE6FD",
-        aiText: "#0284C7",
+        bg: "#FFFFFF",
+        surface: "#B5937A",
+        surfaceSoft: "#F7F2EF",
+        text: "#231F20",
+        muted: "#5F5A57",
+        border: "rgba(35,31,32,0.14)",
+        accent: "#231F20",
+        aiBg: "rgba(124, 58, 237, 0.10)",
+        aiBgSoft: "rgba(245, 243, 255, 0.95)",
+        aiBorder: "rgba(124, 58, 237, 0.34)",
+        aiText: "#6D28D9",
+        aiGlow: "0 0 26px rgba(124, 58, 237, 0.18)",
+        aiIcon: "#A855F7",
       };
 
   const activePlatform = useMemo(() => getPlatformInfo(platform), [platform]);
@@ -1081,11 +1088,17 @@ export default function CreativeStudio({
                           marginBottom: 10,
                           background: css.aiBg,
                           border: `1px solid ${css.aiBorder}`,
-                          borderRadius: 12,
-                          padding: 10,
+                          boxShadow: css.aiGlow,
+                          borderRadius: 18,
+                          padding: 14,
+                          position: "relative",
+                          overflow: "hidden",
                         }}
                       >
-                        <SectionLabel color={css.aiText}>AI Prompt</SectionLabel>
+                        <SectionLabel color={css.aiText}>
+                          <Wand2 size={15} color={css.aiIcon} />
+                          AI Prompt
+                        </SectionLabel>
                         <p
                           style={{
                             margin: 0,

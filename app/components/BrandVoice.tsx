@@ -50,8 +50,8 @@ export default function BrandVoice({
   const [newExample, setNewExample] = useState("");
 
   const css = dark
-    ? { bg: "#060d18", surface: "#0d1829", text: "#e8f0ff", muted: "#4a6480", border: "#1a2740", accent: "#818cf8", input: "#080e1a" }
-    : { bg: "#f0f4f8", surface: "#ffffff", text: "#0f172a", muted: "#64748b", border: "#e2e8f0", accent: "#6366f1", input: "#f8fafc" };
+    ? { bg: "#1A2233", surface: "#070707", text: "#FFFFFF", muted: "#C9CED8", border: "rgba(255,255,255,0.10)", accent: "#8E443D", input: "#101010" }
+    : { bg: "#FFFFFF", surface: "#B5937A", text: "#231F20", muted: "#5F5A57", border: "rgba(35,31,32,0.14)", accent: "#231F20", input: "#F7F2EF" };
 
   async function getWsId() {
     const { data: ws } = await supabase.schema("contentiq").from("workspaces").select("id").eq("slug", workspaceId).single();

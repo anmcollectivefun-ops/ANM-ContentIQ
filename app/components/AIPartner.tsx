@@ -128,22 +128,22 @@ export default function AIPartner({
 
   const css = dark
     ? {
-        bg: "#080c14",
-        surface: "#0f1520",
-        text: "#eef2ff",
-        muted: "#8190ad",
-        border: "#151e30",
-        accent: "#818cf8",
-        soft: "#101a2c",
+        bg: "#1A2233",
+        surface: "#070707",
+        text: "#FFFFFF",
+        muted: "#C9CED8",
+        border: "rgba(255,255,255,0.10)",
+        accent: "#8E443D",
+        soft: "#101010",
       }
     : {
-        bg: "#f8f7f4",
-        surface: "#ffffff",
-        text: "#0f172a",
-        muted: "#64748b",
-        border: "#e8e8e4",
-        accent: "#6366f1",
-        soft: "#f1f5f9",
+        bg: "#FFFFFF",
+        surface: "#B5937A",
+        text: "#231F20",
+        muted: "#5F5A57",
+        border: "rgba(35,31,32,0.14)",
+        accent: "#231F20",
+        soft: "#F7F2EF",
       };
 
   useEffect(() => {
