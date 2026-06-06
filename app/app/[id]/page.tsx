@@ -22,9 +22,7 @@ import {
   Moon,
   PenLine,
   PlugZap,
-  ScrollText,
   Settings,
-  Shield,
   Sparkles,
   Sun,
   Video,
@@ -1595,75 +1593,6 @@ const formatProfileNumber = (value: any) => {
 </nav>
 
   <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
-    <div
-      style={{
-        ...st.legalLinks,
-        borderTop: `1px solid ${css.border}`,
-        paddingTop: sidebarCollapsed ? 8 : 10,
-      }}
-    >
-      {sidebarCollapsed ? (
-        <>
-          <Link
-            href="/privacy"
-            title="Polityka prywatności"
-            style={{
-              ...st.legalIconLink,
-              color: css.muted,
-              border: `1px solid ${css.border}`,
-              background: css.sidebarButton,
-            }}
-          >
-            <Shield size={15} />
-          </Link>
-
-          <Link
-            href="/terms"
-            title="Regulamin"
-            style={{
-              ...st.legalIconLink,
-              color: css.muted,
-              border: `1px solid ${css.border}`,
-              background: css.sidebarButton,
-            }}
-          >
-            <ScrollText size={15} />
-          </Link>
-        </>
-      ) : (
-        <>
-          <Link href="/privacy" style={{ ...st.legalTextLink, color: css.muted }}>
-            <Shield size={14} />
-            Polityka prywatności
-          </Link>
-
-          <Link href="/terms" style={{ ...st.legalTextLink, color: css.muted }}>
-            <ScrollText size={14} />
-            Regulamin
-          </Link>
-        </>
-      )}
-    </div>
-
-    <button
-      onClick={toggleTheme}
-      style={{
-        ...st.themeToggle,
-        background: css.sidebarButton,
-        border: `1px solid ${css.border}`,
-        color: css.muted,
-      }}
-    >
-      {sidebarCollapsed ? (
-        dark ? <Sun size={16} /> : <Moon size={16} />
-      ) : (
-        <>
-          {dark ? <Sun size={16} /> : <Moon size={16} />}
-          {dark ? "Jaśniejszy tryb" : "Ciemniejszy tryb"}
-        </>
-      )}
-    </button>
-
     <button
       onClick={handleSignOut}
       disabled={signingOut}
@@ -1748,7 +1677,7 @@ const formatProfileNumber = (value: any) => {
 
           <div style={st.content}>
 
- {/* ================= PODSUMOWANIE KONT ================= */}
+{/* ================= PODSUMOWANIE KONT ================= */}
 {activeTab === "accounts" && !activeAccount && (
   <div style={{ display: "grid", gap: 22 }}>
     <div className="ciq-summary-grid" style={st.summaryGrid}>
@@ -1977,12 +1906,7 @@ const formatProfileNumber = (value: any) => {
           Co działa najlepiej i gdzie warto podkręcić wynik?
         </h2>
 
-        <div
-          style={{
-            display: "grid",
-            gap: 10,
-          }}
-        >
+        <div style={{ display: "grid", gap: 10 }}>
           {realInsights.map((insight, index) => {
             const color =
               insight.type === "up"
@@ -2061,12 +1985,11 @@ const formatProfileNumber = (value: any) => {
           color: css.muted,
           fontSize: 12,
           lineHeight: 1.5,
-          maxWidth: 420,
+          maxWidth: 430,
         }}
       >
-        Każdy kafelek pokazuje wynik live, podstawowe metryki i krótki wniosek
-        AI. Strzałka oraz przycisk „Zobacz szczegóły” prowadzą do pełnej analizy
-        konta.
+        Każdy kafelek pokazuje wynik live, świeżość danych i krótki wniosek AI.
+        Możesz od razu wejść w szczegóły albo zsynchronizować konto.
       </div>
     </div>
 
@@ -2078,10 +2001,17 @@ const formatProfileNumber = (value: any) => {
           trend === 0 ? css.muted : trend > 0 ? "#22c55e" : "#ef4444";
 
         return (
-          <button
+          <div
             key={account.id}
             className="ciq-account-tile"
+            role="button"
+            tabIndex={0}
             onClick={() => setActiveAccount(account)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                setActiveAccount(account);
+              }
+            }}
             style={{
               ...st.tile,
               background: css.surface,
@@ -2128,10 +2058,11 @@ const formatProfileNumber = (value: any) => {
                 <div
                   style={{
                     ...st.tileName,
-                    color: css.heading,
+                    color: account.color,
                     fontFamily: "var(--font-heading)",
                     fontSize: 25,
                     lineHeight: 1.05,
+                    fontWeight: 500,
                   }}
                 >
                   {account.name}
@@ -2298,36 +2229,85 @@ const formatProfileNumber = (value: any) => {
 
             <div
               style={{
-                ...st.tileBestFormat,
-                background: css.liveSoft,
-                border: `1px solid ${css.border}`,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 8,
                 marginTop: 12,
                 position: "relative",
                 zIndex: 2,
               }}
             >
-              <span
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveAccount(account);
+                }}
                 style={{
-                  ...st.smallMiniLabel,
-                  color: css.muted,
-                  fontFamily: "var(--font-label)",
-                  letterSpacing: ".08em",
+                  borderRadius: 14,
+                  border: `1px solid ${account.color}55`,
+                  background: `${account.color}18`,
+                  color: account.color,
+                  padding: "10px 11px",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                  textAlign: "center",
                 }}
               >
-                Najlepszy format
-              </span>
+                Zobacz szczegóły
+              </button>
 
-              <span
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+
+                  void (async () => {
+                    try {
+                      const res = await fetch("/api/sync", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          platform: account.id,
+                          workspace_id: workspaceId,
+                        }),
+                      });
+
+                      const data = await res.json().catch(() => null);
+
+                      if (!res.ok || data?.error) {
+                        throw new Error(
+                          data?.error || "Nie udało się zsynchronizować konta."
+                        );
+                      }
+
+                      window.location.reload();
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : String(err));
+                    }
+                  })();
+                }}
+                disabled={!account.connected}
                 style={{
-                  color: css.heading,
-                  fontFamily: "var(--font-heading)",
-                  fontWeight: 500,
-                  fontSize: 18,
-                  lineHeight: 1.1,
+                  borderRadius: 14,
+                  border: `1px solid ${
+                    account.connected ? css.border : "#f59e0b44"
+                  }`,
+                  background: account.connected ? css.liveSoft : "#f59e0b14",
+                  color: account.connected ? css.text : "#f59e0b",
+                  padding: "10px 11px",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor: account.connected ? "pointer" : "not-allowed",
+                  opacity: account.connected ? 1 : 0.72,
+                  fontFamily: "var(--font-body)",
+                  textAlign: "center",
                 }}
               >
-                {account.bestFormat}
-              </span>
+                Synchronizuj
+              </button>
             </div>
 
             <div
@@ -2389,44 +2369,20 @@ const formatProfileNumber = (value: any) => {
             <div
               style={{
                 marginTop: 12,
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
-                alignItems: "center",
+                color: trendColor,
+                fontSize: 11,
+                fontWeight: 800,
                 position: "relative",
                 zIndex: 2,
               }}
             >
-              <div
-                style={{
-                  color: trendColor,
-                  fontSize: 11,
-                  fontWeight: 800,
-                }}
-              >
-                {trend === 0
-                  ? "0% miesiąc do miesiąca"
-                  : `${trend > 0 ? "↑" : "↓"} ${Math.abs(
-                      trend
-                    )}% miesiąc do miesiąca`}
-              </div>
-
-              <div
-                style={{
-                  borderRadius: 999,
-                  border: `1px solid ${account.color}55`,
-                  background: `${account.color}18`,
-                  color: account.color,
-                  padding: "7px 10px",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Zobacz szczegóły
-              </div>
+              {trend === 0
+                ? "0% miesiąc do miesiąca"
+                : `${trend > 0 ? "↑" : "↓"} ${Math.abs(
+                    trend
+                  )}% miesiąc do miesiąca`}
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
@@ -3944,10 +3900,293 @@ const formatProfileNumber = (value: any) => {
   </div>
 )}
 
- {/* ================= SZCZEGÓŁY KONTA ================= */}
- {activeTab === "brand" && (
-              <BrandVoice dark={dark} workspaceId={workspaceId} />
-            )}
+{/* ================= BRAND VOICE ================= */}
+{activeTab === "brand" && (
+  <div style={{ display: "grid", gap: 18 }}>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 0,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          right: 22,
+          top: 12,
+          fontSize: 110,
+          lineHeight: 1,
+          color: css.accent,
+          opacity: 0.05,
+          fontFamily: "var(--font-heading)",
+          pointerEvents: "none",
+        }}
+      >
+        B
+      </div>
+
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        Brand Voice
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.heading,
+          fontFamily: "var(--font-heading)",
+          fontWeight: 500,
+          maxWidth: 860,
+        }}
+      >
+        Naucz AI stylu Twojej marki
+      </h2>
+
+      <p
+        style={{
+          ...st.sectionText,
+          color: css.muted,
+          maxWidth: 940,
+          lineHeight: 1.75,
+        }}
+      >
+        To miejsce definiuje, jak AI ma pisać, mówić i doradzać. Zapisz ton
+        marki, słowa, których używasz, tematy, których unikasz, przykłady
+        dobrych treści i zasady komunikacji. Dzięki temu Content Studio, Short
+        Studio, Video Studio i AI Partner będą generować treści bardziej spójne
+        z Twoją marką.
+      </p>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gap: 12,
+      }}
+    >
+      {[
+        {
+          label: "01 / Ton marki",
+          title: "Jak mówimy?",
+          text:
+            "Profesjonalnie, lekko, ekspercko, sprzedażowo, edukacyjnie albo bardziej po ludzku — tutaj określasz styl.",
+          ai: false,
+        },
+        {
+          label: "02 / Słowa i frazy",
+          title: "Czego używamy?",
+          text:
+            "Dodaj zwroty, hasła, słowa-klucze i określenia, które mają często pojawiać się w treściach.",
+          ai: false,
+        },
+        {
+          label: "03 / Zakazy",
+          title: "Czego unikamy?",
+          text:
+            "Zapisz słowa, obietnice, styl albo tematy, których AI nie powinno używać w komunikacji marki.",
+          ai: true,
+        },
+        {
+          label: "04 / Przykłady",
+          title: "Na czym się wzorować?",
+          text:
+            "Dodaj najlepsze posty, opisy i teksty, żeby AI rozumiało, jaki styl już działa i co ma powielać.",
+          ai: true,
+        },
+      ].map((item) => (
+        <div
+          key={item.title}
+          style={{
+            background: css.surface,
+            border: `1px solid ${item.ai ? css.aiBorder : css.border}`,
+            boxShadow: item.ai
+              ? "0 16px 38px rgba(168,85,247,0.13)"
+              : "0 12px 28px rgba(0,0,0,0.16)",
+            borderRadius: 20,
+            padding: 16,
+            position: "relative",
+            overflow: "hidden",
+            minHeight: 172,
+          }}
+        >
+          {item.ai && (
+            <div
+              style={{
+                position: "absolute",
+                left: 18,
+                right: 18,
+                bottom: -18,
+                height: 36,
+                background: "rgba(168,85,247,0.17)",
+                filter: "blur(20px)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                color: item.ai ? css.aiText : css.accent,
+                fontFamily: "var(--font-label)",
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              {item.ai && <Wand2 size={15} color={css.aiIcon} />}
+              {item.label}
+            </div>
+
+            <div
+              style={{
+                marginTop: 10,
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 24,
+                lineHeight: 1.05,
+                fontWeight: 500,
+              }}
+            >
+              {item.title}
+            </div>
+
+            <p
+              style={{
+                margin: "10px 0 0",
+                color: css.muted,
+                fontSize: 12,
+                lineHeight: 1.65,
+              }}
+            >
+              {item.text}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow:
+          "0 20px 50px rgba(0,0,0,0.24), 0 20px 46px rgba(168,85,247,0.13)",
+        borderRadius: 24,
+        padding: 18,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 22,
+          right: 22,
+          bottom: -22,
+          height: 46,
+          background: "rgba(168,85,247,0.18)",
+          filter: "blur(24px)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            color: css.aiText,
+            fontFamily: "var(--font-label)",
+            fontWeight: 900,
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <Wand2 size={15} color={css.aiIcon} />
+          Jak Brand Voice wpływa na AI?
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 12,
+            marginTop: 14,
+          }}
+        >
+          {[
+            {
+              title: "Content Studio",
+              text:
+                "AI tworzy posty w Twoim tonie, z Twoimi zwrotami i bez przypadkowego stylu z internetu.",
+            },
+            {
+              title: "Short / Video Studio",
+              text:
+                "Hooki, scenariusze i opisy są dopasowane do marki, a nie tylko do trendów.",
+            },
+            {
+              title: "AI Partner",
+              text:
+                "Partner contentowy lepiej rozumie, co rozwijać, czego unikać i jaki kierunek jest spójny z marką.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background: css.surfaceSoft,
+                border: `1px solid ${css.aiBorder}`,
+                borderRadius: 18,
+                padding: 15,
+              }}
+            >
+              <div
+                style={{
+                  color: css.aiText,
+                  fontSize: 13,
+                  fontWeight: 900,
+                  marginBottom: 7,
+                }}
+              >
+                {item.title}
+              </div>
+
+              <div
+                style={{
+                  color: css.text,
+                  fontSize: 12,
+                  lineHeight: 1.65,
+                }}
+              >
+                {item.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <BrandVoice dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
  {/* ================= CZAT AI ================= */}
  {activeTab === "chat" && (
               <AIChat dark={dark} workspaceId={workspaceId} />
