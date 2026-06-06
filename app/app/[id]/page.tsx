@@ -22,6 +22,7 @@ import {
   Moon,
   PenLine,
   PlugZap,
+  RefreshCw,
   Settings,
   Sparkles,
   Sun,
@@ -801,11 +802,6 @@ export default function AppWorkspacePage() {
 });
   const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
-  const [accounts, setAccounts] = useState<Account[]>(() =>
-  mergeConnections(ACCOUNTS, [], emptyPostsByPlatform())
-);
-  const [postsByPlatform, setPostsByPlatform] =
-  useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
   const css = dark ? darkVars : lightVars;
 
   const bestAccount = useMemo(() => [...accounts].sort((a, b) => b.score - a.score)[0], [accounts]);
@@ -1258,6 +1254,16 @@ const formatProfileNumber = (value: any) => {
 
         .ciq-input::placeholder {
           color: ${css.muted};
+        }
+
+        @keyframes ciq-spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .ciq-spin {
+          animation: ciq-spin 0.8s linear infinite;
         }
 
         ::-webkit-scrollbar {
@@ -2071,6 +2077,7 @@ const formatProfileNumber = (value: any) => {
             tabIndex={0}
             onClick={() => setActiveAccount(account)}
             onKeyDown={(event) => {
+              if (event.target !== event.currentTarget) return;
               if (event.key === "Enter" || event.key === " ") {
                 setActiveAccount(account);
               }
@@ -2322,16 +2329,58 @@ const formatProfileNumber = (value: any) => {
                 Zobacz szczegóły
               </button>
 
-             <button
-  type="button"
-  onClick={(event) => {
-    event.stopPropagation();
-    syncAccountFromTile(account);
-  }}
-  disabled={!account.connected || syncingAccount === account.id}
->
-  {syncingAccount === account.id ? "Pobieranie..." : "Synchronizuj"}
-</button>
+              <button
+                type="button"
+                className="ciq-sync-button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void syncAccountFromTile(account);
+                }}
+                disabled={
+                  !account.connected ||
+                  !account.connection_id ||
+                  syncingAccount === account.id
+                }
+                title={
+                  !account.connected
+                    ? "Najpierw połącz konto w Integracjach"
+                    : !account.connection_id
+                      ? "Brak identyfikatora połączenia. Odśwież stronę lub połącz konto ponownie."
+                      : `Pobierz najnowsze dane z ${account.name}`
+                }
+                style={{
+                  borderRadius: 14,
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  color: account.connected && account.connection_id ? css.text : css.muted,
+                  padding: "10px 11px",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  cursor:
+                    account.connected &&
+                    account.connection_id &&
+                    syncingAccount !== account.id
+                      ? "pointer"
+                      : "not-allowed",
+                  opacity:
+                    account.connected &&
+                    account.connection_id &&
+                    syncingAccount !== account.id
+                      ? 1
+                      : 0.55,
+                  fontFamily: "var(--font-body)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 7,
+                }}
+              >
+                <RefreshCw
+                  size={14}
+                  className={syncingAccount === account.id ? "ciq-spin" : undefined}
+                />
+                {syncingAccount === account.id ? "Pobieranie..." : "Synchronizuj"}
+              </button>
             </div>
 
             <div
