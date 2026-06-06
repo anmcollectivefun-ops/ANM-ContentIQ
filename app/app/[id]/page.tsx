@@ -1648,6 +1648,21 @@ const formatProfileNumber = (value: any) => {
             </div>
 
             <div className="ciq-top-actions" style={st.topActions}>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={dark ? "Włącz jasny tryb" : "Włącz ciemny tryb"}
+                aria-label={dark ? "Włącz jasny tryb" : "Włącz ciemny tryb"}
+                style={{
+                  ...st.themeTopButton,
+                  background: css.surface,
+                  border: `1px solid ${css.border}`,
+                  color: css.muted,
+                }}
+              >
+                {dark ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+
               <Link
                 href="/"
                 style={{
@@ -4924,6 +4939,37 @@ const formatProfileNumber = (value: any) => {
               </div>
             )}
           </div>
+
+          <footer
+            style={{
+              ...st.footer,
+              borderTop: `1px solid ${css.border}`,
+              color: css.muted,
+              background: css.bg,
+            }}
+          >
+            <div style={st.footerLegal}>
+              <Link href="/privacy" style={{ ...st.footerLink, color: css.muted }}>
+                Polityka prywatności
+              </Link>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <Link href="/terms" style={{ ...st.footerLink, color: css.muted }}>
+                Regulamin
+              </Link>
+            </div>
+
+            <div style={st.footerSignature}>
+              Stworzone z pasji do danych, contentu i mądrzejszej pracy przez{" "}
+              <a
+                href="https://anmcollective.pl"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...st.footerCompanyLink, color: css.accent }}
+              >
+                ANM Collective
+              </a>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
