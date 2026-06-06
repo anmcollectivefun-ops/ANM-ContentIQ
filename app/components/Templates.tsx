@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Platform =
@@ -536,6 +537,56 @@ export default function Templates({
     await scheduleTemplate(template, platform, new Date().toISOString());
   }
 
+  async function deleteTemplate(template: UnifiedTemplate) {
+    const confirmed = window.confirm(
+      `Usunąć szablon „${template.title}”? Tej operacji nie można cofnąć.`
+    );
+    if (!confirmed) return;
+
+    const loadingKey = `${template.source}:${template.id}:delete`;
+    setActionLoadingId(loadingKey);
+
+    try {
+      const table =
+        template.source === "short_templates"
+          ? "short_templates"
+          : "content_drafts";
+
+      const { error: deleteError } = await supabase
+        .schema("contentiq")
+        .from(table)
+        .delete()
+        .eq("id", template.id);
+
+      if (deleteError) throw new Error(deleteError.message);
+
+      setTemplates((current) =>
+        current.filter(
+          (item) =>
+            !(item.id === template.id && item.source === template.source)
+        )
+      );
+      setDetailsOpen((current) => {
+        const next = { ...current };
+        delete next[template.id];
+        return next;
+      });
+      setScheduleOpen((current) => {
+        const next = { ...current };
+        delete next[template.id];
+        return next;
+      });
+      showToast("Szablon został usunięty.");
+    } catch (err) {
+      showToast(
+        `Błąd usuwania: ${err instanceof Error ? err.message : String(err)}`,
+        "err"
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
+  }
+
   function renderMiniature(template: UnifiedTemplate, platform: Platform) {
     const pColor = PLATFORMS.find((item) => item.id === platform)?.color || css.accent;
 
@@ -576,6 +627,7 @@ export default function Templates({
     const isScheduleOpen = Boolean(scheduleOpen[template.id]);
     const loadingId = actionLoadingId || "";
     const isScheduling = loadingId === `${template.source}:${template.id}:schedule`;
+    const isDeleting = loadingId === `${template.source}:${template.id}:delete`;
 
     return (
       <CardShell css={css}>
@@ -663,9 +715,32 @@ export default function Templates({
             </div>
           )}
 
-          <button type="button" onClick={() => openInStudio(template)} style={{ border: `1px solid ${css.border}`, borderRadius: 11, background: "transparent", color: css.muted, padding: "8px 10px", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
-            Otwórz w studio
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+            <button type="button" onClick={() => openInStudio(template)} disabled={isDeleting} style={{ border: `1px solid ${css.border}`, borderRadius: 11, background: "transparent", color: css.muted, padding: "8px 10px", fontSize: 11, fontWeight: 800, cursor: isDeleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: isDeleting ? 0.55 : 1 }}>
+              Otwórz w studio
+            </button>
+            <button
+              type="button"
+              onClick={() => void deleteTemplate(template)}
+              disabled={isDeleting}
+              title="Usuń szablon"
+              aria-label={`Usuń szablon ${template.title}`}
+              style={{
+                width: 38,
+                minHeight: 36,
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(239,68,68,.45)",
+                borderRadius: 11,
+                background: "rgba(127,29,29,.18)",
+                color: "#f87171",
+                cursor: isDeleting ? "not-allowed" : "pointer",
+                opacity: isDeleting ? 0.55 : 1,
+              }}
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
       </CardShell>
     );

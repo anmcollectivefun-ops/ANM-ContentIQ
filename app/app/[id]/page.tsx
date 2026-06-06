@@ -24,6 +24,7 @@ import {
   PlugZap,
   RefreshCw,
   Settings,
+  SlidersHorizontal,
   Sparkles,
   Sun,
   Video,
@@ -49,6 +50,7 @@ import AIStrategist from "@/app/components/AIStrategist";
 import ContentSummaryImproved from "@/app/components/ContentSummaryImproved";
 import BlogStudio from "@/app/components/BlogStudio";
 import BrandOffers from "@/app/components/BrandOffers";
+import BlogLibrary from "@/app/components/BlogLibrary";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -67,6 +69,7 @@ type TabId =
   | "calendar"
   | "studio"
   | "blogStudio"
+  | "blogLibrary"
   | "video"
   | "shorts"
   | "creative"
@@ -86,6 +89,7 @@ type TabId =
 |"inspirationsCreative"
   | "strategist"
   | "offers"
+  | "blogLibrary"
 ;
 
 interface Account {
@@ -260,6 +264,7 @@ const NAV_GROUPS: NavGroup[] = [
     { id: "shorts", label: "Short Studio", icon: "shorts" },
     { id: "creative", label: "Creative Studio", icon: "creative" },
     { id: "calendar", label: "Harmonogram", icon: "calendar" },
+    { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
   ],
 },
     {
@@ -1233,6 +1238,14 @@ const formatProfileNumber = (value: any) => {
           box-sizing: border-box;
         }
 
+        .ciq-top-actions summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .ciq-top-actions summary::marker {
+          content: "";
+        }
+
         body {
           margin: 0;
           background: ${css.bg};
@@ -1740,16 +1753,98 @@ const formatProfileNumber = (value: any) => {
               </Link>
 
               <button
-                onClick={() => openTab("studio")}
+                type="button"
+                onClick={() => openTab("calendar")}
                 style={{
                   ...st.topBtn,
-                  background: css.accent,
-                  color: "#050505",
-                  border: "none",
+                  background: css.surface,
+                  color: css.text,
+                  border: `1px solid ${css.border}`,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
                 }}
               >
-                + Nowy content
+                <CalendarDays size={15} />
+                Harmonogram
               </button>
+
+              <details style={{ position: "relative" }}>
+                <summary
+                  style={{
+                    ...st.topBtn,
+                    listStyle: "none",
+                    background: css.accent,
+                    color: "#FFFFFF",
+                    border: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                >
+                  <SlidersHorizontal size={15} />
+                  Personalizuj aplikację
+                  <ChevronDown size={14} />
+                </summary>
+
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 9px)",
+                    right: 0,
+                    zIndex: 80,
+                    width: 250,
+                    padding: 8,
+                    borderRadius: 16,
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    boxShadow: "0 18px 48px rgba(0,0,0,.32)",
+                    display: "grid",
+                    gap: 4,
+                  }}
+                >
+                  {[
+                    { id: "integrations" as TabId, label: "Integracje", icon: PlugZap },
+                    { id: "brand" as TabId, label: "Brand Voice", icon: WandSparkles },
+                    { id: "offers" as TabId, label: "Oferta i linki", icon: Package },
+                    { id: "strategist" as TabId, label: "AI Strateg", icon: BrainCircuit },
+                    { id: "settings" as TabId, label: "Ustawienia", icon: Settings },
+                  ].map((item) => {
+                    const MenuIcon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={(event) => {
+                          openTab(item.id);
+                          event.currentTarget.closest("details")?.removeAttribute("open");
+                        }}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "10px 11px",
+                          borderRadius: 11,
+                          border: "none",
+                          background: activeTab === item.id ? css.activeBg : "transparent",
+                          color: activeTab === item.id ? css.activeText : css.text,
+                          fontFamily: "var(--font-body)",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          textAlign: "left",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <MenuIcon size={15} color={activeTab === item.id ? css.accent : css.muted} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
             </div>
           </header>
 
@@ -4273,7 +4368,12 @@ const formatProfileNumber = (value: any) => {
  {activeTab === "chat" && (
               <AIChat dark={dark} workspaceId={workspaceId} />
             )}
- 
+ {/* ================= BLOG LIBRARY ================= */}
+{activeTab === "blogLibrary" && (
+  <div>
+    <BlogLibrary dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
  {/* ================= HARMONOGRAM ================= */}
    {activeTab === "calendar" && (
   <Schedule dark={dark} workspaceId={workspaceId} />
