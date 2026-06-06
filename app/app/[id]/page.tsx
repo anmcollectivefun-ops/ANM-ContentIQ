@@ -96,28 +96,8 @@ interface Account {
   color: string;
   connected: boolean;
   lastSync: string;
+  connection_id?: string | null;
   manualAccountUrl?: string;
-
-  accountName?: string | null;
-  account_name?: string | null;
-  profileName?: string | null;
-  profile_name?: string | null;
-  username?: string | null;
-  avatar_url?: string | null;
-  profile_image_url?: string | null;
-  profileLikes?: number | null;
-  profile_likes?: number | null;
-  likes_count?: number | null;
-  total_likes?: number | null;
-  heart_count?: number | null;
-  followers?: number | null;
-followers_count?: number | null;
-follower_count?: number | null;
-total_followers?: number | null;
-fan_count?: number | null;
-page_likes?: number | null;
-page_fans?: number | null;
-subscriber_count?: number | null;
 }
 
 interface PlatformConnection {
@@ -699,11 +679,9 @@ function mergeConnections(
 ) {
   return accounts.map((account) => {
     const connection = connections.find((item) => item.platform === account.id);
-
     const accountLink = connection
       ? manualLinks.find(
-          (link) =>
-            link.connection_id === connection.id && link.type === "account"
+          (link) => link.connection_id === connection.id && link.type === "account"
         )
       : null;
 
@@ -711,6 +689,7 @@ function mergeConnections(
       return {
         ...account,
         connected: false,
+        connection_id: null,
         handle: "Niepodłączone",
         lastSync: "Niepodłączone",
         score: 0,
@@ -722,82 +701,14 @@ function mergeConnections(
         aiTag:
           "Połącz konto, a po synchronizacji pojawią się tutaj prawdziwe dane.",
         manualAccountUrl: undefined,
-
-        accountName: null,
-        account_name: null,
-        profileName: null,
-        profile_name: null,
-        username: null,
-        avatar_url: null,
-        profile_image_url: null,
-
-        profileLikes: null,
-        profile_likes: null,
-        likes_count: null,
-        total_likes: null,
-        heart_count: null,
-
-        followers: null,
-        followers_count: null,
-        follower_count: null,
-        total_followers: null,
-        fan_count: null,
-        page_likes: null,
-        page_fans: null,
-        subscriber_count: null,
       };
     }
-
-    const profileLikes =
-      connection.profile_likes ??
-      connection.likes_count ??
-      connection.total_likes ??
-      connection.heart_count ??
-      connection.page_likes ??
-      connection.page_fans ??
-      null;
-
-    const followersCount =
-      connection.followers ??
-      connection.followers_count ??
-      connection.follower_count ??
-      connection.total_followers ??
-      connection.fan_count ??
-      connection.subscriber_count ??
-      null;
 
     const base = {
       ...account,
       connected: true,
-      handle: connection.username || connection.account_name || account.name,
-
-      accountName: connection.account_name,
-      account_name: connection.account_name,
-
-      profileName: connection.profile_name || connection.account_name,
-      profile_name: connection.profile_name || connection.account_name,
-
-      username: connection.username || connection.account_name,
-
-      avatar_url: connection.avatar_url ?? null,
-      profile_image_url: connection.profile_image_url ?? null,
-
-      profileLikes,
-      profile_likes: profileLikes,
-      likes_count: connection.likes_count ?? null,
-      total_likes: connection.total_likes ?? null,
-      heart_count: connection.heart_count ?? null,
-
-      followers: followersCount,
-      followers_count: followersCount,
-      follower_count: followersCount,
-      total_followers: followersCount,
-
-      fan_count: connection.fan_count ?? null,
-      page_likes: connection.page_likes ?? null,
-      page_fans: connection.page_fans ?? null,
-      subscriber_count: connection.subscriber_count ?? null,
-
+      connection_id: connection.id,
+      handle: connection.account_name || account.name,
       lastSync: formatLastSync(connection.last_synced_at),
       manualAccountUrl: accountLink?.url,
     };
@@ -872,7 +783,8 @@ export default function AppWorkspacePage() {
   const params = useParams();
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
-const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null);
+  const [syncingAccount, setSyncingAccount] = useState<string | null>(null);
+  const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null);
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("accounts");
@@ -889,7 +801,11 @@ const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null)
 });
   const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
-
+  const [accounts, setAccounts] = useState<Account[]>(() =>
+  mergeConnections(ACCOUNTS, [], emptyPostsByPlatform())
+);
+  const [postsByPlatform, setPostsByPlatform] =
+  useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
   const css = dark ? darkVars : lightVars;
 
   const bestAccount = useMemo(() => [...accounts].sort((a, b) => b.score - a.score)[0], [accounts]);
@@ -1084,7 +1000,39 @@ const [selectedPostDetails, setSelectedPostDetails] = useState<any | null>(null)
     };
   }, [comparisonRows]);
 
+  async function syncAccountFromTile(account: Account) {
+  if (!account.connection_id) {
+    alert(
+      "Brak connection_id dla tego konta. Wejdź w Integracje, podłącz konto ponownie albo odśwież stronę."
+    );
+    return;
+  }
 
+  setSyncingAccount(account.id);
+
+  try {
+    const res = await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        connection_id: account.connection_id,
+        platform: account.id,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.error) {
+      throw new Error(data?.error || "Błąd synchronizacji.");
+    }
+
+    window.location.reload();
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  } finally {
+    setSyncingAccount(null);
+  }
+}
 
   async function getOrCreateWorkspace() {
     const { data: existing } = await supabase
@@ -1357,6 +1305,11 @@ const formatProfileNumber = (value: any) => {
             flex-wrap: wrap;
           }
 
+          .ciq-footer {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
+
           .ciq-summary-grid,
           .ciq-tiles-grid,
           .ciq-content-grid,
@@ -1391,7 +1344,7 @@ const formatProfileNumber = (value: any) => {
         }}
       >
         {/* ───────────────── SIDEBAR ───────────────── */}
-        <aside
+       <aside
   className="ciq-sidebar"
   style={{
     ...st.sidebar,
@@ -1404,7 +1357,10 @@ const formatProfileNumber = (value: any) => {
     href="/app/contentiq"
     style={{
       ...st.sidebarLogo,
+      minHeight: sidebarCollapsed ? 72 : 86,
+      padding: sidebarCollapsed ? "14px 10px" : "16px 18px",
       borderBottom: `1px solid ${css.border}`,
+      gap: 10,
     }}
     aria-label="ANM ContentIQ"
   >
@@ -1413,6 +1369,9 @@ const formatProfileNumber = (value: any) => {
       alt="ANM ContentIQ app icon"
       style={{
         ...st.logoMark,
+        width: sidebarCollapsed ? 42 : 48,
+        height: sidebarCollapsed ? 42 : 48,
+        borderRadius: 14,
         background: css.surface,
         border: `1px solid ${css.border}`,
         boxShadow: css.logoShadow,
@@ -1426,188 +1385,277 @@ const formatProfileNumber = (value: any) => {
             ...st.logoName,
             fontFamily: "var(--font-heading)",
             color: css.text,
+            fontSize: 19,
+            lineHeight: 1.05,
+            fontWeight: 500,
           }}
         >
           ANM ContentIQ
         </div>
 
-        <div style={{ ...st.logoSub, color: css.muted }}>
+        <div
+          style={{
+            ...st.logoSub,
+            color: css.muted,
+            fontSize: 10,
+            letterSpacing: ".14em",
+            marginTop: 5,
+          }}
+        >
           Centrum contentu i AI
         </div>
       </div>
     )}
   </Link>
 
-  <div style={{ padding: sidebarCollapsed ? "14px 12px 10px" : "14px 16px 10px" }}>
+  <div
+    style={{
+      padding: sidebarCollapsed ? "12px 10px 8px" : "12px 14px 8px",
+    }}
+  >
     <button
       onClick={() => setSidebarCollapsed((current) => !current)}
       style={{
         ...st.collapseButton,
+        minHeight: 42,
+        padding: sidebarCollapsed ? "0" : "9px 12px",
         background: css.sidebarButton,
         border: `1px solid ${css.border}`,
         color: css.muted,
         justifyContent: sidebarCollapsed ? "center" : "space-between",
+        borderRadius: 16,
+        fontSize: 12,
+        fontWeight: 800,
       }}
       title={sidebarCollapsed ? "Rozwiń menu" : "Zwiń menu"}
     >
       {sidebarCollapsed ? (
-        <ChevronsRight size={17} />
+        <ChevronsRight size={15} />
       ) : (
         <>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <ChevronsLeft size={16} />
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+          >
+            <ChevronsLeft size={14} />
             Zwiń menu
           </span>
-          <span style={{ fontSize: 10, opacity: 0.65 }}>⌘</span>
+          <span style={{ fontSize: 9, opacity: 0.55 }}>⌘</span>
         </>
       )}
     </button>
   </div>
-<nav
-  className="ciq-nav"
-  style={{
-    ...st.nav,
-    padding: sidebarCollapsed ? "6px 10px" : "8px 12px 12px",
-  }}
->
-  {sidebarCollapsed ? (
-    <div style={st.collapsedNavGrid}>
-      {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
-        const isActive = activeTab === tab.id;
+
+  <nav
+    className="ciq-nav"
+    style={{
+      ...st.nav,
+      padding: sidebarCollapsed ? "5px 9px" : "6px 10px 10px",
+      gap: 10,
+    }}
+  >
+    {sidebarCollapsed ? (
+      <div
+        style={{
+          ...st.collapsedNavGrid,
+          gap: 8,
+        }}
+      >
+        {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
+          const isActive = activeTab === tab.id;
+
+          return (
+            <button
+              key={tab.id}
+              onClick={() => openTab(tab.id)}
+              className="ciq-nav-tab"
+              title={tab.label}
+              style={{
+                ...st.collapsedNavButton,
+                width: 38,
+                height: 38,
+                borderRadius: 13,
+                background: isActive ? css.activeBg : "transparent",
+                color: isActive ? css.activeText : css.muted,
+                border: `1px solid ${isActive ? css.accentBorder : "transparent"}`,
+                boxShadow: isActive ? css.activeShadow : "none",
+              }}
+            >
+              <IconView name={tab.icon} size={16} />
+            </button>
+          );
+        })}
+      </div>
+    ) : (
+      NAV_GROUPS.map((group) => {
+        const isOpen = openNavGroups[group.id];
+        const groupHasActiveTab = group.tabs.some((tab) => tab.id === activeTab);
 
         return (
-          <button
-            key={tab.id}
-            onClick={() => openTab(tab.id)}
-            className="ciq-nav-tab"
-            title={tab.label}
+          <div
+            key={group.id}
             style={{
-              ...st.collapsedNavButton,
-              background: isActive ? css.activeBg : css.sidebarButton,
-              color: isActive ? css.activeText : css.muted,
-              border: `1px solid ${isActive ? css.accentBorder : css.border}`,
-              boxShadow: isActive ? css.activeShadow : "none",
+              ...st.navGroup,
+              marginBottom: 6,
             }}
           >
-            <IconView name={tab.icon} size={19} />
-          </button>
-        );
-      })}
-    </div>
-  ) : (
-    NAV_GROUPS.map((group) => {
-      const isOpen = openNavGroups[group.id];
-      const groupHasActiveTab = group.tabs.some((tab) => tab.id === activeTab);
-
-      return (
-        <div key={group.id} style={st.navGroup}>
-          <button
-            onClick={() => toggleNavGroup(group.id)}
-            style={{
-              ...st.navGroupHeader,
-              background: groupHasActiveTab ? css.groupIconBg : "transparent",
-              color: groupHasActiveTab ? css.sectionTitle : css.groupText,
-              border: `1px solid ${
-                groupHasActiveTab ? css.accentBorder : "transparent"
-              }`,
-            }}
-          >
-            <span
+            <button
+              onClick={() => toggleNavGroup(group.id)}
               style={{
-                ...st.navGroupIcon,
-                background: groupHasActiveTab ? css.logoBg : css.groupIconBg,
-                color: groupHasActiveTab ? css.logoText : css.groupIconText,
+                ...st.navGroupHeader,
+                minHeight: 44,
+                padding: "8px 10px",
+                borderRadius: 16,
+                background: groupHasActiveTab ? css.activeBg : "transparent",
+                color: groupHasActiveTab ? css.accent : css.groupText,
                 border: `1px solid ${
-                  groupHasActiveTab ? css.accentBorder : css.border
+                  groupHasActiveTab ? css.accentBorder : "transparent"
                 }`,
               }}
             >
-              <IconView name={group.icon} size={16} />
-            </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 26,
+                  height: 26,
+                  borderRadius: 9,
+                  background: groupHasActiveTab ? css.logoBg : "transparent",
+                  color: groupHasActiveTab ? css.logoText : css.groupIconText,
+                  border: "none",
+                  flexShrink: 0,
+                }}
+              >
+                <IconView name={group.icon} size={14} />
+              </span>
 
-            <span style={st.navGroupTitle}>{group.title}</span>
+              <span
+                style={{
+                  ...st.navGroupTitle,
+                  fontSize: 11,
+                  lineHeight: 1,
+                  letterSpacing: ".16em",
+                  fontFamily: "var(--font-label)",
+                  fontWeight: 900,
+                  textTransform: "uppercase",
+                }}
+              >
+                {group.title}
+              </span>
 
-            <span
-              style={{
-                marginLeft: "auto",
-                display: "inline-flex",
-                opacity: 0.8,
-              }}
-            >
-              {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-            </span>
-          </button>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  display: "inline-flex",
+                  opacity: 0.7,
+                }}
+              >
+                {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              </span>
+            </button>
 
-          {isOpen && (
-            <div
-              style={{
-                ...st.navSubMenu,
-                borderLeft: `1px solid ${css.border}`,
-              }}
-            >
-              {group.tabs.map((tab) => {
-                const isActive = activeTab === tab.id;
+            {isOpen && (
+              <div
+                style={{
+                  ...st.navSubMenu,
+                  borderLeft: `1px solid ${css.border}`,
+                  marginLeft: 22,
+                  paddingLeft: 12,
+                  marginTop: 6,
+                  display: "grid",
+                  gap: 4,
+                }}
+              >
+                {group.tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
 
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => openTab(tab.id)}
-                    className="ciq-nav-tab"
-                    style={{
-                      ...st.navTab,
-                      background: isActive ? css.subItemActive : "transparent",
-                      color: isActive ? css.activeText : css.subItemText,
-                      fontWeight: isActive ? 750 : 500,
-                      border: `1px solid ${
-                        isActive ? css.subItemActiveBorder : "transparent"
-                      }`,
-                      boxShadow: isActive ? css.activeShadow : "none",
-                    }}
-                  >
-
-
-
-                    <span
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => openTab(tab.id)}
+                      className="ciq-nav-tab"
                       style={{
-                        ...st.navIcon,
-                        background: isActive ? css.logoBg : css.sidebarButton,
-                        color: isActive ? css.logoText : css.subItemMuted,
+                        ...st.navTab,
+                        minHeight: 38,
+                        padding: "7px 9px",
+                        borderRadius: 13,
+                        background: isActive ? css.subItemActive : "transparent",
+                        color: isActive ? css.activeText : css.subItemText,
+                        fontWeight: isActive ? 800 : 500,
                         border: `1px solid ${
-                          isActive ? css.subItemActiveBorder : css.border
+                          isActive ? css.subItemActiveBorder : "transparent"
                         }`,
+                        boxShadow: isActive ? css.activeShadow : "none",
+                        gap: 9,
                       }}
                     >
-                      <IconView name={tab.icon} size={16} />
-                    </span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 22,
+                          height: 22,
+                          borderRadius: 8,
+                          background: "transparent",
+                          color: isActive ? css.accent : css.subItemMuted,
+                          border: "none",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <IconView name={tab.icon} size={14} />
+                      </span>
 
-                    <span style={st.navTabLabel}>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      );
-    })
-  )}
-</nav>
+                      <span
+                        style={{
+                          ...st.navTabLabel,
+                          fontSize: 12,
+                          lineHeight: 1.2,
+                          letterSpacing: ".01em",
+                        }}
+                      >
+                        {tab.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })
+    )}
+  </nav>
 
-  <div style={{ ...st.sidebarBottom, padding: sidebarCollapsed ? 10 : 16 }}>
+  <div
+    style={{
+      ...st.sidebarBottom,
+      padding: sidebarCollapsed ? 9 : 14,
+    }}
+  >
     <button
       onClick={handleSignOut}
       disabled={signingOut}
       style={{
         ...st.signoutBtn,
+        minHeight: 38,
+        borderRadius: 13,
         color: "#ef4444",
         background: "#ef444414",
         border: "1px solid #ef444440",
+        fontSize: 12,
+        fontWeight: 800,
       }}
     >
       {sidebarCollapsed ? (
-        <LogOut size={16} />
+        <LogOut size={15} />
       ) : (
         <>
-          <LogOut size={16} />
+          <LogOut size={14} />
           {signingOut ? "Wylogowywanie..." : "Wyloguj"}
         </>
       )}
@@ -2274,55 +2322,16 @@ const formatProfileNumber = (value: any) => {
                 Zobacz szczegóły
               </button>
 
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-
-                  void (async () => {
-                    try {
-                      const res = await fetch("/api/sync", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          platform: account.id,
-                          workspace_id: workspaceId,
-                        }),
-                      });
-
-                      const data = await res.json().catch(() => null);
-
-                      if (!res.ok || data?.error) {
-                        throw new Error(
-                          data?.error || "Nie udało się zsynchronizować konta."
-                        );
-                      }
-
-                      window.location.reload();
-                    } catch (err) {
-                      alert(err instanceof Error ? err.message : String(err));
-                    }
-                  })();
-                }}
-                disabled={!account.connected}
-                style={{
-                  borderRadius: 14,
-                  border: `1px solid ${
-                    account.connected ? css.border : "#f59e0b44"
-                  }`,
-                  background: account.connected ? css.liveSoft : "#f59e0b14",
-                  color: account.connected ? css.text : "#f59e0b",
-                  padding: "10px 11px",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  cursor: account.connected ? "pointer" : "not-allowed",
-                  opacity: account.connected ? 1 : 0.72,
-                  fontFamily: "var(--font-body)",
-                  textAlign: "center",
-                }}
-              >
-                Synchronizuj
-              </button>
+             <button
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation();
+    syncAccountFromTile(account);
+  }}
+  disabled={!account.connected || syncingAccount === account.id}
+>
+  {syncingAccount === account.id ? "Pobieranie..." : "Synchronizuj"}
+</button>
             </div>
 
             <div
@@ -4941,6 +4950,7 @@ const formatProfileNumber = (value: any) => {
           </div>
 
           <footer
+            className="ciq-footer"
             style={{
               ...st.footer,
               borderTop: `1px solid ${css.border}`,
@@ -5348,6 +5358,19 @@ const st: Record<string, CSSProperties> = {
   topActions: {
     display: "flex",
     gap: 10,
+    alignItems: "center",
+  },
+
+  themeTopButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+    transition: "all 0.18s ease",
   },
 
   topBtn: {
@@ -5363,6 +5386,38 @@ const st: Record<string, CSSProperties> = {
     padding: "24px 28px 34px",
     flex: 1,
     overflowY: "auto",
+  },
+
+  footer: {
+    minHeight: 48,
+    padding: "12px 28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 18,
+    flexWrap: "wrap",
+    fontSize: 11,
+    lineHeight: 1.5,
+  },
+
+  footerLegal: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  footerLink: {
+    textDecoration: "none",
+    fontWeight: 700,
+  },
+
+  footerSignature: {
+    textAlign: "right",
+  },
+
+  footerCompanyLink: {
+    textDecoration: "none",
+    fontWeight: 900,
   },
 
   summaryGrid: {
