@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+
+
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Mode = "generate" | "analyze" | "adapt";
+type StudioFlow = "social" | "hooks" | "blog" | "article";
+type AiProvider = "deepseek" | "gemini";
 
 type Platform =
   | "linkedin"
@@ -16,49 +19,56 @@ type Platform =
 
 type MediaStatus = "local" | "uploaded";
 
-interface GeneratedContent {
-  title?: string;
+interface GeneratedPost {
+  title: string;
   hook: string;
   body: string;
   cta: string;
   hashtags: string[];
   estimated_score: number;
   platform_notes: string;
+  recommended_comment?: string;
+  format?: string;
 }
 
-interface AnalysisResult {
+interface HookIdea {
+  text: string;
+  type: string;
   score: number;
-  hook_quality: number;
-  cta_quality: number;
-  platform_fit: number;
-  engagement_potential: number;
-  strengths: string[];
-  weaknesses: string[];
-  improvements: string[];
-  rewritten_hook: string;
+  best_for: string;
+  note: string;
 }
 
-interface PlatformVariant {
+interface ContentVariant {
+  platform: Platform;
+  title: string;
+  hook: string;
   body: string;
+  cta: string;
   hashtags: string[];
+  format: string;
   score: number;
   notes: string;
+  recommended_comment?: string;
 }
 
-interface AdaptResult {
-  platforms: Partial<Record<Platform, PlatformVariant>>;
-}
-
-interface TemplateDraft {
-  id: string;
-  title: string | null;
-  body: string | null;
-  topic: string | null;
-  content_type: string | null;
-  target_platforms: string[] | null;
-  ai_score: number | null;
-  ai_feedback: string | null;
-  created_at: string | null;
+interface StudioResult {
+  title: string;
+  strategic_note: string;
+  source_summary?: string;
+  primary?: GeneratedPost;
+  hooks?: HookIdea[];
+  variants?: ContentVariant[];
+  article_html?: string;
+  article_outline?: string[];
+  blog_cta_blocks?: string[];
+  content_plan?: {
+    platform: Platform;
+    idea: string;
+    format: string;
+    angle: string;
+    cta: string;
+  }[];
 }
 
 interface LocalMediaItem {
@@ -85,9 +95,10 @@ interface UploadedMediaItem {
 }
 
 type ApiResponse = {
-  data?: GeneratedContent | AnalysisResult | AdaptResult;
   answer?: string;
+  data?: unknown;
   error?: string;
+  details?: string;
   parseError?: string;
 };
 
@@ -96,45 +107,70 @@ const STORAGE_BUCKET = "content-temp-media";
 const PLATFORMS: { id: Platform; name: string; color: string; icon: string }[] = [
   { id: "linkedin", name: "LinkedIn", color: "#0A66C2", icon: "LI" },
   { id: "instagram", name: "Instagram", color: "#E1306C", icon: "IG" },
-  { id: "tiktok", name: "TikTok", color: "#111827", icon: "TT" },
-  { id: "youtube", name: "YouTube", color: "#FF0000", icon: "YT" },
+  { id: "tiktok", name: "TikTok", color: "#FFFFFF", icon: "TT" },
+  { id: "youtube", name: "YouTube", color: "#FF0033", icon: "YT" },
   { id: "facebook", name: "Facebook", color: "#1877F2", icon: "FB" },
   { id: "blog", name: "Blog", color: "#22C55E", icon: "BL" },
   { id: "spotify", name: "Spotify", color: "#1DB954", icon: "SP" },
 ];
 
-const CONTENT_TYPES = [
-  "Post ekspercki",
-  "Case study",
-  "Lista / poradnik",
-  "Reels / Shorts script",
-  "Karuzela",
-  "Artykuł blogowy",
-  "Newsletter",
-  "Podcast outline",
-  "Ogłoszenie",
+const FLOW_CARDS: {
+  id: StudioFlow;
+  title: string;
+  label: string;
+  description: string;
+  hint: string;
+}[] = [
+  {
+    id: "social",
+    title: "Post social media",
+    label: "Tworzenie postów",
+    description: "Stwórz gotowy post pod wybraną platformę: hook, treść, CTA, hashtagi i notatkę publikacyjną.",
+    hint: "Najlepsze do codziennych publikacji, kampanii, promocji aplikacji i edukacyjnych postów.",
+  },
+  {
+    id: "hooks",
+    title: "Hooki i otwarcia",
+    label: "Testowanie uwagi",
+    description: "Wygeneruj zestaw mocnych hooków do posta, rolki, shorta, karuzeli lub artykułu.",
+    hint: "Dobre, gdy masz temat, ale nie masz pierwszego zdania, które zatrzyma odbiorcę.",
+  },
+  {
+    id: "blog",
+    title: "Content z bloga",
+    label: "Blog → social",
+    description: "Pobierz lub wklej artykuł blogowy i zrób z niego posty na LinkedIn, Facebook, Instagram, TikTok i YouTube.",
+    hint: "Idealne do Twojego procesu: najpierw blog z CTA, potem dystrybucja na social media z linkiem w komentarzu.",
+  },
+  {
+    id: "article",
+    title: "Artykuł / wpis blogowy",
+    label: "Dłuższa treść",
+    description: "Przygotuj strukturę artykułu, lead, śródtytuły, CTA i HTML do dalszej obróbki poza aplikacją.",
+    hint: "Aplikacja nie musi publikować bloga — może przygotować treść i bloki CTA do ręcznego użycia.",
+  },
 ];
 
-const MODE_LABELS: Record<Mode, string> = {
-  generate: "✦ Generuj",
-  analyze: "◉ Analizuj",
-  adapt: "⊞ Adaptuj",
-};
+const CONTENT_FORMATS = [
+  "Post ekspercki",
+  "Post sprzedażowy miękki",
+  "Case study",
+  "Lista / poradnik",
+  "Storytelling",
+  "Karuzela",
+  "Reels / Shorts script",
+  "Komentarz do trendu",
+  "Artykuł blogowy",
+  "Newsletter",
+];
 
-const MODE_DESCRIPTIONS: Record<Mode, string> = {
-  generate:
-    "Wygeneruj nowy content pod konkretną platformę, typ treści i cel komunikacji.",
-  analyze:
-    "Wklej gotową treść, a AI oceni hook, CTA, dopasowanie do platformy i potencjał wyniku.",
-  adapt:
-    "Wklej jedną treść, a AI przerobi ją na warianty dopasowane do wielu platform.",
-};
-
-function getScoreColor(score: number) {
-  if (score >= 80) return "#22c55e";
-  if (score >= 60) return "#f59e0b";
-  return "#ef4444";
-}
+const BLOG_REPURPOSE_PLATFORMS: Platform[] = [
+  "linkedin",
+  "facebook",
+  "instagram",
+  "tiktok",
+  "youtube",
+];
 
 function getPlatformInfo(platform: string) {
   return PLATFORMS.find((item) => item.id === platform);
@@ -144,8 +180,18 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
-function getDraftTitle(generated: GeneratedContent, prompt: string) {
-  return generated.title || prompt.slice(0, 80) || "Szablon bez tytułu";
+function getScoreColor(score: number) {
+  if (score >= 80) return "#22c55e";
+  if (score >= 60) return "#f59e0b";
+  return "#ef4444";
+}
+
+function cleanJsonAnswer(answer: string) {
+  return answer
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
 }
 
 function formatFileSize(size: number) {
@@ -174,113 +220,387 @@ function getExpiryDate(scheduledAt?: string) {
   return base.toISOString();
 }
 
-function ScoreBar({
-  label,
-  value,
+function fullPostText(post: GeneratedPost | ContentVariant) {
+  return [
+    post.title ? `${post.title}` : "",
+    post.hook,
+    post.body,
+    post.cta,
+    safeArray(post.hashtags).join(" "),
+    post.recommended_comment ? `\nKomentarz / link:\n${post.recommended_comment}` : "",
+  ]
+    .filter((part) => String(part || "").trim().length > 0)
+    .join("\n\n");
+}
+
+function normalizeStudioResult(raw: Partial<StudioResult>): StudioResult {
+  const variants = safeArray(raw.variants).map((item) => ({
+    platform: item.platform,
+    title: item.title || "",
+    hook: item.hook || "",
+    body: item.body || "",
+    cta: item.cta || "",
+    hashtags: safeArray(item.hashtags),
+    format: item.format || "post",
+    score: Number(item.score || 0),
+    notes: item.notes || "",
+    recommended_comment: item.recommended_comment || "",
+  }));
+
+  const hooks = safeArray(raw.hooks).map((item) => ({
+    text: item.text || "",
+    type: item.type || "hook",
+    score: Number(item.score || 0),
+    best_for: item.best_for || "",
+    note: item.note || "",
+  }));
+
+  return {
+    title: raw.title || "Content Studio",
+    strategic_note: raw.strategic_note || "",
+    source_summary: raw.source_summary || "",
+    primary: raw.primary
+      ? {
+          title: raw.primary.title || raw.title || "",
+          hook: raw.primary.hook || "",
+          body: raw.primary.body || "",
+          cta: raw.primary.cta || "",
+          hashtags: safeArray(raw.primary.hashtags),
+          estimated_score: Number(raw.primary.estimated_score || 0),
+          platform_notes: raw.primary.platform_notes || "",
+          recommended_comment: raw.primary.recommended_comment || "",
+          format: raw.primary.format || "",
+        }
+      : undefined,
+    hooks,
+    variants,
+    article_html: raw.article_html || "",
+    article_outline: safeArray(raw.article_outline),
+    blog_cta_blocks: safeArray(raw.blog_cta_blocks),
+    content_plan: safeArray(raw.content_plan).map((item) => ({
+      platform: item.platform,
+      idea: item.idea || "",
+      format: item.format || "",
+      angle: item.angle || "",
+      cta: item.cta || "",
+    })),
+  };
+}
+
+function buildStudioPrompt({
+  flow,
+  platform,
+  selectedPlatforms,
+  contentFormat,
+  userPrompt,
+  blogUrl,
+  blogText,
+  brandContext,
+}: {
+  flow: StudioFlow;
+  platform: Platform;
+  selectedPlatforms: Platform[];
+  contentFormat: string;
+  userPrompt: string;
+  blogUrl: string;
+  blogText: string;
+  brandContext: string;
+}) {
+  const platformName = getPlatformInfo(platform)?.name || platform;
+  const selectedNames = selectedPlatforms.map((id) => getPlatformInfo(id)?.name || id).join(", ");
+
+  const commonRules = `
+Jesteś AI Content Strategiem w ANM ContentIQ.
+
+Najważniejsze:
+- Tworzysz treści do social mediów i bloga.
+- Nie pisz ogólników.
+- Dopasuj styl do platformy.
+- Nie używaj identycznego CTA na każdej platformie.
+- Jeśli tworzysz z bloga, link do bloga sugeruj jako komentarz albo dopisek, nie wciskaj go agresywnie w środek posta.
+- Pisz po polsku.
+- Zwróć wyłącznie JSON bez markdown.
+- Nie wymyślaj wyników analitycznych. Jeśli brakuje danych, wpisz to w notes / strategic_note.
+
+Kontekst marki / użytkownika:
+${brandContext || "Brak dodatkowego kontekstu marki."}
+
+Sugestia użytkownika:
+${userPrompt || "Brak."}
+`.trim();
+
+  if (flow === "social") {
+    return `
+${commonRules}
+
+Zadanie:
+Stwórz gotowy post social media.
+
+Platforma:
+${platformName}
+
+Format:
+${contentFormat}
+
+Wymagania:
+- mocny hook,
+- główna treść posta,
+- CTA dopasowane do platformy,
+- hashtagi,
+- krótka notatka, dlaczego ta wersja pasuje do platformy,
+- jeżeli platforma to TikTok/YouTube, przygotuj tekst jako opis/scenariusz shorta,
+- jeżeli LinkedIn, użyj bardziej eksperckiego tonu,
+- jeżeli Instagram, zadbaj o zapis/udostępnienie i wizualny kontekst.
+
+JSON:
+{
+  "title": "tytuł roboczy",
+  "strategic_note": "krótka rekomendacja strategiczna",
+  "primary": {
+    "title": "tytuł",
+    "hook": "hook",
+    "body": "treść posta",
+    "cta": "CTA",
+    "hashtags": ["#..."],
+    "estimated_score": 0,
+    "platform_notes": "dlaczego działa na tej platformie",
+    "recommended_comment": "opcjonalny komentarz z linkiem lub dopowiedzeniem",
+    "format": "${contentFormat}"
+  },
+  "content_plan": []
+}
+`.trim();
+  }
+
+  if (flow === "hooks") {
+    return `
+${commonRules}
+
+Zadanie:
+Wygeneruj zestaw hooków i otwarć do contentu.
+
+Platforma główna:
+${platformName}
+
+Format:
+${contentFormat}
+
+Wymagania:
+- wygeneruj minimum 12 hooków,
+- różne typy: problemowy, liczbowy, pytanie, błąd, kontrast, storytelling, case, kontrowersyjny, obietnica,
+- oceń każdy hook 0-100,
+- wyjaśnij, do jakiej platformy i formatu pasuje.
+
+JSON:
+{
+  "title": "zestaw hooków",
+  "strategic_note": "jaki kierunek hooków wybrać",
+  "hooks": [
+    {
+      "text": "hook",
+      "type": "problemowy",
+      "score": 0,
+      "best_for": "LinkedIn / TikTok / Instagram / ...",
+      "note": "dlaczego może zadziałać"
+    }
+  ]
+}
+`.trim();
+  }
+
+  if (flow === "blog") {
+    return `
+${commonRules}
+
+Zadanie:
+Zrób dystrybucję treści blogowej na social media.
+
+Link do bloga:
+${blogUrl || "brak linku"}
+
+Treść / notatki z bloga:
+${blogText || "Brak treści bloga. Jeśli link był podany, korzystaj z opisu użytkownika i wpisz w strategic_note, że nie pobrano pełnej treści."}
+
+Platformy docelowe:
+${selectedNames}
+
+Wymagania:
+- potraktuj blog jako źródło główne,
+- przygotuj osobne wersje na wybrane platformy,
+- nie kopiuj 1:1 tego samego tekstu,
+- LinkedIn: ekspercki wniosek + link w komentarzu,
+- Facebook: prościej, rozmownie, zachęta do kliknięcia,
+- Instagram: krótko, wizualnie, zapis/udostępnienie,
+- TikTok: pomysł na krótkie video, hook i opis,
+- YouTube: Shorts albo opis filmu z kierowaniem do pełnej wersji,
+- w recommended_comment zaproponuj komentarz z linkiem do bloga,
+- dodaj 3-6 pomysłów na dalsze treści wokół tego artykułu.
+
+JSON:
+{
+  "title": "kampania wokół artykułu blogowego",
+  "source_summary": "krótkie streszczenie bloga",
+  "strategic_note": "jak dystrybuować ten blog i dlaczego",
+  "variants": [
+    {
+      "platform": "linkedin",
+      "title": "tytuł wariantu",
+      "hook": "hook",
+      "body": "treść posta",
+      "cta": "CTA",
+      "hashtags": ["#..."],
+      "format": "post / rolka / short / karuzela",
+      "score": 0,
+      "notes": "dlaczego ta wersja pasuje",
+      "recommended_comment": "np. Link do artykułu w komentarzu: ${blogUrl || "[tu wstaw link]"}"
+    }
+  ],
+  "content_plan": [
+    {
+      "platform": "linkedin",
+      "idea": "pomysł",
+      "format": "format",
+      "angle": "kąt",
+      "cta": "CTA"
+    }
+  ]
+}
+`.trim();
+  }
+
+  return `
+${commonRules}
+
+Zadanie:
+Przygotuj artykuł / wpis blogowy jako materiał źródłowy do dalszej dystrybucji.
+
+Format:
+${contentFormat}
+
+Wymagania:
+- przygotuj outline,
+- przygotuj tytuł, lead i treść artykułu,
+- dodaj miejsca na CTA do aplikacji/produktu,
+- przygotuj przykładowe bloki CTA jako HTML,
+- artykuł ma być możliwy do ręcznego wklejenia do bloga,
+- nie publikuj automatycznie,
+- dodaj plan, jak później przerobić artykuł na social media.
+
+JSON:
+{
+  "title": "tytuł artykułu",
+  "strategic_note": "po co ten artykuł i jak użyć go w dystrybucji",
+  "article_outline": ["H2 / punkt", "H2 / punkt"],
+  "article_html": "<article>...</article>",
+  "blog_cta_blocks": ["<a ...>CTA</a>"],
+  "content_plan": [
+    {
+      "platform": "linkedin",
+      "idea": "pomysł na post z artykułu",
+      "format": "post",
+      "angle": "kąt",
+      "cta": "CTA"
+    }
+  ]
+}
+`.trim();
+}
+
+function SectionLabel({
+  children,
   color,
 }: {
-  label: string;
-  value: number;
-  color?: string;
+  children: React.ReactNode;
+  color: string;
 }) {
-  const safeValue = Number.isFinite(value) ? value : 0;
-  const c = color || getScoreColor(safeValue);
-
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 5,
-        }}
-      >
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>{label}</span>
-        <span style={{ fontSize: 11, fontWeight: 700, color: c }}>
-          {safeValue}/100
-        </span>
-      </div>
-
-      <div
-        style={{
-          height: 4,
-          borderRadius: 999,
-          background: "var(--border)",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${Math.max(0, Math.min(100, safeValue))}%`,
-            background: c,
-            borderRadius: 999,
-            transition: "width 0.8s ease",
-          }}
-        />
-      </div>
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 900,
+        textTransform: "uppercase",
+        letterSpacing: "0.11em",
+        color,
+        marginBottom: 8,
+      }}
+    >
+      {children}
     </div>
   );
 }
 
-function RawAnswerPanel({ rawAnswer }: { rawAnswer: string }) {
-  const [open, setOpen] = useState(false);
-
-  if (!rawAnswer) return null;
-
+function FlowCard({
+  active,
+  title,
+  label,
+  description,
+  hint,
+  onClick,
+  css,
+}: {
+  active: boolean;
+  title: string;
+  label: string;
+  description: string;
+  hint: string;
+  onClick: () => void;
+  css: Record<string, string>;
+}) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       style={{
-        marginTop: 14,
-        borderRadius: 12,
-        border: "1px solid var(--border)",
+        textAlign: "left",
+        padding: 15,
+        borderRadius: 18,
+        background: css.surface,
+        border: `1px solid ${active ? css.accentBorder : css.border}`,
+        boxShadow: active ? `0 0 0 1px ${css.accentBorder}, 0 16px 34px rgba(0,0,0,0.22)` : "none",
+        color: css.text,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        minHeight: 162,
+        position: "relative",
         overflow: "hidden",
       }}
     >
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        style={{
-          width: "100%",
-          padding: "9px 14px",
-          background: "var(--surface)",
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          color: "var(--muted)",
-          fontSize: 11,
-          fontFamily: "inherit",
-        }}
-      >
-        <span>Podgląd surowej odpowiedzi AI</span>
-        <span>{open ? "▲" : "▼"}</span>
-      </button>
-
-      {open && (
+      {active && (
         <div
           style={{
-            padding: "12px 14px",
-            background: "var(--surface)",
-            borderTop: "1px solid var(--border)",
+            position: "absolute",
+            left: 16,
+            right: 16,
+            bottom: -18,
+            height: 34,
+            background: css.accentSoft,
+            filter: "blur(20px)",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <SectionLabel color={css.accent}>{label}</SectionLabel>
+        <div
+          style={{
+            fontFamily: "var(--font-heading)",
+            color: css.heading,
+            fontSize: 24,
+            lineHeight: 1.05,
+            fontWeight: 500,
+            marginBottom: 9,
           }}
         >
-          <pre
-            style={{
-              fontSize: 10,
-              color: "var(--muted)",
-              lineHeight: 1.7,
-              whiteSpace: "pre-wrap",
-              fontFamily: "monospace",
-              margin: 0,
-            }}
-          >
-            {rawAnswer}
-          </pre>
+          {title}
         </div>
-      )}
-    </div>
+        <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.55 }}>
+          {description}
+        </p>
+        <p style={{ margin: "9px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
+          {hint}
+        </p>
+      </div>
+    </button>
   );
 }
 
@@ -328,7 +648,7 @@ function MediaPicker({
 
   return (
     <div>
-      <SectionLabel color={css.muted}>Media do posta</SectionLabel>
+      <SectionLabel color={css.muted}>Media do contentu</SectionLabel>
 
       <div
         onClick={() => inputRef.current?.click()}
@@ -340,8 +660,8 @@ function MediaPicker({
         style={{
           border: `1px dashed ${css.border}`,
           background: css.surface,
-          borderRadius: 14,
-          padding: 16,
+          borderRadius: 16,
+          padding: 15,
           cursor: "pointer",
         }}
       >
@@ -354,13 +674,12 @@ function MediaPicker({
           style={{ display: "none" }}
         />
 
-        <div style={{ fontSize: 13, fontWeight: 800, color: css.text }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: css.text }}>
           Dodaj zdjęcie, grafikę albo video
         </div>
 
         <div style={{ fontSize: 11, color: css.muted, marginTop: 5, lineHeight: 1.6 }}>
-          Pliki są przechowywane tymczasowo tylko do publikacji. Po publikacji
-          zostawiamy link/ID posta z platformy, a plik można usunąć ze Storage.
+          Media zapiszą się razem z szablonem, inspiracją albo harmonogramem.
         </div>
       </div>
 
@@ -368,7 +687,7 @@ function MediaPicker({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: 8,
             marginTop: 10,
           }}
@@ -379,13 +698,13 @@ function MediaPicker({
               style={{
                 border: `1px solid ${css.border}`,
                 background: css.surface,
-                borderRadius: 12,
+                borderRadius: 14,
                 overflow: "hidden",
               }}
             >
               <div
                 style={{
-                  height: 120,
+                  height: 116,
                   background: css.bg,
                   display: "grid",
                   placeItems: "center",
@@ -395,35 +714,25 @@ function MediaPicker({
                   <img
                     src={item.previewUrl}
                     alt={item.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 )}
 
                 {item.assetType === "video" && (
                   <video
                     src={item.previewUrl}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     muted
                     controls
                   />
                 )}
 
                 {!["image", "video"].includes(item.assetType) && (
-                  <span style={{ color: css.muted, fontSize: 12 }}>
-                    {item.assetType}
-                  </span>
+                  <span style={{ color: css.muted, fontSize: 12 }}>{item.assetType}</span>
                 )}
               </div>
 
-              <div style={{ padding: 10 }}>
+              <div style={{ padding: 9 }}>
                 <div
                   style={{
                     color: css.text,
@@ -450,7 +759,7 @@ function MediaPicker({
                     border: `1px solid ${css.border}`,
                     background: "transparent",
                     color: "#ef4444",
-                    borderRadius: 8,
+                    borderRadius: 9,
                     padding: "6px 8px",
                     fontSize: 10,
                     fontWeight: 800,
@@ -481,70 +790,53 @@ function ScheduleModal({
   css: Record<string, string>;
 }) {
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("09:00");
+  const [time, setTime] = useState("15:00");
 
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
+        background: "rgba(0,0,0,0.62)",
         zIndex: 100,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: 18,
       }}
     >
       <div
         style={{
           background: css.surface,
           border: `1px solid ${css.border}`,
-          borderRadius: 18,
-          padding: 28,
-          width: 380,
+          borderRadius: 22,
+          padding: 24,
+          width: 390,
+          maxWidth: "100%",
           fontFamily: "var(--font-body)",
         }}
       >
-        <div
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: css.text,
-            marginBottom: 6,
-          }}
-        >
+        <h3 style={{ margin: "0 0 6px", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 26, fontWeight: 500 }}>
           Zaplanuj publikację
-        </div>
+        </h3>
 
-        <div style={{ fontSize: 12, color: css.muted, marginBottom: 20 }}>
+        <div style={{ fontSize: 12, color: css.muted, marginBottom: 18 }}>
           Platforma:{" "}
           <span style={{ color: getPlatformInfo(platform)?.color }}>
             {getPlatformInfo(platform)?.name}
           </span>
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: css.muted,
-              marginBottom: 6,
-            }}
-          >
-            Data
-          </div>
-
+        <div style={{ marginBottom: 13 }}>
+          <SectionLabel color={css.muted}>Data</SectionLabel>
           <input
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
             style={{
               width: "100%",
-              padding: "9px 12px",
-              borderRadius: 10,
+              padding: "10px 12px",
+              borderRadius: 12,
               border: `1px solid ${css.border}`,
               background: css.bg,
               color: css.text,
@@ -555,28 +847,16 @@ function ScheduleModal({
           />
         </div>
 
-        <div style={{ marginBottom: 22 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: css.muted,
-              marginBottom: 6,
-            }}
-          >
-            Godzina
-          </div>
-
+        <div style={{ marginBottom: 20 }}>
+          <SectionLabel color={css.muted}>Godzina</SectionLabel>
           <input
             type="time"
             value={time}
             onChange={(event) => setTime(event.target.value)}
             style={{
               width: "100%",
-              padding: "9px 12px",
-              borderRadius: 10,
+              padding: "10px 12px",
+              borderRadius: 12,
               border: `1px solid ${css.border}`,
               background: css.bg,
               color: css.text,
@@ -593,8 +873,8 @@ function ScheduleModal({
             onClick={onClose}
             style={{
               flex: 1,
-              padding: "10px",
-              borderRadius: 10,
+              padding: "11px",
+              borderRadius: 12,
               border: `1px solid ${css.border}`,
               background: "transparent",
               color: css.muted,
@@ -614,19 +894,19 @@ function ScheduleModal({
             disabled={!date}
             style={{
               flex: 1,
-              padding: "10px",
-              borderRadius: 10,
+              padding: "11px",
+              borderRadius: 12,
               border: "none",
               background: getPlatformInfo(platform)?.color || css.accent,
               color: "#fff",
               fontSize: 12,
-              fontWeight: 700,
+              fontWeight: 900,
               cursor: "pointer",
               fontFamily: "inherit",
               opacity: !date ? 0.5 : 1,
             }}
           >
-            ◷ Zaplanuj
+            Zaplanuj
           </button>
         </div>
       </div>
@@ -635,7 +915,7 @@ function ScheduleModal({
 }
 
 function ContentActions({
-  generated,
+  item,
   platform,
   prompt,
   contentType,
@@ -643,7 +923,7 @@ function ContentActions({
   css,
   media,
 }: {
-  generated: GeneratedContent;
+  item: GeneratedPost | ContentVariant;
   platform: Platform;
   prompt: string;
   contentType: string;
@@ -658,23 +938,17 @@ function ContentActions({
   const [scheduling, setScheduling] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(
-    null
-  );
+  const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
+
+  const score = "estimated_score" in item ? item.estimated_score : item.score;
+  const notes = "platform_notes" in item ? item.platform_notes : item.notes;
+  const fullContent = fullPostText(item);
+  const pColor = getPlatformInfo(platform)?.color || css.accent;
 
   function showToast(msg: string, type: "ok" | "err") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   }
-
-  const fullContent = [
-    generated.hook,
-    generated.body,
-    generated.cta,
-    safeArray(generated.hashtags).join(" "),
-  ]
-    .filter((part) => part.trim().length > 0)
-    .join("\n\n");
 
   async function getOrCreateWorkspaceUuid() {
     const { data, error } = await supabase
@@ -704,14 +978,14 @@ function ContentActions({
     const expiresAt = getExpiryDate(scheduledAt);
     const uploaded: UploadedMediaItem[] = [];
 
-    for (const item of media) {
-      const fileName = safeFileName(item.name || "media");
+    for (const mediaItem of media) {
+      const fileName = safeFileName(mediaItem.name || "media");
       const path = `${wsId}/${draftId}/${Date.now()}-${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .upload(path, item.file, {
-          contentType: item.mimeType,
+        .upload(path, mediaItem.file, {
+          contentType: mediaItem.mimeType,
           upsert: false,
         });
 
@@ -721,10 +995,10 @@ function ContentActions({
         kind: uploaded.length === 0 ? "cover" : "attachment",
         storage_bucket: STORAGE_BUCKET,
         storage_path: path,
-        file_name: item.name,
-        mime_type: item.mimeType,
-        file_size: item.size,
-        asset_type: item.assetType,
+        file_name: mediaItem.name,
+        mime_type: mediaItem.mimeType,
+        file_size: mediaItem.size,
+        asset_type: mediaItem.assetType,
         status,
         expires_at: expiresAt,
       };
@@ -739,10 +1013,10 @@ function ContentActions({
           draft_id: draftId,
           storage_bucket: STORAGE_BUCKET,
           storage_path: path,
-          file_name: item.name,
-          mime_type: item.mimeType,
-          file_size: item.size,
-          asset_type: item.assetType,
+          file_name: mediaItem.name,
+          mime_type: mediaItem.mimeType,
+          file_size: mediaItem.size,
+          asset_type: mediaItem.assetType,
           status,
           expires_at: expiresAt,
         });
@@ -761,7 +1035,7 @@ function ContentActions({
     return uploaded;
   }
 
-  async function saveDraft() {
+  async function saveInspiration() {
     setSaving(true);
 
     try {
@@ -775,18 +1049,17 @@ function ContentActions({
           workspace_id: wsId,
           source_kind: "content",
           source_studio: "Content Studio",
-          title: getDraftTitle(generated, prompt),
-          description: generated.hook || prompt,
+          title: item.title || prompt.slice(0, 80) || "Inspiracja contentowa",
+          description: item.hook || prompt,
           body: fullContent,
           platforms: [platform],
-          hashtags: safeArray(generated.hashtags),
-          ai_score: generated.estimated_score,
-          ai_feedback: generated.platform_notes,
+          hashtags: safeArray(item.hashtags),
+          ai_score: score,
+          ai_feedback: notes,
           status: "active",
         });
 
       if (error) throw new Error(error.message);
-
       showToast("✓ Zapisano jako inspirację", "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
@@ -795,40 +1068,46 @@ function ContentActions({
     }
   }
 
-  async function saveTemplate() {
+  async function saveTemplate(status: "template" | "scheduled" = "template", scheduledAt?: string) {
+    const wsId = await getOrCreateWorkspaceUuid();
+    if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
+
+    const { data: draft, error } = await supabase
+      .schema("contentiq")
+      .from("content_drafts")
+      .insert({
+        workspace_id: wsId,
+        title: item.title || prompt.slice(0, 80) || "Szablon contentowy",
+        body: fullContent,
+        topic: prompt,
+        content_type: contentType,
+        target_platforms: [platform],
+        ai_score: score,
+        ai_feedback: notes,
+        status,
+        media: [],
+      })
+      .select("id")
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    await uploadMediaForDraft({
+      wsId,
+      draftId: draft.id,
+      scheduledAt,
+      status: status === "scheduled" ? "scheduled" : "temporary",
+    });
+
+    return { wsId, draftId: draft.id };
+  }
+
+  async function saveAsTemplate() {
     setSavingTemplate(true);
 
     try {
-      const wsId = await getOrCreateWorkspaceUuid();
-      if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
-
-      const { data: draft, error } = await supabase
-        .schema("contentiq")
-        .from("content_drafts")
-        .insert({
-          workspace_id: wsId,
-          title: getDraftTitle(generated, prompt),
-          body: fullContent,
-          topic: prompt,
-          content_type: contentType,
-          target_platforms: [platform],
-          ai_score: generated.estimated_score,
-          ai_feedback: generated.platform_notes,
-          status: "template",
-          media: [],
-        })
-        .select("id")
-        .single();
-
-      if (error) throw new Error(error.message);
-
-      await uploadMediaForDraft({
-        wsId,
-        draftId: draft.id,
-        status: "temporary",
-      });
-
-      showToast("✓ Zapisano szablon z okładką", "ok");
+      await saveTemplate("template");
+      showToast("✓ Zapisano jako szablon", "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
@@ -841,35 +1120,7 @@ function ContentActions({
     setShowModal(false);
 
     try {
-      const wsId = await getOrCreateWorkspaceUuid();
-      if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
-
-      const { data: draft, error: draftErr } = await supabase
-        .schema("contentiq")
-        .from("content_drafts")
-        .insert({
-          workspace_id: wsId,
-          title: getDraftTitle(generated, prompt),
-          body: fullContent,
-          topic: prompt,
-          content_type: contentType,
-          target_platforms: [platform],
-          ai_score: generated.estimated_score,
-          ai_feedback: generated.platform_notes,
-          status: "scheduled",
-          media: [],
-        })
-        .select("id")
-        .single();
-
-      if (draftErr) throw new Error(draftErr.message);
-
-      await uploadMediaForDraft({
-        wsId,
-        draftId: draft.id,
-        scheduledAt,
-        status: "scheduled",
-      });
+      const { wsId, draftId } = await saveTemplate("scheduled", scheduledAt);
 
       const { data: conn } = await supabase
         .schema("contentiq")
@@ -887,7 +1138,7 @@ function ContentActions({
         .schema("contentiq")
         .from("scheduled_posts")
         .insert({
-          draft_id: draft.id,
+          draft_id: draftId,
           connection_id: conn.id,
           platform,
           scheduled_at: scheduledAt,
@@ -902,12 +1153,9 @@ function ContentActions({
         .schema("contentiq")
         .from("media_assets")
         .update({ scheduled_post_id: scheduled.id })
-        .eq("draft_id", draft.id);
+        .eq("draft_id", draftId);
 
-      showToast(
-        `✓ Zaplanowano na ${new Date(scheduledAt).toLocaleString("pl-PL")}`,
-        "ok"
-      );
+      showToast(`✓ Zaplanowano na ${new Date(scheduledAt).toLocaleString("pl-PL")}`, "ok");
     } catch (err) {
       showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
@@ -928,8 +1176,6 @@ function ContentActions({
     }
   }
 
-  const pColor = getPlatformInfo(platform)?.color || css.accent;
-
   return (
     <>
       {toast && (
@@ -940,7 +1186,7 @@ function ContentActions({
             right: 20,
             zIndex: 200,
             padding: "10px 18px",
-            borderRadius: 10,
+            borderRadius: 12,
             background: toast.type === "ok" ? "#052e16" : "#450a0a",
             color: toast.type === "ok" ? "#22c55e" : "#ef4444",
             fontSize: 13,
@@ -965,49 +1211,17 @@ function ContentActions({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
           gap: 8,
-          marginTop: 4,
+          marginTop: 8,
         }}
       >
-        <button
-          type="button"
-          onClick={saveTemplate}
-          disabled={savingTemplate}
-          style={{
-            padding: "10px 8px",
-            borderRadius: 10,
-            border: `1px solid ${css.border}`,
-            background: css.surface,
-            color: css.muted,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            opacity: savingTemplate ? 0.6 : 1,
-          }}
-        >
-          {savingTemplate ? "Zapisuję..." : "□ Zapisz szablon"}
+        <button type="button" onClick={saveAsTemplate} disabled={savingTemplate} style={actionButton(css, false)}>
+          {savingTemplate ? "Zapisuję..." : "Szablon"}
         </button>
 
-        <button
-          type="button"
-          onClick={saveDraft}
-          disabled={saving}
-          style={{
-            padding: "10px 8px",
-            borderRadius: 10,
-            border: `1px solid ${css.border}`,
-            background: css.surface,
-            color: css.muted,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
-          {saving ? "Zapisuję..." : "▤ Zapisz inspirację"}
+        <button type="button" onClick={saveInspiration} disabled={saving} style={actionButton(css, false)}>
+          {saving ? "Zapisuję..." : "Inspiracja"}
         </button>
 
         <button
@@ -1015,19 +1229,13 @@ function ContentActions({
           onClick={() => setShowModal(true)}
           disabled={scheduling}
           style={{
-            padding: "10px 8px",
-            borderRadius: 10,
-            border: `1.5px solid ${pColor}`,
-            background: `${pColor}15`,
+            ...actionButton(css, true),
+            border: `1px solid ${pColor}`,
+            background: `${pColor}17`,
             color: pColor,
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            opacity: scheduling ? 0.6 : 1,
           }}
         >
-          {scheduling ? "Planowanie..." : "◷ Zaplanuj"}
+          {scheduling ? "Planowanie..." : "Zaplanuj"}
         </button>
 
         <button
@@ -1035,22 +1243,458 @@ function ContentActions({
           onClick={publishNow}
           disabled={publishing}
           style={{
-            padding: "10px 8px",
-            borderRadius: 10,
+            ...actionButton(css, true),
             border: "none",
             background: pColor,
             color: "#fff",
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            opacity: publishing ? 0.6 : 1,
           }}
         >
-          {publishing ? "Wysyłam..." : "↑ Publikuj teraz"}
+          {publishing ? "Wysyłam..." : "Publikuj"}
         </button>
       </div>
     </>
+  );
+}
+
+function actionButton(css: Record<string, string>, strong: boolean): CSSProperties {
+  return {
+    padding: "10px 8px",
+    borderRadius: 12,
+    border: `1px solid ${css.border}`,
+    background: strong ? css.accentSoft : css.surface,
+    color: strong ? css.accent : css.muted,
+    fontSize: 11,
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  };
+}
+
+function ResultPanel({
+  result,
+  flow,
+  platform,
+  selectedPlatforms,
+  prompt,
+  contentType,
+  workspaceId,
+  css,
+  media,
+}: {
+  result: StudioResult;
+  flow: StudioFlow;
+  platform: Platform;
+  selectedPlatforms: Platform[];
+  prompt: string;
+  contentType: string;
+  workspaceId: string;
+  css: Record<string, string>;
+  media: LocalMediaItem[];
+}) {
+  const [copied, setCopied] = useState("");
+
+  async function copy(text: string, id: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(""), 1600);
+  }
+
+  const primary = result.primary;
+  const variants = safeArray(result.variants);
+  const hooks = safeArray(result.hooks);
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div
+        style={{
+          background: css.surface,
+          border: `1px solid ${css.border}`,
+          borderRadius: 20,
+          padding: 16,
+        }}
+      >
+        <SectionLabel color={css.accent}>Wynik Content Studio</SectionLabel>
+        <h3
+          style={{
+            margin: "0 0 8px",
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 28,
+            lineHeight: 1.05,
+            fontWeight: 500,
+          }}
+        >
+          {result.title}
+        </h3>
+        <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
+          {result.strategic_note || "AI przygotowało propozycję contentu."}
+        </p>
+        {result.source_summary && (
+          <p style={{ margin: "10px 0 0", color: css.text, fontSize: 12, lineHeight: 1.7 }}>
+            <strong>Źródło:</strong> {result.source_summary}
+          </p>
+        )}
+      </div>
+
+      {primary && (
+        <PostCard
+          item={primary}
+          platform={platform}
+          css={css}
+          copied={copied}
+          onCopy={copy}
+          actions={
+            <ContentActions
+              item={primary}
+              platform={platform}
+              prompt={prompt}
+              contentType={contentType}
+              workspaceId={workspaceId}
+              css={css}
+              media={media}
+            />
+          }
+        />
+      )}
+
+      {hooks.length > 0 && (
+        <div
+          style={{
+            background: css.surface,
+            border: `1px solid ${css.border}`,
+            borderRadius: 20,
+            padding: 16,
+          }}
+        >
+          <SectionLabel color={css.accent}>Hooki do testu</SectionLabel>
+          <div style={{ display: "grid", gap: 9 }}>
+            {hooks.map((hook, index) => (
+              <div
+                key={`${hook.text}-${index}`}
+                style={{
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  borderRadius: 15,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ color: css.text, fontSize: 14, fontWeight: 900, lineHeight: 1.45 }}>
+                    “{hook.text}”
+                  </div>
+                  <div style={{ color: getScoreColor(hook.score), fontWeight: 900 }}>{hook.score}</div>
+                </div>
+                <div style={{ marginTop: 7, color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
+                  {hook.type} · {hook.best_for} · {hook.note}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copy(hook.text, `hook-${index}`)}
+                  style={{
+                    marginTop: 8,
+                    border: "none",
+                    background: "transparent",
+                    color: css.accent,
+                    fontSize: 11,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    padding: 0,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {copied === `hook-${index}` ? "Skopiowano" : "Kopiuj hook"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {variants.length > 0 && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {variants.map((variant, index) => (
+            <PostCard
+              key={`${variant.platform}-${index}`}
+              item={variant}
+              platform={variant.platform}
+              css={css}
+              copied={copied}
+              onCopy={copy}
+              actions={
+                <ContentActions
+                  item={variant}
+                  platform={variant.platform}
+                  prompt={prompt}
+                  contentType={variant.format || contentType}
+                  workspaceId={workspaceId}
+                  css={css}
+                  media={media}
+                />
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {result.article_outline && result.article_outline.length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>Konspekt artykułu</SectionLabel>
+          <ol style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.75 }}>
+            {result.article_outline.map((item, index) => (
+              <li key={`${item}-${index}`}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {result.article_html && (
+        <div style={resultBox(css)}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <SectionLabel color={css.accent}>HTML artykułu</SectionLabel>
+            <button
+              type="button"
+              onClick={() => copy(result.article_html || "", "article-html")}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: css.accent,
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              {copied === "article-html" ? "Skopiowano" : "Kopiuj HTML"}
+            </button>
+          </div>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              color: css.muted,
+              fontSize: 11,
+              lineHeight: 1.65,
+              margin: 0,
+              maxHeight: 420,
+              overflow: "auto",
+            }}
+          >
+            {result.article_html}
+          </pre>
+        </div>
+      )}
+
+      {safeArray(result.blog_cta_blocks).length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>Bloki CTA do bloga</SectionLabel>
+          <div style={{ display: "grid", gap: 8 }}>
+            {safeArray(result.blog_cta_blocks).map((item, index) => (
+              <div
+                key={`${item}-${index}`}
+                style={{
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  borderRadius: 14,
+                  padding: 11,
+                  color: css.text,
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                }}
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {safeArray(result.content_plan).length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>Co zrobić dalej z tym contentem?</SectionLabel>
+          <div style={{ display: "grid", gap: 8 }}>
+            {safeArray(result.content_plan).map((item, index) => {
+              const info = getPlatformInfo(item.platform);
+              return (
+                <div
+                  key={`${item.platform}-${index}`}
+                  style={{
+                    border: `1px solid ${css.border}`,
+                    background: css.liveSoft,
+                    borderRadius: 14,
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ color: info?.color || css.accent, fontWeight: 900, fontSize: 12 }}>
+                    {info?.name || item.platform} · {item.format}
+                  </div>
+                  <div style={{ color: css.text, fontSize: 13, fontWeight: 900, marginTop: 5 }}>
+                    {item.idea}
+                  </div>
+                  <div style={{ color: css.muted, fontSize: 11, lineHeight: 1.6, marginTop: 5 }}>
+                    Kąt: {item.angle} · CTA: {item.cta}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function resultBox(css: Record<string, string>): CSSProperties {
+  return {
+    background: css.surface,
+    border: `1px solid ${css.border}`,
+    borderRadius: 20,
+    padding: 16,
+  };
+}
+
+function PostCard({
+  item,
+  platform,
+  css,
+  copied,
+  onCopy,
+  actions,
+}: {
+  item: GeneratedPost | ContentVariant;
+  platform: Platform;
+  css: Record<string, string>;
+  copied: string;
+  onCopy: (text: string, id: string) => void;
+  actions: React.ReactNode;
+}) {
+  const info = getPlatformInfo(platform);
+  const score = "estimated_score" in item ? item.estimated_score : item.score;
+  const notes = "platform_notes" in item ? item.platform_notes : item.notes;
+
+  return (
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        borderTop: `4px solid ${info?.color || css.accent}`,
+        borderRadius: 20,
+        padding: 16,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+        <div>
+          <SectionLabel color={info?.color || css.accent}>{info?.name || platform}</SectionLabel>
+          <h3
+            style={{
+              margin: 0,
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 25,
+              lineHeight: 1.08,
+              fontWeight: 500,
+            }}
+          >
+            {item.title || "Wariant contentu"}
+          </h3>
+        </div>
+
+        <div style={{ color: getScoreColor(score), fontSize: 28, fontWeight: 900, fontFamily: "var(--font-heading)" }}>
+          {score || 0}
+        </div>
+      </div>
+
+      {item.hook && (
+        <div
+          style={{
+            marginTop: 13,
+            background: css.aiBg,
+            border: `1px solid ${css.aiBorder}`,
+            boxShadow: css.aiGlow,
+            borderRadius: 16,
+            padding: 13,
+          }}
+        >
+          <SectionLabel color={css.aiText}>Hook</SectionLabel>
+          <p style={{ margin: 0, color: css.text, fontSize: 15, fontWeight: 900, lineHeight: 1.45 }}>
+            “{item.hook}”
+          </p>
+        </div>
+      )}
+
+      <div style={{ marginTop: 11, color: css.text, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+        {item.body}
+      </div>
+
+      {item.cta && (
+        <div style={{ marginTop: 11, color: css.accent, fontSize: 13, fontWeight: 900 }}>
+          CTA: {item.cta}
+        </div>
+      )}
+
+      {item.recommended_comment && (
+        <div
+          style={{
+            marginTop: 11,
+            border: `1px dashed ${css.border}`,
+            background: css.liveSoft,
+            borderRadius: 14,
+            padding: 11,
+            color: css.muted,
+            fontSize: 12,
+            lineHeight: 1.6,
+          }}
+        >
+          <strong style={{ color: css.text }}>Komentarz / link:</strong> {item.recommended_comment}
+        </div>
+      )}
+
+      {safeArray(item.hashtags).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
+          {safeArray(item.hashtags).map((tag, index) => (
+            <span
+              key={`${tag}-${index}`}
+              style={{
+                background: `${info?.color || css.accent}18`,
+                color: info?.color || css.accent,
+                borderRadius: 999,
+                padding: "4px 8px",
+                fontSize: 10,
+                fontWeight: 900,
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {notes && (
+        <p style={{ margin: "12px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.65 }}>
+          {notes}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onCopy(fullPostText(item), `copy-${platform}-${item.title}`)}
+        style={{
+          width: "100%",
+          marginTop: 12,
+          border: `1px solid ${css.border}`,
+          background: "transparent",
+          color: css.muted,
+          borderRadius: 12,
+          padding: "10px 12px",
+          fontSize: 11,
+          fontWeight: 900,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        {copied === `copy-${platform}-${item.title}` ? "Skopiowano" : "Kopiuj treść"}
+      </button>
+
+      <div style={{ marginTop: 10 }}>{actions}</div>
+    </div>
   );
 }
 
@@ -1061,56 +1705,69 @@ export default function ContentStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
-  const [mode, setMode] = useState<Mode>("generate");
+  const [flow, setFlow] = useState<StudioFlow>("social");
+  const [aiProvider, setAiProvider] = useState<AiProvider>("deepseek");
   const [platform, setPlatform] = useState<Platform>("linkedin");
-  const [contentType, setContentType] = useState(CONTENT_TYPES[0]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(BLOG_REPURPOSE_PLATFORMS);
+  const [contentFormat, setContentFormat] = useState(CONTENT_FORMATS[0]);
   const [prompt, setPrompt] = useState("");
+  const [brandContext, setBrandContext] = useState("");
+  const [blogUrl, setBlogUrl] = useState("");
+  const [blogText, setBlogText] = useState("");
   const [media, setMedia] = useState<LocalMediaItem[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [generated, setGenerated] = useState<GeneratedContent | null>(null);
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [adapted, setAdapted] = useState<AdaptResult | null>(null);
-  const [selectedAdaptPlatforms, setSelectedAdaptPlatforms] = useState<Platform[]>([
-    "linkedin",
-    "instagram",
-    "tiktok",
-  ]);
-
+  const [scraping, setScraping] = useState(false);
+  const [result, setResult] = useState<StudioResult | null>(null);
   const [rawAnswer, setRawAnswer] = useState("");
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const css: Record<string, string> = dark
     ? {
         bg: "#1A2233",
-        surface: "#070707",
+        surface: "#050505",
+        surfaceSoft: "#0B0B0D",
         text: "#FFFFFF",
         muted: "#C9CED8",
         border: "rgba(255,255,255,0.10)",
         accent: "#8E443D",
+        accentSoft: "rgba(142, 68, 61, 0.18)",
+        accentBorder: "rgba(142, 68, 61, 0.55)",
+        heading: "#8E443D",
+        aiBg: "rgba(109, 40, 217, 0.16)",
+        aiBgSoft: "rgba(147, 51, 234, 0.12)",
+        aiBorder: "rgba(192, 132, 252, 0.55)",
+        aiText: "#D8B4FE",
+        aiGlow: "0 0 28px rgba(168, 85, 247, 0.24)",
+        liveSoft: "rgba(255,255,255,0.045)",
       }
     : {
         bg: "#FFFFFF",
         surface: "#B5937A",
-        text: "#231F20",
+        surfaceSoft: "#F7F2EF",
+        text: "#2B2B2B",
         muted: "#5F5A57",
         border: "rgba(35,31,32,0.14)",
         accent: "#231F20",
+        accentSoft: "rgba(181, 147, 122, 0.22)",
+        accentBorder: "rgba(35,31,32,0.24)",
+        heading: "#231F20",
+        aiBg: "rgba(124, 58, 237, 0.10)",
+        aiBgSoft: "rgba(245, 243, 255, 0.95)",
+        aiBorder: "rgba(124, 58, 237, 0.34)",
+        aiText: "#6D28D9",
+        aiGlow: "0 0 26px rgba(124, 58, 237, 0.16)",
+        liveSoft: "rgba(255,255,255,0.55)",
       };
 
   const rootStyle = {
-    "--bg": css.bg,
-    "--surface": css.surface,
-    "--text": css.text,
-    "--muted": css.muted,
-    "--border": css.border,
-    "--accent": css.accent,
     fontFamily: "var(--font-body)",
     color: css.text,
   } as CSSProperties;
+
+  const activeFlow = FLOW_CARDS.find((item) => item.id === flow) || FLOW_CARDS[0];
 
   useEffect(() => {
     if (!textareaRef.current) return;
@@ -1124,1102 +1781,582 @@ export default function ContentStudio({
     };
   }, [media]);
 
-  function resetResults() {
-    setGenerated(null);
-    setAnalysis(null);
-    setAdapted(null);
+  const canGenerate = useMemo(() => {
+    if (flow === "blog") return Boolean(blogText.trim() || blogUrl.trim() || prompt.trim());
+    return Boolean(prompt.trim());
+  }, [flow, prompt, blogText, blogUrl]);
+
+  function resetResult() {
+    setResult(null);
     setRawAnswer("");
     setError("");
   }
 
-  async function handleGenerate() {
-    if (!prompt.trim()) return;
+  function toggleSelectedPlatform(platformId: Platform) {
+    setSelectedPlatforms((prev) => {
+      if (prev.includes(platformId)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((item) => item !== platformId);
+      }
+      return [...prev, platformId];
+    });
+  }
 
-    setLoading(true);
-    resetResults();
+  async function scrapeBlogUrl() {
+    if (!blogUrl.trim()) {
+      setError("Wklej link do wpisu blogowego.");
+      return;
+    }
+
+    setScraping(true);
+    setError("");
 
     try {
+      const res = await fetch("/api/brand/scrape", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: blogUrl.trim() }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || "Nie udało się pobrać treści bloga.");
+      }
+
+      const sourceNotes = data.source_notes || data.text || data.summary || "";
+      setBlogText(sourceNotes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setScraping(false);
+    }
+  }
+
+  async function handleGenerate() {
+    if (!canGenerate || loading) return;
+
+    setLoading(true);
+    resetResult();
+
+    try {
+      const studioPrompt = buildStudioPrompt({
+        flow,
+        platform,
+        selectedPlatforms,
+        contentFormat,
+        userPrompt: prompt,
+        blogUrl,
+        blogText,
+        brandContext,
+      });
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode,
-          prompt,
-          platform: mode !== "adapt" ? platform : undefined,
-          contentType: mode === "generate" ? contentType : undefined,
-          platforms: mode === "adapt" ? selectedAdaptPlatforms : undefined,
+          mode: "chat",
+          provider: aiProvider,
+          ai_provider: aiProvider,
+          prompt: studioPrompt,
+          historicalData: {
+            flow,
+            platform,
+            selectedPlatforms,
+            contentFormat,
+            blogUrl,
+            hasMedia: media.length > 0,
+            media: media.map((item) => ({
+              name: item.name,
+              type: item.assetType,
+              mimeType: item.mimeType,
+              size: item.size,
+            })),
+          },
         }),
       });
 
-      const json = (await res.json()) as ApiResponse;
+      const json = (await res.json().catch(() => null)) as ApiResponse | null;
 
-      if (!res.ok || json.error) {
-        setError(json.error || "Błąd API.");
-        return;
+      if (!res.ok || json?.error) {
+        throw new Error(json?.details || json?.error || "Błąd API.");
       }
 
-      if (json.answer) setRawAnswer(json.answer);
+      const answer = json?.answer || "";
+      setRawAnswer(answer);
 
-      if (json.parseError) {
-        setError(`Błąd parsowania: ${json.parseError}`);
-        return;
+      let parsed: StudioResult | null = null;
+
+      try {
+        parsed = normalizeStudioResult(JSON.parse(cleanJsonAnswer(answer)) as Partial<StudioResult>);
+      } catch {
+        throw new Error("AI nie zwróciło poprawnego JSON. Spróbuj ponownie albo skróć brief.");
       }
 
-      if (!json.data) {
-        setError("Brak danych w odpowiedzi API.");
-        return;
-      }
-
-      if (mode === "generate") setGenerated(json.data as GeneratedContent);
-      if (mode === "analyze") setAnalysis(json.data as AnalysisResult);
-      if (mode === "adapt") setAdapted(json.data as AdaptResult);
-    } catch {
-      setError("Błąd połączenia z API.");
+      setResult(parsed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
   }
 
-  async function copyToClipboard(text: string, id: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      setError("Nie udało się skopiować.");
-    }
-  }
-
-  function toggleAdaptPlatform(platformId: Platform) {
-    setSelectedAdaptPlatforms((prev) =>
-      prev.includes(platformId)
-        ? prev.filter((item) => item !== platformId)
-        : [...prev, platformId]
-    );
-  }
-
-  function useTemplate(template: TemplateDraft) {
-    const targetPlatform = safeArray(template.target_platforms)[0] as Platform | undefined;
-
-    setMode("generate");
-    setPlatform(targetPlatform && PLATFORMS.some((item) => item.id === targetPlatform)
-      ? targetPlatform
-      : "linkedin");
-    setContentType(template.content_type || CONTENT_TYPES[0]);
-    setPrompt(template.topic || template.body || "");
-    setGenerated({
-      title: template.title || undefined,
-      hook: "",
-      body: template.body || "",
-      cta: "",
-      hashtags: [],
-      estimated_score: template.ai_score || 0,
-      platform_notes: template.ai_feedback || "Szablon wczytany z biblioteki.",
-    });
-    setAnalysis(null);
-    setAdapted(null);
-    setRawAnswer("");
-    setError("");
-  }
-
-  useEffect(() => {
-    const rawTemplate = localStorage.getItem("ciq-content-template");
-    if (!rawTemplate) return;
-
-    localStorage.removeItem("ciq-content-template");
-
-    try {
-      useTemplate(JSON.parse(rawTemplate) as TemplateDraft);
-    } catch {
-      setError("Nie udało się wczytać szablonu.");
-    }
-  }, []);
-
   return (
     <div style={rootStyle}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
-
-        * {
-          box-sizing: border-box;
+        * { box-sizing: border-box; }
+        textarea { resize: none; overflow: hidden; }
+        .ciq-studio-grid { display:grid; grid-template-columns: 0.95fr 1.05fr; gap:18px; align-items:start; }
+        .ciq-flow-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px; }
+        .ciq-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        button { transition: all .15s ease; }
+        button:hover:not(:disabled) { opacity:.86; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media(max-width:1100px) {
+          .ciq-studio-grid { grid-template-columns:1fr; }
+          .ciq-flow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
-
-        textarea {
-          resize: none;
-          overflow: hidden;
-        }
-
-        .ciq-mode-btn,
-        .ciq-platform-pill,
-        .ciq-generate-btn,
-        .ciq-copy-btn {
-          transition: all .15s ease;
-        }
-
-        .ciq-mode-btn:hover,
-        .ciq-copy-btn:hover {
-          opacity: .75;
-        }
-
-        .ciq-platform-pill:hover {
-          transform: translateY(-1px);
-        }
-
-        .ciq-generate-btn:hover:not(:disabled) {
-          transform: translateY(-1px);
-        }
-
-        .ciq-generate-btn:disabled {
-          opacity: .5;
-          cursor: not-allowed;
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        @keyframes bounce {
-          0%,80%,100% {
-            transform: scale(.8);
-            opacity: .5;
-          }
-
-          40% {
-            transform: scale(1);
-            opacity: 1;
-          }
-        }
-
-        @media(max-width:960px) {
-          .ciq-studio-layout {
-            grid-template-columns:1fr!important;
-          }
-
-          .ciq-result-grid {
-            grid-template-columns:1fr!important;
-          }
+        @media(max-width:680px) {
+          .ciq-flow-grid, .ciq-two { grid-template-columns: 1fr; }
         }
       `}</style>
 
-      <div
-        className="ciq-studio-layout"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 20,
-          alignItems: "start",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
-          <div
+      <div style={{ display: "grid", gap: 18 }}>
+        <div
+          style={{
+            background: css.surface,
+            border: `1px solid ${css.border}`,
+            borderRadius: 24,
+            padding: 18,
+          }}
+        >
+          <SectionLabel color={css.accent}>Content Studio</SectionLabel>
+          <h2
             style={{
-              display: "flex",
-              gap: 6,
-              padding: 5,
-              background: css.surface,
-              borderRadius: 14,
-              border: `1px solid ${css.border}`,
+              margin: "0 0 8px",
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 34,
+              lineHeight: 1.02,
+              fontWeight: 500,
             }}
           >
-            {(["generate", "analyze", "adapt"] as Mode[]).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setMode(item);
-                  resetResults();
-                }}
-                className="ciq-mode-btn"
+            Twórz content z jasnego procesu, nie z jednego chaotycznego pola
+          </h2>
+          <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 980 }}>
+            Wybierz, czy chcesz stworzyć post, przetestować hooki, przerobić blog na social media
+            albo przygotować artykuł jako źródło kampanii. Wynik możesz zapisać jako inspirację,
+            szablon, dodać do harmonogramu albo wysłać do kolejki publikacji.
+          </p>
+        </div>
+
+        <div className="ciq-flow-grid">
+          {FLOW_CARDS.map((card) => (
+            <FlowCard
+              key={card.id}
+              active={flow === card.id}
+              title={card.title}
+              label={card.label}
+              description={card.description}
+              hint={card.hint}
+              css={css}
+              onClick={() => {
+                setFlow(card.id);
+                resetResult();
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="ciq-studio-grid">
+          <div style={{ display: "grid", gap: 13 }}>
+            <div
+              style={{
+                background: css.aiBg,
+                border: `1px solid ${css.aiBorder}`,
+                boxShadow: css.aiGlow,
+                borderRadius: 20,
+                padding: 15,
+              }}
+            >
+              <SectionLabel color={css.aiText}>Aktywny tryb</SectionLabel>
+              <h3
                 style={{
-                  flex: 1,
-                  padding: "9px 0",
-                  borderRadius: 10,
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: mode === item ? 700 : 500,
-                  background:
-                    mode === item ? (dark ? "#fff" : "#0f172a") : "transparent",
-                  color: mode === item ? (dark ? "#0f172a" : "#fff") : css.muted,
-                  fontFamily: "inherit",
+                  margin: "0 0 7px",
+                  color: css.heading,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 27,
+                  lineHeight: 1.05,
+                  fontWeight: 500,
                 }}
               >
-                {MODE_LABELS[item]}
-              </button>
-            ))}
-          </div>
+                {activeFlow.title}
+              </h3>
+              <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.65 }}>
+                {activeFlow.description}
+              </p>
+            </div>
 
-          <div
-            style={{
-              borderRadius: 14,
-              border: `1px solid ${css.border}`,
-              background: css.surface,
-              padding: 14,
-            }}
-          >
-            <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>
-              {MODE_DESCRIPTIONS[mode]}
-            </p>
-          </div>
+            <div className="ciq-two">
+              <div>
+                <SectionLabel color={css.muted}>Silnik AI</SectionLabel>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {(["deepseek", "gemini"] as AiProvider[]).map((provider) => (
+                    <button
+                      key={provider}
+                      type="button"
+                      onClick={() => setAiProvider(provider)}
+                      style={{
+                        borderRadius: 13,
+                        border: `1px solid ${aiProvider === provider ? css.aiBorder : css.border}`,
+                        background: aiProvider === provider ? css.aiBgSoft : css.surface,
+                        color: aiProvider === provider ? css.aiText : css.muted,
+                        padding: "10px 12px",
+                        fontSize: 11,
+                        fontWeight: 900,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {provider}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {mode !== "adapt" && (
-            <div>
-              <SectionLabel color={css.muted}>Platforma docelowa</SectionLabel>
-
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {PLATFORMS.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setPlatform(item.id)}
-                    className="ciq-platform-pill"
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 9,
-                      border: `1.5px solid ${
-                        platform === item.id ? item.color : css.border
-                      }`,
-                      background:
-                        platform === item.id ? `${item.color}20` : "transparent",
-                      color: platform === item.id ? item.color : css.muted,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {item.name}
-                  </button>
-                ))}
+              <div>
+                <SectionLabel color={css.muted}>Format</SectionLabel>
+                <select
+                  value={contentFormat}
+                  onChange={(event) => setContentFormat(event.target.value)}
+                  style={{
+                    width: "100%",
+                    borderRadius: 13,
+                    border: `1px solid ${css.border}`,
+                    background: css.surface,
+                    color: css.text,
+                    padding: "11px 12px",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    outline: "none",
+                  }}
+                >
+                  {CONTENT_FORMATS.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
               </div>
             </div>
-          )}
 
-          {mode === "adapt" && (
-            <div>
-              <SectionLabel color={css.muted}>Adaptuj na platformy</SectionLabel>
-
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {PLATFORMS.map((item) => {
-                  const selected = selectedAdaptPlatforms.includes(item.id);
-
-                  return (
+            {flow !== "blog" && (
+              <div>
+                <SectionLabel color={css.muted}>Platforma główna</SectionLabel>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                  {PLATFORMS.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => toggleAdaptPlatform(item.id)}
-                      className="ciq-platform-pill"
+                      onClick={() => setPlatform(item.id)}
                       style={{
-                        padding: "6px 12px",
-                        borderRadius: 9,
-                        border: `1.5px solid ${selected ? item.color : css.border}`,
-                        background: selected ? `${item.color}20` : "transparent",
-                        color: selected ? item.color : css.muted,
+                        padding: "7px 12px",
+                        borderRadius: 11,
+                        border: `1px solid ${platform === item.id ? item.color : css.border}`,
+                        background: platform === item.id ? `${item.color}18` : css.surface,
+                        color: platform === item.id ? item.color : css.muted,
                         fontSize: 11,
-                        fontWeight: 700,
+                        fontWeight: 900,
                         cursor: "pointer",
                         fontFamily: "inherit",
                       }}
                     >
                       {item.name}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-
-          {mode === "generate" && (
-            <div>
-              <SectionLabel color={css.muted}>Typ contentu</SectionLabel>
-
-              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {CONTENT_TYPES.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setContentType(item)}
-                    className="ciq-platform-pill"
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: 9,
-                      border: `1px solid ${contentType === item ? css.accent : css.border}`,
-                      background: contentType === item ? `${css.accent}20` : "transparent",
-                      color: contentType === item ? css.accent : css.muted,
-                      fontSize: 11,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      fontWeight: contentType === item ? 700 : 500,
-                    }}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <MediaPicker media={media} setMedia={setMedia} css={css} />
-
-          <div>
-            <SectionLabel color={css.muted}>
-              {mode === "generate"
-                ? "Temat, cel, grupa odbiorców"
-                : mode === "analyze"
-                  ? "Treść do analizy"
-                  : "Treść do adaptacji"}
-            </SectionLabel>
-
-            <textarea
-              ref={textareaRef}
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder={
-                mode === "generate"
-                  ? "np. Jak AI pomaga firmom analizować content — cel: edukacja, odbiorcy: marketerzy B2B, ton: ekspercki"
-                  : mode === "analyze"
-                    ? "Wklej tutaj treść posta, artykułu lub skryptu..."
-                    : "Wklej tutaj oryginalną treść do adaptacji..."
-              }
-              style={{
-                width: "100%",
-                padding: "13px 15px",
-                borderRadius: 14,
-                border: `1px solid ${css.border}`,
-                background: css.surface,
-                color: css.text,
-                fontSize: 13,
-                lineHeight: 1.7,
-                fontFamily: "inherit",
-                outline: "none",
-                minHeight: 135,
-              }}
-              onFocus={(event) => {
-                event.target.style.borderColor = css.accent;
-              }}
-              onBlur={(event) => {
-                event.target.style.borderColor = css.border;
-              }}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={
-              loading ||
-              !prompt.trim() ||
-              (mode === "adapt" && selectedAdaptPlatforms.length === 0)
-            }
-            className="ciq-generate-btn"
-            style={{
-              padding: "14px",
-              borderRadius: 14,
-              border: "none",
-              background: dark ? "#fff" : "#0f172a",
-              color: dark ? "#0f172a" : "#fff",
-              fontSize: 13,
-              fontWeight: 800,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            {loading ? (
-              <>
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 14,
-                    height: 14,
-                    border: "2px solid currentColor",
-                    borderTopColor: "transparent",
-                    borderRadius: "50%",
-                    animation: "spin 0.7s linear infinite",
-                  }}
-                />
-                AI generuje odpowiedź...
-              </>
-            ) : mode === "generate" ? (
-              "✦ Generuj content"
-            ) : mode === "analyze" ? (
-              "◉ Analizuj treść"
-            ) : (
-              "⊞ Adaptuj na platformy"
             )}
-          </button>
 
-          {error && (
-            <div
-              style={{
-                padding: "11px 14px",
-                borderRadius: 12,
-                background: "#ef444415",
-                border: "1px solid #ef444430",
-                color: "#ef4444",
-                fontSize: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              ⚠ {error}
-            </div>
-          )}
-        </div>
-
-        <div>
-          {!generated && !analysis && !adapted && !loading && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 340,
-                gap: 12,
-                border: `1px dashed ${css.border}`,
-                borderRadius: 16,
-                background: css.surface,
-                padding: 26,
-              }}
-            >
-              <div style={{ fontSize: 36, opacity: 0.18 }}>✦</div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontFamily: "var(--font-heading)",
-                  color: css.text,
-                }}
-              >
-                Wynik pojawi się tutaj
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: css.muted,
-                  textAlign: "center",
-                  maxWidth: 280,
-                  lineHeight: 1.7,
-                }}
-              >
-                Wybierz tryb, platformę i wklej temat lub treść. Możesz też
-                dodać zdjęcie albo video do pełnego posta.
-              </div>
-            </div>
-          )}
-
-          {loading && (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: 340,
-                gap: 16,
-                border: `1px solid ${css.border}`,
-                borderRadius: 16,
-                background: css.surface,
-              }}
-            >
-              <div style={{ display: "flex", gap: 5 }}>
-                {[0, 1, 2].map((item) => (
-                  <div
-                    key={item}
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: "50%",
-                      background: css.accent,
-                      animation: `bounce 1.2s ease-in-out ${item * 0.2}s infinite`,
-                    }}
-                  />
-                ))}
-              </div>
-              <div style={{ fontSize: 13, color: css.muted }}>
-                AI przygotowuje odpowiedź...
-              </div>
-            </div>
-          )}
-
-          {generated && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <ResultScoreHeader
-                label="Przewidywany AI Score"
-                score={generated.estimated_score}
-                note={generated.platform_notes}
-                css={css}
-              />
-
-              {generated.title && (
-                <ResultCard
-                  label="Tytuł"
-                  value={generated.title}
-                  copyId="title"
-                  copied={copied}
-                  onCopy={copyToClipboard}
-                  css={css}
-                />
-              )}
-
-              <ResultCard
-                label="Hook"
-                value={generated.hook}
-                copyId="hook"
-                copied={copied}
-                onCopy={copyToClipboard}
-                css={css}
-                italic
-              />
-
-              <ResultCard
-                label="Treść"
-                value={generated.body}
-                copyId="body"
-                copied={copied}
-                onCopy={copyToClipboard}
-                css={css}
-                multiline
-              />
-
-              <div
-                className="ciq-result-grid"
-                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-              >
-                <SmallResultCard label="CTA" value={generated.cta} css={css} />
-
-                <div
-                  style={{
-                    padding: "13px 15px",
-                    borderRadius: 14,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                  }}
-                >
-                  <SectionLabel color={css.accent}>Hashtagi</SectionLabel>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {safeArray(generated.hashtags).map((hashtag, index) => (
-                      <span
-                        key={`${hashtag}-${index}`}
+            {flow === "blog" && (
+              <div>
+                <SectionLabel color={css.muted}>Platformy dystrybucji bloga</SectionLabel>
+                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                  {PLATFORMS.filter((item) => item.id !== "blog" && item.id !== "spotify").map((item) => {
+                    const selected = selectedPlatforms.includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => toggleSelectedPlatform(item.id)}
                         style={{
-                          fontSize: 10,
-                          padding: "3px 8px",
-                          borderRadius: 7,
-                          background: `${css.accent}20`,
-                          color: css.accent,
-                          fontWeight: 700,
+                          padding: "7px 12px",
+                          borderRadius: 11,
+                          border: `1px solid ${selected ? item.color : css.border}`,
+                          background: selected ? `${item.color}18` : css.surface,
+                          color: selected ? item.color : css.muted,
+                          fontSize: 11,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
                         }}
                       >
-                        {hashtag}
-                      </span>
-                    ))}
-                  </div>
+                        {item.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+            )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  copyToClipboard(
-                    `${generated.title ? `${generated.title}\n\n` : ""}${
-                      generated.hook
-                    }\n\n${generated.body}\n\n${generated.cta}\n\n${safeArray(
-                      generated.hashtags
-                    ).join(" ")}`,
-                    "all"
-                  )
-                }
-                className="ciq-copy-btn"
-                style={{
-                  padding: "11px",
-                  borderRadius: 12,
-                  border: `1px solid ${css.border}`,
-                  background: "transparent",
-                  color: css.muted,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {copied === "all" ? "✓ Skopiowano całość" : "Kopiuj całą treść"}
-              </button>
-
-              <div style={{ borderTop: `1px solid ${css.border}`, paddingTop: 14 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: css.muted,
-                    marginBottom: 10,
-                  }}
-                >
-                  Co chcesz zrobić z tym contentem?
-                </div>
-
-                <ContentActions
-                  generated={generated}
-                  platform={platform}
-                  prompt={prompt}
-                  contentType={contentType}
-                  workspaceId={workspaceId}
-                  css={css}
-                  media={media}
-                />
-              </div>
-
-              <RawAnswerPanel rawAnswer={rawAnswer} />
-            </div>
-          )}
-
-          {analysis && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div
-                style={{
-                  padding: "15px 17px",
-                  borderRadius: 14,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                }}
-              >
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, color: css.muted }}>Ogólny AI Score</div>
-                  <div
-                    style={{
-                      fontSize: 34,
-                      fontFamily: "var(--font-heading)",
-                      color: getScoreColor(analysis.score),
-                    }}
-                  >
-                    {analysis.score}
-                  </div>
-                </div>
-
-                <ScoreBar label="Jakość hooka" value={analysis.hook_quality} />
-                <ScoreBar label="Jakość CTA" value={analysis.cta_quality} />
-                <ScoreBar label="Dopasowanie do platformy" value={analysis.platform_fit} />
-                <ScoreBar
-                  label="Potencjał zaangażowania"
-                  value={analysis.engagement_potential}
-                />
-              </div>
-
-              <div
-                className="ciq-result-grid"
-                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
-              >
-                <ListCard
-                  title="Mocne strony"
-                  items={safeArray(analysis.strengths)}
-                  color="#22c55e"
-                  css={css}
-                />
-
-                <ListCard
-                  title="Słabe strony"
-                  items={safeArray(analysis.weaknesses)}
-                  color="#ef4444"
-                  css={css}
-                />
-              </div>
-
-              <ListCard
-                title="Jak poprawić"
-                items={safeArray(analysis.improvements)}
-                color={css.accent}
-                css={css}
-                numbered
-              />
-
-              {analysis.rewritten_hook && (
-                <ResultCard
-                  label="Poprawiony hook"
-                  value={analysis.rewritten_hook}
-                  copyId="rewritten-hook"
-                  copied={copied}
-                  onCopy={copyToClipboard}
-                  css={css}
-                  italic
-                  accent
-                />
-              )}
-
-              <RawAnswerPanel rawAnswer={rawAnswer} />
-            </div>
-          )}
-
-          {adapted && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-              {Object.entries(adapted.platforms ?? {}).map(([platformId, variant]) => {
-                const info = getPlatformInfo(platformId);
-                if (!info || !variant) return null;
-
-                const copyId = `adapt-${platformId}`;
-                const hashtags = safeArray(variant.hashtags);
-
-                return (
-                  <div
-                    key={platformId}
-                    style={{
-                      borderRadius: 14,
-                      overflow: "hidden",
-                      border: `1px solid ${css.border}`,
-                      background: css.surface,
-                    }}
-                  >
-                    <div
+            {flow === "blog" && (
+              <div style={{ display: "grid", gap: 10 }}>
+                <div>
+                  <SectionLabel color={css.muted}>Link do wpisu blogowego</SectionLabel>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                    <input
+                      value={blogUrl}
+                      onChange={(event) => setBlogUrl(event.target.value)}
+                      placeholder="https://twojastrona.pl/artykul"
+                      style={inputStyle(css)}
+                    />
+                    <button
+                      type="button"
+                      onClick={scrapeBlogUrl}
+                      disabled={scraping || !blogUrl.trim()}
                       style={{
-                        padding: "9px 14px",
-                        background: `${info.color}18`,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 10,
+                        borderRadius: 13,
+                        border: `1px solid ${css.border}`,
+                        background: css.surface,
+                        color: css.text,
+                        padding: "0 13px",
+                        fontSize: 11,
+                        fontWeight: 900,
+                        cursor: scraping ? "not-allowed" : "pointer",
+                        opacity: scraping || !blogUrl.trim() ? 0.55 : 1,
+                        fontFamily: "inherit",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 900,
-                            color: info.color,
-                            background: `${info.color}20`,
-                            padding: "3px 8px",
-                            borderRadius: 7,
-                          }}
-                        >
-                          {info.icon}
-                        </span>
-
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 800,
-                            color: css.text,
-                          }}
-                        >
-                          {info.name}
-                        </span>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            color: getScoreColor(variant.score),
-                          }}
-                        >
-                          {variant.score}/100
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            copyToClipboard(
-                              `${variant.body}\n\n${hashtags.join(" ")}`,
-                              copyId
-                            )
-                          }
-                          className="ciq-copy-btn"
-                          style={{
-                            fontSize: 10,
-                            color: css.muted,
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {copied === copyId ? "✓" : "Kopiuj"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div style={{ padding: "13px 15px" }}>
-                      <p
-                        style={{
-                          fontSize: 12,
-                          color: css.text,
-                          lineHeight: 1.7,
-                          whiteSpace: "pre-wrap",
-                          margin: "0 0 10px",
-                        }}
-                      >
-                        {variant.body}
-                      </p>
-
-                      {hashtags.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 4,
-                            marginBottom: 9,
-                          }}
-                        >
-                          {hashtags.map((hashtag, index) => (
-                            <span
-                              key={`${platformId}-${hashtag}-${index}`}
-                              style={{
-                                fontSize: 10,
-                                padding: "3px 7px",
-                                borderRadius: 6,
-                                background: `${info.color}15`,
-                                color: info.color,
-                                fontWeight: 700,
-                              }}
-                            >
-                              {hashtag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: css.muted,
-                          fontStyle: "italic",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        ℹ {variant.notes}
-                      </div>
-                    </div>
+                      {scraping ? "Pobieram..." : "Pobierz"}
+                    </button>
                   </div>
-                );
-              })}
+                </div>
 
-              <RawAnswerPanel rawAnswer={rawAnswer} />
+                <div>
+                  <SectionLabel color={css.muted}>Treść / streszczenie bloga</SectionLabel>
+                  <textarea
+                    value={blogText}
+                    onChange={(event) => setBlogText(event.target.value)}
+                    placeholder="Wklej treść artykułu albo pobierz ją z linku. AI zrobi z niej posty na social media."
+                    style={{ ...inputStyle(css), minHeight: 125, lineHeight: 1.65 }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <SectionLabel color={css.muted}>
+                {flow === "social" ? "Temat posta" : flow === "hooks" ? "Temat hooków" : flow === "article" ? "Brief artykułu" : "Dodatkowa sugestia"}
+              </SectionLabel>
+              <textarea
+                ref={textareaRef}
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder={
+                  flow === "blog"
+                    ? "Np. dodaj CTA do aplikacji, link w komentarzu, ton ekspercki na LinkedIn i lżejszy na Facebooku."
+                    : flow === "article"
+                      ? "Np. artykuł o tym, jak używać bloga jako centrum kampanii contentowej..."
+                      : "Np. temat, cel, odbiorca, oferta, link, ton lub ważna sugestia."
+                }
+                style={{
+                  ...inputStyle(css),
+                  minHeight: 120,
+                  lineHeight: 1.7,
+                }}
+              />
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function SectionLabel({
-  children,
-  color,
-}: {
-  children: React.ReactNode;
-  color: string;
-}) {
-  return (
-    <div
-      style={{
-        fontSize: 10,
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.1em",
-        color,
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
+            <div>
+              <SectionLabel color={css.muted}>Kontekst marki / oferta / CTA</SectionLabel>
+              <textarea
+                value={brandContext}
+                onChange={(event) => setBrandContext(event.target.value)}
+                placeholder="Np. ANM Collective tworzy aplikacje B2B/B2C. CTA: zobacz demo, napisz do nas, link do bloga w komentarzu."
+                style={{ ...inputStyle(css), minHeight: 86, lineHeight: 1.65 }}
+              />
+            </div>
 
-function ResultScoreHeader({
-  label,
-  score,
-  note,
-  css,
-}: {
-  label: string;
-  score: number;
-  note: string;
-  css: Record<string, string>;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 16,
-        padding: "14px 16px",
-        borderRadius: 14,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-      }}
-    >
-      <div>
-        <div style={{ fontSize: 11, color: css.muted }}>{label}</div>
-        <div
-          style={{
-            fontSize: 32,
-            fontFamily: "var(--font-heading)",
-            color: getScoreColor(score),
-          }}
-        >
-          {score}
-        </div>
-      </div>
+            <MediaPicker media={media} setMedia={setMedia} css={css} />
 
-      <div style={{ fontSize: 12, color: css.muted, maxWidth: 260, lineHeight: 1.55 }}>
-        {note}
-      </div>
-    </div>
-  );
-}
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!canGenerate || loading}
+              style={{
+                border: "none",
+                borderRadius: 16,
+                background: dark ? "#ffffff" : "#111111",
+                color: dark ? "#050505" : "#ffffff",
+                padding: "14px 16px",
+                fontSize: 13,
+                fontWeight: 900,
+                cursor: !canGenerate || loading ? "not-allowed" : "pointer",
+                opacity: !canGenerate || loading ? 0.55 : 1,
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 9,
+              }}
+            >
+              {loading && (
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    border: "2px solid currentColor",
+                    borderTopColor: "transparent",
+                    animation: "spin .75s linear infinite",
+                  }}
+                />
+              )}
+              {loading ? "AI tworzy content..." : flow === "blog" ? "Stwórz content z bloga" : flow === "hooks" ? "Wygeneruj hooki" : flow === "article" ? "Przygotuj artykuł" : "Wygeneruj post"}
+            </button>
 
-function ResultCard({
-  label,
-  value,
-  copyId,
-  copied,
-  onCopy,
-  css,
-  italic = false,
-  multiline = false,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  copyId: string;
-  copied: string | null;
-  onCopy: (text: string, id: string) => void;
-  css: Record<string, string>;
-  italic?: boolean;
-  multiline?: boolean;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        padding: "14px 16px",
-        borderRadius: 14,
-        background: accent ? `${css.accent}12` : css.surface,
-        border: `1px solid ${accent ? `${css.accent}35` : css.border}`,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 8,
-          gap: 10,
-        }}
-      >
-        <SectionLabel color={css.accent}>{label}</SectionLabel>
-
-        <button
-          type="button"
-          onClick={() => onCopy(value, copyId)}
-          className="ciq-copy-btn"
-          style={{
-            fontSize: 10,
-            color: accent ? css.accent : css.muted,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: "inherit",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {copied === copyId ? "✓ Skopiowano" : "Kopiuj"}
-        </button>
-      </div>
-
-      <p
-        style={{
-          fontSize: multiline ? 13 : 14,
-          color: css.text,
-          lineHeight: 1.7,
-          whiteSpace: multiline ? "pre-wrap" : "normal",
-          fontStyle: italic ? "italic" : "normal",
-          margin: 0,
-        }}
-      >
-        {italic ? `"${value}"` : value}
-      </p>
-    </div>
-  );
-}
-
-function SmallResultCard({
-  label,
-  value,
-  css,
-}: {
-  label: string;
-  value: string;
-  css: Record<string, string>;
-}) {
-  return (
-    <div
-      style={{
-        padding: "13px 15px",
-        borderRadius: 14,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-      }}
-    >
-      <SectionLabel color={css.accent}>{label}</SectionLabel>
-      <p style={{ fontSize: 12, color: css.text, lineHeight: 1.55, margin: 0 }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function ListCard({
-  title,
-  items,
-  color,
-  css,
-  numbered = false,
-}: {
-  title: string;
-  items: string[];
-  color: string;
-  css: Record<string, string>;
-  numbered?: boolean;
-}) {
-  return (
-    <div
-      style={{
-        padding: "13px 15px",
-        borderRadius: 14,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-      }}
-    >
-      <SectionLabel color={color}>{title}</SectionLabel>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-        {items.length === 0 && (
-          <p style={{ fontSize: 12, color: css.text, margin: 0 }}>Brak danych.</p>
-        )}
-
-        {items.map((item, index) => (
-          <div
-            key={`${title}-${index}`}
-            style={{
-              fontSize: 11,
-              color: css.text,
-              lineHeight: 1.55,
-              paddingLeft: 10,
-              borderLeft: `2px solid ${color}`,
-            }}
-          >
-            {numbered ? `${index + 1}. ` : ""}
-            {item}
+            {error && (
+              <div
+                style={{
+                  background: "#ef444414",
+                  border: "1px solid #ef444440",
+                  color: "#ef4444",
+                  borderRadius: 14,
+                  padding: 12,
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                }}
+              >
+                {error}
+              </div>
+            )}
           </div>
-        ))}
+
+          <div>
+            {!result && !loading && (
+              <div
+                style={{
+                  minHeight: 420,
+                  background: css.surface,
+                  border: `1px dashed ${css.border}`,
+                  borderRadius: 24,
+                  display: "grid",
+                  placeItems: "center",
+                  textAlign: "center",
+                  padding: 28,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 46, opacity: 0.16, marginBottom: 10 }}>✦</div>
+                  <h3
+                    style={{
+                      margin: "0 0 10px",
+                      color: css.heading,
+                      fontFamily: "var(--font-heading)",
+                      fontSize: 30,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Wynik pojawi się tutaj
+                  </h3>
+                  <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.75, maxWidth: 420 }}>
+                    Content Studio pokaże gotową treść, warianty platformowe, hooki,
+                    plan dystrybucji i akcje: szablon, inspiracja, harmonogram albo publikacja.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {loading && (
+              <div
+                style={{
+                  minHeight: 420,
+                  background: css.surface,
+                  border: `1px solid ${css.border}`,
+                  borderRadius: 24,
+                  display: "grid",
+                  placeItems: "center",
+                  textAlign: "center",
+                  padding: 28,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: "50%",
+                      border: `3px solid ${css.border}`,
+                      borderTopColor: css.aiText,
+                      margin: "0 auto 14px",
+                      animation: "spin .8s linear infinite",
+                    }}
+                  />
+                  <p style={{ color: css.muted, fontSize: 13 }}>
+                    AI układa content i dopasowuje go do wybranego procesu...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {result && (
+              <ResultPanel
+                result={result}
+                flow={flow}
+                platform={platform}
+                selectedPlatforms={selectedPlatforms}
+                prompt={prompt}
+                contentType={contentFormat}
+                workspaceId={workspaceId}
+                css={css}
+                media={media}
+              />
+            )}
+
+            {rawAnswer && (
+              <details
+                style={{
+                  marginTop: 12,
+                  background: css.surface,
+                  border: `1px solid ${css.border}`,
+                  borderRadius: 16,
+                  padding: 12,
+                }}
+              >
+                <summary style={{ color: css.muted, fontSize: 11, cursor: "pointer", fontWeight: 900 }}>
+                  Surowa odpowiedź AI
+                </summary>
+                <pre style={{ color: css.muted, fontSize: 10, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 10 }}>
+                  {rawAnswer}
+                </pre>
+              </details>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-
+function inputStyle(css: Record<string, string>): CSSProperties {
+  return {
+    width: "100%",
+    borderRadius: 14,
+    border: `1px solid ${css.border}`,
+    background: css.surface,
+    color: css.text,
+    padding: "12px 13px",
+    outline: "none",
+    fontFamily: "inherit",
+    fontSize: 12,
+  };
+}
