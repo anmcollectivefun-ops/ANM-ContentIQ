@@ -635,6 +635,31 @@ export default function BrandOffers({
     setError("");
 
     try {
+      let websiteContext = "";
+      let scrapeWarning = "";
+
+      if (draft.url.trim()) {
+        try {
+          const scrapeRes = await fetch("/api/brand/scrape", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: draft.url.trim() }),
+          });
+          const scrapeJson = await scrapeRes.json().catch(() => null);
+
+          if (scrapeRes.ok && scrapeJson?.source_notes) {
+            websiteContext = String(scrapeJson.source_notes);
+          } else {
+            scrapeWarning =
+              scrapeJson?.error ||
+              "Nie udało się odczytać strony. AI użyło danych wpisanych w formularzu.";
+          }
+        } catch {
+          scrapeWarning =
+            "Nie udało się odczytać strony. AI użyło danych wpisanych w formularzu.";
+        }
+      }
+
       const prompt = `
 Jesteś strategiem marki w aplikacji ANM ContentIQ.
 
@@ -644,6 +669,9 @@ Nie wymyślaj faktów, których nie ma. Jeżeli czegoś brakuje, uzupełnij jako
 
 DANE OFERTY:
 ${JSON.stringify(draft, null, 2)}
+
+TREŚĆ POBRANA ZE STRONY OFERTY:
+${websiteContext || "Brak pobranej treści strony. Korzystaj wyłącznie z danych formularza i nie udawaj, że odwiedziłeś link."}
 
 Zwróć wyłącznie JSON bez markdown:
 {
@@ -663,21 +691,44 @@ Zwróć wyłącznie JSON bez markdown:
 }
       `.trim();
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "chat",
-          provider: aiProvider,
-          ai_provider: aiProvider,
-          prompt,
-        }),
-      });
+      async function requestAi(provider: AiProvider) {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "chat",
+            provider,
+            ai_provider: provider,
+            prompt,
+          }),
+        });
+        const data = await response.json().catch(() => null);
+        return { response, data };
+      }
 
-      const json = await res.json().catch(() => null);
+      let usedProvider = aiProvider;
+      let { response: res, data: json } = await requestAi(aiProvider);
+
+      if ((!res.ok || json?.error) && aiProvider === "gemini") {
+        const details = String(json?.details || json?.error || "");
+        const isTemporaryGeminiError =
+          res.status === 503 ||
+          /503|unavailable|high demand|overloaded|try again later/i.test(details);
+
+        if (isTemporaryGeminiError) {
+          usedProvider = "deepseek";
+          ({ response: res, data: json } = await requestAi("deepseek"));
+        }
+      }
 
       if (!res.ok || json?.error) {
-        throw new Error(json?.details || json?.error || "Błąd AI.");
+        const details = String(json?.details || json?.error || "Błąd AI.");
+        if (/503|unavailable|high demand|overloaded/i.test(details)) {
+          throw new Error(
+            "Wybrany model AI jest chwilowo przeciążony. Spróbuj ponownie za moment albo wybierz drugi silnik."
+          );
+        }
+        throw new Error(details);
       }
 
       const parsed = JSON.parse(cleanJsonAnswer(json.answer || "{}"));
@@ -695,7 +746,11 @@ Zwróć wyłącznie JSON bez markdown:
         })
       );
 
-      showToast("✓ AI uzupełniło ofertę");
+      showToast(
+        scrapeWarning
+          ? `AI uzupełniło ofertę. ${scrapeWarning}`
+          : `AI uzupełniło ofertę przez ${usedProvider === "gemini" ? "Gemini" : "DeepSeek"}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
