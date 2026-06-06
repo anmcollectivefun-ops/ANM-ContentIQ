@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// app/[id]/settings/page.tsx
+// ANM ContentIQ — Integracje / social media / linki ręczne
+
+import { useEffect, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -24,7 +27,14 @@ import {
   X,
 } from "lucide-react";
 
-type Platform = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "blog" | "spotify";
+type Platform =
+  | "instagram"
+  | "facebook"
+  | "linkedin"
+  | "tiktok"
+  | "youtube"
+  | "blog"
+  | "spotify";
 
 interface Connection {
   id: string;
@@ -49,14 +59,133 @@ interface MetaSelectablePage {
   name: string;
 }
 
+type ThemeVars = {
+  bg: string;
+  bgSoft: string;
+  surface: string;
+  surfaceSoft: string;
+  text: string;
+  muted: string;
+  border: string;
+  accent: string;
+  accentSoft: string;
+  accentBorder: string;
+  heading: string;
+  aiBg: string;
+  aiBgSoft: string;
+  aiBorder: string;
+  aiText: string;
+  aiGlow: string;
+  dangerBg: string;
+  dangerBorder: string;
+  dangerText: string;
+  successBg: string;
+  successBorder: string;
+  successText: string;
+  warningBg: string;
+  warningBorder: string;
+  warningText: string;
+};
+
+const css: ThemeVars = {
+  bg: "#1A2233",
+  bgSoft: "#121A2A",
+  surface: "#050505",
+  surfaceSoft: "#0B0B0D",
+  text: "#FFFFFF",
+  muted: "#C9CED8",
+  border: "rgba(255,255,255,0.10)",
+  accent: "#8E443D",
+  accentSoft: "rgba(142, 68, 61, 0.18)",
+  accentBorder: "rgba(142, 68, 61, 0.55)",
+  heading: "#8E443D",
+  aiBg: "rgba(109, 40, 217, 0.16)",
+  aiBgSoft: "rgba(147, 51, 234, 0.12)",
+  aiBorder: "rgba(192, 132, 252, 0.55)",
+  aiText: "#D8B4FE",
+  aiGlow: "0 0 28px rgba(168, 85, 247, 0.26)",
+  dangerBg: "#ef444414",
+  dangerBorder: "#ef444440",
+  dangerText: "#ef4444",
+  successBg: "#052e16",
+  successBorder: "#166534",
+  successText: "#22c55e",
+  warningBg: "rgba(245,158,11,0.12)",
+  warningBorder: "rgba(245,158,11,0.32)",
+  warningText: "#f59e0b",
+};
+
 const PLATFORM_META = {
-  instagram: { label: "Instagram", color: "#E1306C", gradient: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)", desc: "Reels, posty, karuzele — zasięgi, wyświetlenia, zapisy", icon: Camera, type: "oauth" as const, accountPlaceholder: "https://instagram.com/twojekonto", postPlaceholder: "https://instagram.com/p/ABC123" },
-  facebook:  { label: "Facebook",  color: "#1877F2", gradient: "linear-gradient(135deg,#1877F2,#0d5fd8)", desc: "Strony firmowe, posty, statystyki i zasięg organiczny", icon: MessageCircle, type: "oauth" as const, accountPlaceholder: "https://facebook.com/twojastrona", postPlaceholder: "https://facebook.com/twojastrona/posts/123" },
-  linkedin:  { label: "LinkedIn",  color: "#0A66C2", gradient: "linear-gradient(135deg,#0A66C2,#084fa0)", desc: "Profil i strony firmowe — posty eksperckie, B2B leady", icon: BriefcaseBusiness, type: "oauth" as const, accountPlaceholder: "https://linkedin.com/company/twojafirma", postPlaceholder: "https://linkedin.com/posts/activity-123" },
-  tiktok:    { label: "TikTok",    color: "#00C4CC", gradient: "linear-gradient(135deg,#010101,#69C9D0)", desc: "Filmy, statystyki wyświetleń, completion rate i wyniki", icon: Radio, type: "oauth" as const, accountPlaceholder: "https://tiktok.com/@twojekonto", postPlaceholder: "https://tiktok.com/@konto/video/123" },
-  youtube:   { label: "YouTube",   color: "#FF0000", gradient: "linear-gradient(135deg,#FF0000,#cc0000)", desc: "Kanał, filmy, Shorts — wyświetlenia, retencja, kliknięcia", icon: Video, type: "oauth" as const, accountPlaceholder: "https://youtube.com/@twojkanal", postPlaceholder: "https://youtube.com/watch?v=ABC123" },
-  spotify:   { label: "Spotify",   color: "#1DB954", gradient: "linear-gradient(135deg,#1DB954,#158a3e)", desc: "Podcasty, odcinki, słuchalność i completion rate", icon: Music, type: "oauth" as const, accountPlaceholder: "https://open.spotify.com/show/TWOJEID", postPlaceholder: "https://open.spotify.com/episode/ABC123" },
-  blog:      { label: "Blog / WordPress", color: "#22C55E", gradient: "linear-gradient(135deg,#22C55E,#16a34a)", desc: "Artykuły, SEO, czas na stronie i konwersje organiczne", icon: Globe, type: "manual" as const, accountPlaceholder: "https://twojblog.pl", postPlaceholder: "https://twojblog.pl/artykul/tytul" },
+  instagram: {
+    label: "Instagram",
+    color: "#E1306C",
+    gradient: "linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)",
+    desc: "Reels, posty, karuzele — zasięgi, wyświetlenia, zapisy.",
+    icon: Camera,
+    type: "oauth" as const,
+    accountPlaceholder: "https://instagram.com/twojekonto",
+    postPlaceholder: "https://instagram.com/p/ABC123",
+  },
+  facebook: {
+    label: "Facebook",
+    color: "#1877F2",
+    gradient: "linear-gradient(135deg,#1877F2,#0d5fd8)",
+    desc: "Strony firmowe, posty, statystyki i zasięg organiczny.",
+    icon: MessageCircle,
+    type: "oauth" as const,
+    accountPlaceholder: "https://facebook.com/twojastrona",
+    postPlaceholder: "https://facebook.com/twojastrona/posts/123",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    color: "#0A66C2",
+    gradient: "linear-gradient(135deg,#0A66C2,#084fa0)",
+    desc: "Profil i strony firmowe — posty eksperckie, B2B leady.",
+    icon: BriefcaseBusiness,
+    type: "oauth" as const,
+    accountPlaceholder: "https://linkedin.com/company/twojafirma",
+    postPlaceholder: "https://linkedin.com/posts/activity-123",
+  },
+  tiktok: {
+    label: "TikTok",
+    color: "#FFFFFF",
+    gradient: "linear-gradient(135deg,#010101,#69C9D0,#EE1D52)",
+    desc: "Filmy, statystyki wyświetleń, completion rate i wyniki.",
+    icon: Radio,
+    type: "oauth" as const,
+    accountPlaceholder: "https://tiktok.com/@twojekonto",
+    postPlaceholder: "https://tiktok.com/@konto/video/123",
+  },
+  youtube: {
+    label: "YouTube",
+    color: "#FF0033",
+    gradient: "linear-gradient(135deg,#FF0033,#cc0000)",
+    desc: "Kanał, filmy, Shorts — wyświetlenia, retencja, kliknięcia.",
+    icon: Video,
+    type: "oauth" as const,
+    accountPlaceholder: "https://youtube.com/@twojkanal",
+    postPlaceholder: "https://youtube.com/watch?v=ABC123",
+  },
+  spotify: {
+    label: "Spotify",
+    color: "#1DB954",
+    gradient: "linear-gradient(135deg,#1DB954,#158a3e)",
+    desc: "Podcasty, odcinki, słuchalność i completion rate.",
+    icon: Music,
+    type: "oauth" as const,
+    accountPlaceholder: "https://open.spotify.com/show/TWOJEID",
+    postPlaceholder: "https://open.spotify.com/episode/ABC123",
+  },
+  blog: {
+    label: "Blog / WordPress",
+    color: "#22C55E",
+    gradient: "linear-gradient(135deg,#22C55E,#16a34a)",
+    desc: "Artykuły, SEO, czas na stronie i konwersje organiczne.",
+    icon: Globe,
+    type: "manual" as const,
+    accountPlaceholder: "https://twojblog.pl",
+    postPlaceholder: "https://twojblog.pl/artykul/tytul",
+  },
 };
 
 const PLATFORMS = Object.keys(PLATFORM_META) as Platform[];
@@ -77,6 +206,82 @@ function isExpiring(val: string | null) {
   return (new Date(val).getTime() - Date.now()) / 86400000 < 7;
 }
 
+function SectionLabel({
+  children,
+  color = css.accent,
+}: {
+  children: React.ReactNode;
+  color?: string;
+}) {
+  return (
+    <div
+      style={{
+        color,
+        fontFamily: "var(--font-label)",
+        fontSize: 11,
+        fontWeight: 900,
+        letterSpacing: ".12em",
+        textTransform: "uppercase",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function cardStyle(extra?: CSSProperties): CSSProperties {
+  return {
+    background: css.surface,
+    border: `1px solid ${css.border}`,
+    borderRadius: 22,
+    boxShadow: "0 18px 44px rgba(0,0,0,0.22)",
+    ...extra,
+  };
+}
+
+function inputStyle(accent?: string): CSSProperties {
+  return {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: `1px solid ${accent ? `${accent}55` : css.border}`,
+    background: css.surfaceSoft,
+    color: css.text,
+    fontSize: 12,
+    fontFamily: "var(--font-body)",
+    outline: "none",
+  };
+}
+
+function actionButtonStyle({
+  background,
+  color,
+  border,
+  disabled,
+}: {
+  background: string;
+  color: string;
+  border?: string;
+  disabled?: boolean;
+}): CSSProperties {
+  return {
+    borderRadius: 13,
+    background,
+    color,
+    border: border || "none",
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.55 : 1,
+    fontFamily: "var(--font-body)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  };
+}
+
 function ManualLinksPanel({ connection }: { connection: Connection }) {
   const supabase = createClient();
   const meta = PLATFORM_META[connection.platform];
@@ -89,61 +294,98 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   const [error, setError] = useState("");
 
   async function loadLinks() {
-    const { data, error: loadError } = await supabase.schema("contentiq").from("manual_links")
-      .select("*").eq("connection_id", connection.id).order("created_at");
+    const { data, error: loadError } = await supabase
+      .schema("contentiq")
+      .from("manual_links")
+      .select("*")
+      .eq("connection_id", connection.id)
+      .order("created_at");
+
     if (loadError) {
       setError(loadError.message);
       setLoading(false);
       return;
     }
+
     const all = (data || []) as ManualLink[];
     setLinks(all);
-    const acc = all.find(l => l.type === "account");
-    if (acc) setAccountUrl(acc.url);
-    else setAccountUrl("");
+
+    const acc = all.find((link) => link.type === "account");
+    setAccountUrl(acc?.url || "");
     setError("");
     setLoading(false);
   }
 
-  useEffect(() => { loadLinks(); }, [connection.id]);
+  useEffect(() => {
+    void loadLinks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connection.id]);
 
-  const postLinks = links.filter(l => l.type === "post");
-  const accountLink = links.find(l => l.type === "account");
+  const postLinks = links.filter((link) => link.type === "post");
+  const accountLink = links.find((link) => link.type === "account");
 
   async function saveAccountUrl() {
     if (!accountUrl.trim()) return;
+
     setSaving(true);
     setError("");
+
     let dbError;
+
     if (accountLink) {
-      const { error } = await supabase.schema("contentiq").from("manual_links")
-        .update({ url: accountUrl.trim() }).eq("id", accountLink.id);
+      const { error } = await supabase
+        .schema("contentiq")
+        .from("manual_links")
+        .update({ url: accountUrl.trim() })
+        .eq("id", accountLink.id);
+
       dbError = error;
     } else {
-      const { error } = await supabase.schema("contentiq").from("manual_links")
-        .insert({ connection_id: connection.id, type: "account", url: accountUrl.trim(), title: meta.label });
+      const { error } = await supabase
+        .schema("contentiq")
+        .from("manual_links")
+        .insert({
+          connection_id: connection.id,
+          type: "account",
+          url: accountUrl.trim(),
+          title: meta.label,
+        });
+
       dbError = error;
     }
+
     if (dbError) {
       setError(dbError.message);
       setSaving(false);
       return;
     }
+
     await loadLinks();
     setSaving(false);
   }
 
   async function addPostLink() {
     if (!newPostUrl.trim() || postLinks.length >= 5) return;
+
     setSaving(true);
     setError("");
-    const { error: dbError } = await supabase.schema("contentiq").from("manual_links")
-      .insert({ connection_id: connection.id, type: "post", url: newPostUrl.trim(), title: null });
+
+    const { error: dbError } = await supabase
+      .schema("contentiq")
+      .from("manual_links")
+      .insert({
+        connection_id: connection.id,
+        type: "post",
+        url: newPostUrl.trim(),
+        title: null,
+      });
+
     if (dbError) {
       setError(dbError.message);
       setSaving(false);
       return;
     }
+
     setNewPostUrl("");
     await loadLinks();
     setSaving(false);
@@ -152,12 +394,19 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   async function deleteLink(id: string) {
     setDeleting(id);
     setError("");
-    const { error: dbError } = await supabase.schema("contentiq").from("manual_links").delete().eq("id", id);
+
+    const { error: dbError } = await supabase
+      .schema("contentiq")
+      .from("manual_links")
+      .delete()
+      .eq("id", id);
+
     if (dbError) {
       setError(dbError.message);
       setDeleting(null);
       return;
     }
+
     await loadLinks();
     setDeleting(null);
   }
@@ -165,63 +414,190 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
   if (loading) return null;
 
   return (
-    <div style={{ marginTop: 16, padding: "16px", borderRadius: 12, background: "#0b1324", border: "1px solid #1e2e4d" }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: meta.color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-        <Link2 size={14} /> Linki do konta i postów
+    <div
+      style={{
+        marginTop: 14,
+        padding: 15,
+        borderRadius: 18,
+        background: css.surfaceSoft,
+        border: `1px solid ${css.border}`,
+      }}
+    >
+      <div
+        style={{
+          color: meta.color,
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          marginBottom: 12,
+        }}
+      >
+        <Link2 size={14} />
+        <SectionLabel color={meta.color}>Linki do profilu i postów</SectionLabel>
       </div>
+
       {error && (
-        <div style={{ marginBottom: 12, padding: "10px", borderRadius: 8, background: "#450a0a", border: "1px solid #991b1b", color: "#fca5a5", fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
-          <AlertCircle size={14} /> {error}
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 11,
+            borderRadius: 12,
+            background: css.dangerBg,
+            border: `1px solid ${css.dangerBorder}`,
+            color: css.dangerText,
+            fontSize: 12,
+            lineHeight: 1.55,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <AlertCircle size={14} />
+          {error}
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#4a6480", marginBottom: 6 }}>Link do konta / profilu</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input value={accountUrl} onChange={e => setAccountUrl(e.target.value)}
+      <div style={{ marginBottom: 13 }}>
+        <div style={{ fontSize: 11, color: css.muted, marginBottom: 7 }}>
+          Link do konta / profilu
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={accountUrl}
+            onChange={(event) => setAccountUrl(event.target.value)}
             placeholder={meta.accountPlaceholder}
-            style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: `1px solid ${accountUrl ? meta.color + "60" : "#1a2740"}`, background: "#080e1a", color: "#e8f0ff", fontSize: 11, fontFamily: "monospace", outline: "none" }} />
-          <button onClick={saveAccountUrl} disabled={saving || !accountUrl.trim()}
-            style={{ padding: "7px 12px", borderRadius: 7, background: meta.color, color: "#fff", border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: saving || !accountUrl.trim() ? 0.5 : 1 }}>
+            style={{ ...inputStyle(accountUrl ? meta.color : undefined), flex: 1 }}
+          />
+
+          <button
+            type="button"
+            onClick={saveAccountUrl}
+            disabled={saving || !accountUrl.trim()}
+            style={actionButtonStyle({
+              background: meta.color,
+              color: connection.platform === "tiktok" ? "#050505" : "#fff",
+              disabled: saving || !accountUrl.trim(),
+            })}
+          >
             {accountLink ? "Aktualizuj" : "Zapisz"}
           </button>
         </div>
       </div>
 
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-          <div style={{ fontSize: 11, color: "#4a6480" }}>Linki do postów (max 5)</div>
-          <div style={{ fontSize: 10, color: postLinks.length >= 5 ? "#ef4444" : "#3d5473" }}>{postLinks.length}/5</div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 7,
+          }}
+        >
+          <div style={{ fontSize: 11, color: css.muted }}>
+            Linki do postów jako kontekst AI
+          </div>
+
+          <div
+            style={{
+              fontSize: 10,
+              color: postLinks.length >= 5 ? css.dangerText : css.muted,
+              fontWeight: 900,
+            }}
+          >
+            {postLinks.length}/5
+          </div>
         </div>
 
-        {postLinks.map(link => (
-          <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, padding: "6px 10px", borderRadius: 7, background: "#0a1220", border: "1px solid #1a2740" }}>
-            <div style={{ flex: 1, fontSize: 11, color: "#6b8aaa", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {postLinks.map((link) => (
+          <div
+            key={link.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 7,
+              padding: "8px 10px",
+              borderRadius: 12,
+              background: css.surface,
+              border: `1px solid ${css.border}`,
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                fontSize: 11,
+                color: css.muted,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
               {link.url}
             </div>
-            <button onClick={() => deleteLink(link.id)} disabled={deleting === link.id}
-              style={{ padding: "3px 8px", borderRadius: 5, background: "transparent", border: "1px solid #ef444430", color: "#ef4444", fontSize: 10, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              {deleting === link.id ? <RefreshCw size={12} className="spin" /> : <X size={12} />}
+
+            <button
+              type="button"
+              onClick={() => deleteLink(link.id)}
+              disabled={deleting === link.id}
+              style={actionButtonStyle({
+                background: "transparent",
+                border: `1px solid ${css.dangerBorder}`,
+                color: css.dangerText,
+                disabled: deleting === link.id,
+              })}
+            >
+              {deleting === link.id ? (
+                <RefreshCw size={12} className="spin" />
+              ) : (
+                <X size={12} />
+              )}
             </button>
           </div>
         ))}
 
         {postLinks.length < 5 && (
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={newPostUrl} onChange={e => setNewPostUrl(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && addPostLink()}
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={newPostUrl}
+              onChange={(event) => setNewPostUrl(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void addPostLink();
+              }}
               placeholder={meta.postPlaceholder}
-              style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 11, fontFamily: "monospace", outline: "none" }} />
-            <button onClick={addPostLink} disabled={saving || !newPostUrl.trim()}
-              style={{ padding: "7px 12px", borderRadius: 7, background: "#1a2740", color: "#6b8aaa", border: "1px solid #2a3a52", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", opacity: saving || !newPostUrl.trim() ? 0.5 : 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <Plus size={14} /> Dodaj
+              style={{ ...inputStyle(), flex: 1 }}
+            />
+
+            <button
+              type="button"
+              onClick={addPostLink}
+              disabled={saving || !newPostUrl.trim()}
+              style={actionButtonStyle({
+                background: css.accentSoft,
+                color: css.accent,
+                border: `1px solid ${css.accentBorder}`,
+                disabled: saving || !newPostUrl.trim(),
+              })}
+            >
+              <Plus size={14} />
+              Dodaj
             </button>
           </div>
         )}
 
         {postLinks.length >= 5 && (
-          <div style={{ fontSize: 10, color: "#f59e0b", marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>
-            <AlertCircle size={12} /> Limit 5 linków osiągnięty. Usuń jeden żeby dodać nowy.
+          <div
+            style={{
+              fontSize: 11,
+              color: css.warningText,
+              marginTop: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <AlertCircle size={12} />
+            Limit 5 linków osiągnięty. Usuń jeden, żeby dodać nowy.
           </div>
         )}
       </div>
@@ -232,7 +608,7 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
 export default function IntegrationsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
+  const workspaceId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
   const supabase = createClient();
 
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -259,30 +635,64 @@ export default function IntegrationsPage() {
   }
 
   async function getOrCreateWs() {
-    const { data: ex } = await supabase.schema("contentiq").from("workspaces").select("id").eq("slug", workspaceId).single();
+    const { data: ex } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id")
+      .eq("slug", workspaceId)
+      .single();
+
     if (ex?.id) return ex.id as string;
+
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) throw new Error("Brak sesji");
-    const { data: cr, error } = await supabase.schema("contentiq").from("workspaces").insert({
-      user_id: auth.user.id,
-      name: workspaceId.split("-").map((p: string) => p[0].toUpperCase() + p.slice(1)).join(" "),
-      type: "Firma", slug: workspaceId,
-    }).select("id").single();
+
+    const { data: cr, error } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .insert({
+        user_id: auth.user.id,
+        name: workspaceId
+          .split("-")
+          .map((p: string) => p[0].toUpperCase() + p.slice(1))
+          .join(" "),
+        type: "Firma",
+        slug: workspaceId,
+      })
+      .select("id")
+      .single();
+
     if (error || !cr?.id) throw new Error(error?.message || "Błąd workspace");
     return cr.id as string;
   }
 
   async function load() {
     setLoading(true);
+
     try {
       const id = await getOrCreateWs();
       setWsDbId(id);
-      const { data } = await supabase.schema("contentiq").from("platform_connections")
-        .select("*").eq("workspace_id", id).eq("connected", true);
+
+      const { data } = await supabase
+        .schema("contentiq")
+        .from("platform_connections")
+        .select("*")
+        .eq("workspace_id", id)
+        .eq("connected", true);
+
       setConnections((data || []) as Connection[]);
-      const spotify = (data || []).find((c: Connection) => c.platform === "spotify");
-      if (spotify?.account_id && spotify.account_id !== "unknown") setSpotifyShowId(spotify.account_id);
-    } catch (e) { showToast(String(e), false); }
+
+      const spotify = (data || []).find(
+        (connection: Connection) => connection.platform === "spotify"
+      );
+
+      if (spotify?.account_id && spotify.account_id !== "unknown") {
+        setSpotifyShowId(spotify.account_id);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error), false);
+    }
+
     setLoading(false);
   }
 
@@ -292,172 +702,432 @@ export default function IntegrationsPage() {
     const account = searchParams.get("account");
     const detail = searchParams.get("detail");
     const selectMetaPage = searchParams.get("select_meta_page") as Platform | null;
+
     if (connected) showToast(`✓ ${account || connected} podłączono pomyślnie`);
     if (error) showToast(detail || "Błąd autoryzacji — spróbuj ponownie", false);
+
     if (selectMetaPage === "facebook" || selectMetaPage === "instagram") {
       setMetaPlatform(selectMetaPage);
+
       fetch("/api/oauth/meta-page")
         .then((res) => res.json())
         .then((data) => {
           if (data?.error) throw new Error(data.error);
           setMetaPages(data.pages || []);
         })
-        .catch((err) => showToast(err instanceof Error ? err.message : String(err), false));
+        .catch((err) =>
+          showToast(err instanceof Error ? err.message : String(err), false)
+        );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  useEffect(() => { load(); }, [workspaceId]);
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
 
   async function syncOne(conn: Connection) {
     setSyncing(conn.id);
+
     try {
       const res = await fetch("/api/sync", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connection_id: conn.id, platform: conn.platform }),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data?.error || "Błąd sync");
+
       showToast(data?.message || `✓ Pobrano dane z ${PLATFORM_META[conn.platform]?.label}`);
       await load();
-    } catch (e) { showToast(String(e), false); }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error), false);
+    }
+
     setSyncing(null);
   }
 
   async function syncAllNow() {
     if (!wsDbId) return;
+
     setSyncAll(true);
+
     try {
       const res = await fetch("/api/sync", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspace_id: wsDbId, all: true }),
       });
+
       const data = await res.json();
+
       const errors = Array.isArray(data?.results)
         ? data.results
             .filter((result: { error?: string }) => result.error)
-            .map((result: { platform?: string; error?: string }) => `${result.platform}: ${result.error}`)
+            .map(
+              (result: { platform?: string; error?: string }) =>
+                `${result.platform}: ${result.error}`
+            )
         : [];
+
       showToast(
         errors.length
           ? `${data?.message || "Synchronizacja zakończona z błędami"}: ${errors.join(" | ")}`
           : data?.message || "✓ Synchronizacja zakończona",
         !data?.failed
       );
+
       await load();
-    } catch (e) { showToast(String(e), false); }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error), false);
+    }
+
     setSyncAll(false);
   }
 
   async function disconnect(conn: Connection) {
     setDisconnecting(conn.id);
-    await supabase.schema("contentiq").from("platform_connections")
-      .update({ connected: false, access_token: null, refresh_token: null }).eq("id", conn.id);
+
+    await supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .update({ connected: false, access_token: null, refresh_token: null })
+      .eq("id", conn.id);
+
     await load();
     setDisconnecting(null);
     showToast(`${PLATFORM_META[conn.platform]?.label} odłączono`);
   }
 
   async function saveBlog() {
-    if (!blogUrl) { showToast("Wpisz adres bloga", false); return; }
+    if (!blogUrl) {
+      showToast("Wpisz adres bloga", false);
+      return;
+    }
+
     setBlogSaving(true);
+
     try {
       const res = await fetch("/api/connections/blog", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspace_id: wsDbId, url: blogUrl, username: blogUser, password: blogPass }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: wsDbId,
+          url: blogUrl,
+          username: blogUser,
+          password: blogPass,
+        }),
       });
+
       if (!res.ok) throw new Error(`Status ${res.status}`);
+
       showToast("✓ Blog podłączony");
-      setBlogUrl(""); setBlogUser(""); setBlogPass("");
+      setBlogUrl("");
+      setBlogUser("");
+      setBlogPass("");
       await load();
-    } catch (e) { showToast(String(e), false); }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error), false);
+    }
+
     setBlogSaving(false);
   }
 
   async function saveSpotifyShowId(connId: string) {
-    if (!spotifyShowId) { showToast("Wpisz Show ID podcastu", false); return; }
+    if (!spotifyShowId) {
+      showToast("Wpisz Show ID podcastu", false);
+      return;
+    }
+
     setSpotifySaving(true);
+
     const extracted = spotifyShowId.includes("spotify.com/show/")
       ? spotifyShowId.split("/show/")[1].split("?")[0].split("/")[0]
       : spotifyShowId.trim();
-    const { error } = await supabase.schema("contentiq").from("platform_connections")
-      .update({ account_id: extracted }).eq("id", connId);
-    if (error) { showToast(error.message, false); }
-    else { showToast("✓ Show ID zapisane"); await load(); }
+
+    const { error } = await supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .update({ account_id: extracted })
+      .eq("id", connId);
+
+    if (error) {
+      showToast(error.message, false);
+    } else {
+      showToast("✓ Show ID zapisane");
+      await load();
+    }
+
     setSpotifySaving(false);
   }
 
   async function selectMetaPage(pageId: string) {
     setMetaSelecting(pageId);
+
     try {
       const res = await fetch("/api/oauth/meta-page", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ page_id: pageId }),
       });
+
       const data = await res.json();
+
       if (!res.ok) throw new Error(data?.error || "Nie udało się zapisać strony Meta");
-      showToast(`✓ Wybrano stronę dla ${metaPlatform === "instagram" ? "Instagram" : "Facebook"}`);
+
+      showToast(
+        `✓ Wybrano stronę dla ${metaPlatform === "instagram" ? "Instagram" : "Facebook"}`
+      );
+
       setMetaPages([]);
       setMetaPlatform(null);
       await load();
+
       window.history.replaceState(null, "", `/app/${workspaceId}/settings`);
     } catch (err) {
       showToast(err instanceof Error ? err.message : String(err), false);
     }
+
     setMetaSelecting("");
   }
 
   function getConn(platform: Platform) {
-    return connections.find(c => c.platform === platform);
+    return connections.find((connection) => connection.platform === platform);
   }
 
+  const connectedCount = connections.length;
+  const expiringCount = connections.filter((connection) =>
+    isExpiring(connection.token_expires_at)
+  ).length;
+  const readyToSync = connections.length > 0 && !loading;
+
   return (
-    <div style={{ minHeight: "100vh", background: "#090d16", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", color: "#f8fafc" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: `radial-gradient(circle at top left, ${css.accentSoft}, transparent 34%), ${css.bg}`,
+        fontFamily: "var(--font-body), system-ui, sans-serif",
+        color: css.text,
+      }}
+    >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        .card{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
-        .card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.15)!important;box-shadow:0 12px 30px rgba(0,0,0,.5)}
-        .btn{transition:all .15s ease;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-        .btn:hover{filter:brightness(1.14);opacity:.95}
-        .btn:active{transform:scale(.97)}
-        input{outline:none;font-family:inherit;transition:border-color .15s ease}
-        input:focus{border-color:#3b82f6!important;box-shadow:0 0 0 1px #3b82f6}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-        .fade{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) forwards}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .spin{animation:spin .8s linear infinite;display:inline-block}
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .card {
+          transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .card:hover {
+          transform: translateY(-2px);
+          border-color: ${css.accentBorder} !important;
+          box-shadow: 0 22px 54px rgba(0,0,0,.36);
+        }
+
+        .btn {
+          transition: all .15s ease;
+          cursor: pointer;
+          font-family: inherit;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+        }
+
+        .btn:hover {
+          filter: brightness(1.08);
+          opacity: .95;
+        }
+
+        .btn:active {
+          transform: scale(.98);
+        }
+
+        input {
+          outline: none;
+          font-family: inherit;
+          transition: border-color .15s ease, box-shadow .15s ease;
+        }
+
+        input:focus {
+          border-color: ${css.accentBorder} !important;
+          box-shadow: 0 0 0 1px ${css.accentBorder};
+        }
+
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade {
+          animation: fadeUp .4s cubic-bezier(.16,1,.3,1) forwards;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .spin {
+          animation: spin .8s linear infinite;
+          display: inline-block;
+        }
+
+        @media(max-width: 980px) {
+          .integrations-grid,
+          .integrations-stats {
+            grid-template-columns: 1fr !important;
+          }
+
+          .integrations-topbar-inner {
+            height: auto !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
+
+          .integrations-top-actions {
+            width: 100%;
+            flex-wrap: wrap;
+          }
+
+          .integrations-hero {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       {toast && (
-        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 200, padding: "14px 20px", borderRadius: 12, background: toast.ok ? "#062f17" : "#450a0a", color: toast.ok ? "#4ade80" : "#fca5a5", fontSize: 13, fontWeight: 500, border: `1px solid ${toast.ok ? "#14532d" : "#7f1d1d"}`, boxShadow: "0 10px 40px rgba(0,0,0,.6)", maxWidth: 420, lineHeight: 1.45, display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 24,
+            right: 24,
+            zIndex: 200,
+            padding: "14px 18px",
+            borderRadius: 14,
+            background: toast.ok ? css.successBg : css.dangerBg,
+            color: toast.ok ? css.successText : css.dangerText,
+            fontSize: 13,
+            fontWeight: 800,
+            border: `1px solid ${toast.ok ? css.successBorder : css.dangerBorder}`,
+            boxShadow: "0 16px 46px rgba(0,0,0,.46)",
+            maxWidth: 480,
+            lineHeight: 1.45,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
           {toast.ok ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <div>{toast.msg}</div>
         </div>
       )}
 
       {metaPlatform && metaPages.length > 0 && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 190, background: "rgba(3,7,18,.8)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ width: "min(540px, 100%)", borderRadius: 16, background: "#0f172a", border: "1px solid #334155", boxShadow: "0 25px 50px -12px rgba(0,0,0,.7)", padding: 24 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#3b82f6", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 }}>
-              Konfiguracja Meta OAuth
-            </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#f8fafc", marginBottom: 10 }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 190,
+            background: "rgba(0,0,0,.76)",
+            backdropFilter: "blur(9px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: "min(560px, 100%)",
+              borderRadius: 24,
+              background: css.surface,
+              border: `1px solid ${css.aiBorder}`,
+              boxShadow: css.aiGlow,
+              padding: 24,
+            }}
+          >
+            <SectionLabel color={css.aiText}>Konfiguracja Meta OAuth</SectionLabel>
+
+            <h2
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: 28,
+                lineHeight: 1.05,
+                fontWeight: 500,
+                color: css.heading,
+                margin: "8px 0 10px",
+              }}
+            >
               Wybierz powiązaną stronę Facebook
             </h2>
-            <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.55, marginBottom: 20 }}>
-              Wskaż konkretną stronę zwróconą przez /me/accounts. Dla Instagrama aplikacja automatycznie pobierze konto profesjonalne podpięte do tej strony.
+
+            <p
+              style={{
+                fontSize: 13,
+                color: css.muted,
+                lineHeight: 1.65,
+                marginBottom: 18,
+              }}
+            >
+              Wskaż konkretną stronę zwróconą przez /me/accounts. Dla Instagrama
+              aplikacja automatycznie pobierze konto profesjonalne podpięte do tej
+              strony.
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                maxHeight: 320,
+                overflowY: "auto",
+                paddingRight: 4,
+              }}
+            >
               {metaPages.map((page) => (
-                <button key={page.id} onClick={() => selectMetaPage(page.id)} disabled={!!metaSelecting}
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => selectMetaPage(page.id)}
+                  disabled={!!metaSelecting}
                   className="btn"
-                  style={{ textAlign: "left", width: "100%", padding: 14, borderRadius: 10, border: "1px solid #1e293b", background: "#070a13", color: "#f8fafc", cursor: "pointer", fontFamily: "inherit", opacity: metaSelecting && metaSelecting !== page.id ? 0.5 : 1, flexDirection: "column", alignItems: "stretch", gap: 4 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
-                    <span style={{ fontSize: 14, fontWeight: 700 }}>{page.name}</span>
-                    {metaSelecting === page.id && <RefreshCw size={14} className="spin" style={{ color: "#3b82f6" }} />}
+                  style={{
+                    textAlign: "left",
+                    width: "100%",
+                    padding: 14,
+                    borderRadius: 15,
+                    border: `1px solid ${css.border}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    opacity: metaSelecting && metaSelecting !== page.id ? 0.5 : 1,
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: 4,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      width: "100%",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 900 }}>{page.name}</span>
+                    {metaSelecting === page.id && (
+                      <RefreshCw size={14} className="spin" style={{ color: css.aiText }} />
+                    )}
                   </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>Page ID: {page.id}</div>
+
+                  <div style={{ fontSize: 11, color: css.muted }}>Page ID: {page.id}</div>
                 </button>
               ))}
             </div>
@@ -465,34 +1135,317 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      <div style={{ borderBottom: "1px solid #1e293b", background: "rgba(9,13,22,.86)", backdropFilter: "blur(16px)", position: "sticky", top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: 1040, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Link href={`/app/${workspaceId}`} className="btn"
-              style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #1e293b", background: "#131926", color: "#94a3b8", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>
-              <ArrowLeft size={15} /> Panel główny
+      <div
+        style={{
+          borderBottom: `1px solid ${css.border}`,
+          background: "rgba(26,34,51,.88)",
+          backdropFilter: "blur(16px)",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          boxShadow: "0 14px 38px rgba(0,0,0,.22)",
+        }}
+      >
+        <div
+          className="integrations-topbar-inner"
+          style={{
+            maxWidth: 1180,
+            margin: "0 auto",
+            padding: "0 24px",
+            height: 72,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <Link
+              href={`/app/${workspaceId}`}
+              className="btn"
+              style={{
+                padding: "10px 14px",
+                borderRadius: 14,
+                border: `1px solid ${css.border}`,
+                background: css.surface,
+                color: css.muted,
+                fontSize: 12,
+                textDecoration: "none",
+                fontWeight: 900,
+              }}
+            >
+              <ArrowLeft size={15} />
+              Panel główny
             </Link>
-            <div style={{ width: 1, height: 24, background: "#1e293b" }} />
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#f8fafc", letterSpacing: ".01em" }}>Ustawienia połączeń</div>
+
+            <div style={{ width: 1, height: 26, background: css.border }} />
+
+            <div>
+              <div
+                style={{
+                  color: css.heading,
+                  fontFamily: "var(--font-heading)",
+                  fontSize: 22,
+                  lineHeight: 1,
+                  fontWeight: 500,
+                }}
+              >
+                Integracje
+              </div>
+
+              <div
+                style={{
+                  color: css.muted,
+                  fontSize: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: ".14em",
+                  marginTop: 5,
+                }}
+              >
+                Social media · blog · podcasty
+              </div>
+            </div>
           </div>
-          <button className="btn" onClick={syncAllNow} disabled={syncAll || loading || connections.length === 0}
-            style={{ padding: "8px 16px", borderRadius: 8, background: "#3b82f6", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, opacity: syncAll || connections.length === 0 ? 0.5 : 1 }}>
-            <RefreshCw size={14} className={syncAll ? "spin" : ""} />
-            {syncAll ? "Synchronizowanie..." : "Odśwież wszystko"}
-          </button>
+
+          <div className="integrations-top-actions" style={{ display: "flex", gap: 9 }}>
+            <Link
+              href={`/app/${workspaceId}?tab=accounts`}
+              className="btn"
+              style={{
+                padding: "10px 14px",
+                borderRadius: 14,
+                border: `1px solid ${css.border}`,
+                background: css.surface,
+                color: css.text,
+                fontSize: 12,
+                textDecoration: "none",
+                fontWeight: 900,
+              }}
+            >
+              Podsumowanie kont
+            </Link>
+
+            <button
+              type="button"
+              className="btn"
+              onClick={syncAllNow}
+              disabled={syncAll || loading || connections.length === 0}
+              style={actionButtonStyle({
+                background: "#FFFFFF",
+                color: "#050505",
+                disabled: syncAll || loading || connections.length === 0,
+              })}
+            >
+              <RefreshCw size={14} className={syncAll ? "spin" : ""} />
+              {syncAll ? "Synchronizowanie..." : "Synchronizuj wszystko"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <main style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 24px 80px" }}>
-        <div style={{ marginBottom: 40 }} className="fade">
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Centrum połączeń</div>
-          <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-0.02em", color: "#f8fafc", marginBottom: 10 }}>Integracje z platformami</h1>
-          <p style={{ fontSize: 14, color: "#94a3b8", lineHeight: 1.65, maxWidth: 680 }}>
-            Połącz konta przez OAuth. Możesz też dodać link do profilu i do 5 konkretnych postów per platforma — dane pojawią się w sekcji Porównanie contentu.
-          </p>
-        </div>
+      <main style={{ maxWidth: 1180, margin: "0 auto", padding: "38px 24px 80px" }}>
+        <section
+          className="integrations-hero fade"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.2fr .8fr",
+            gap: 18,
+            marginBottom: 22,
+            alignItems: "stretch",
+          }}
+        >
+          <div
+            style={{
+              ...cardStyle({
+                padding: 26,
+                position: "relative",
+                overflow: "hidden",
+                minHeight: 250,
+              }),
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                right: 22,
+                top: -18,
+                color: css.accent,
+                opacity: 0.07,
+                fontSize: 150,
+                lineHeight: 1,
+                fontFamily: "var(--font-heading)",
+                pointerEvents: "none",
+              }}
+            >
+              API
+            </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(450px, 1fr))", gap: 20 }}>
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <SectionLabel color={css.accent}>Centrum połączeń</SectionLabel>
+
+              <h1
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: css.heading,
+                  fontSize: 44,
+                  lineHeight: 1,
+                  fontWeight: 500,
+                  margin: "9px 0 13px",
+                  maxWidth: 780,
+                }}
+              >
+                Połącz platformy, pobierz dane i daj AI realny kontekst
+              </h1>
+
+              <p
+                style={{
+                  fontSize: 14,
+                  color: css.muted,
+                  lineHeight: 1.75,
+                  maxWidth: 780,
+                  marginBottom: 18,
+                }}
+              >
+                Tutaj podłączasz konta przez OAuth, synchronizujesz publikacje i
+                dodajesz ręczne linki do profilu lub konkretnych postów. Dane trafiają
+                potem do analityki, strategii, AI Partnera i Content Studio.
+              </p>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={syncAllNow}
+                  disabled={syncAll || loading || connections.length === 0}
+                  style={actionButtonStyle({
+                    background: css.aiBg,
+                    color: css.aiText,
+                    border: `1px solid ${css.aiBorder}`,
+                    disabled: syncAll || loading || connections.length === 0,
+                  })}
+                >
+                  <RefreshCw size={14} className={syncAll ? "spin" : ""} />
+                  {syncAll ? "Synchronizuję..." : "Pobierz świeże dane"}
+                </button>
+
+                <Link
+                  href={`/app/${workspaceId}?tab=compare`}
+                  className="btn"
+                  style={{
+                    ...actionButtonStyle({
+                      background: css.surfaceSoft,
+                      color: css.text,
+                      border: `1px solid ${css.border}`,
+                    }),
+                    textDecoration: "none",
+                  }}
+                >
+                  Zobacz porównanie contentu
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              ...cardStyle({
+                padding: 22,
+                border: `1px solid ${css.aiBorder}`,
+                boxShadow: css.aiGlow,
+                display: "grid",
+                alignContent: "space-between",
+                gap: 16,
+              }),
+            }}
+          >
+            <div>
+              <SectionLabel color={css.aiText}>Status połączeń</SectionLabel>
+
+              <h2
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: css.heading,
+                  fontSize: 32,
+                  lineHeight: 1.05,
+                  fontWeight: 500,
+                  margin: "9px 0 9px",
+                }}
+              >
+                {connectedCount ? `${connectedCount} aktywnych integracji` : "Brak aktywnych integracji"}
+              </h2>
+
+              <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
+                {connectedCount
+                  ? "Możesz synchronizować dane pojedynczo lub zbiorczo. Linki ręczne są traktowane jako kontekst AI, a nie jako metryki."
+                  : "Podłącz pierwszą platformę, żeby zasilić aplikację prawdziwymi danymi."}
+              </p>
+            </div>
+
+            <div
+              className="integrations-stats"
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}
+            >
+              <div
+                style={{
+                  background: css.surfaceSoft,
+                  border: `1px solid ${css.border}`,
+                  borderRadius: 16,
+                  padding: 13,
+                }}
+              >
+                <div style={{ color: css.successText, fontSize: 25, fontWeight: 900 }}>
+                  {connectedCount}
+                </div>
+                <div style={{ color: css.muted, fontSize: 11, marginTop: 4 }}>
+                  aktywne konta
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: css.surfaceSoft,
+                  border: `1px solid ${expiringCount ? css.warningBorder : css.border}`,
+                  borderRadius: 16,
+                  padding: 13,
+                }}
+              >
+                <div
+                  style={{
+                    color: expiringCount ? css.warningText : css.muted,
+                    fontSize: 25,
+                    fontWeight: 900,
+                  }}
+                >
+                  {expiringCount}
+                </div>
+                <div style={{ color: css.muted, fontSize: 11, marginTop: 4 }}>
+                  tokeny do uwagi
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {loading && (
+          <div
+            style={{
+              ...cardStyle({ padding: 20, marginBottom: 20 }),
+              color: css.muted,
+              fontSize: 13,
+            }}
+          >
+            Ładowanie połączeń...
+          </div>
+        )}
+
+        <div
+          className="integrations-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(430px, 1fr))",
+            gap: 18,
+          }}
+        >
           {PLATFORMS.map((platform, idx) => {
             const meta = PLATFORM_META[platform];
             const connection = getConn(platform);
@@ -501,39 +1454,152 @@ export default function IntegrationsPage() {
             const isDisconnecting = disconnecting === connection?.id;
             const isExpanded = expanded === platform;
             const PlatformIcon = meta.icon;
+            const platformTextColor = platform === "tiktok" ? css.text : meta.color;
 
             return (
-              <div key={platform} className="card fade" style={{ animationDelay: `${idx * 0.03}s`, background: "#111827", border: `1px solid ${isConnected ? "rgba(59,130,246,.22)" : "#1f2937"}`, borderRadius: 14, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <div style={{ height: 4, background: isConnected ? meta.gradient : "#1f2937" }} />
+              <div
+                key={platform}
+                className="card fade"
+                style={{
+                  animationDelay: `${idx * 0.03}s`,
+                  ...cardStyle({
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    border: `1px solid ${isConnected ? `${meta.color}55` : css.border}`,
+                  }),
+                }}
+              >
+                <div style={{ height: 5, background: isConnected ? meta.gradient : css.border }} />
 
-                <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: isConnected ? meta.color + "18" : "#1f2937", border: `1px solid ${isConnected ? meta.color + "35" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center", color: isConnected ? meta.color : "#94a3b8", flexShrink: 0 }}>
-                        <PlatformIcon size={20} />
+                <div style={{ padding: 19, flex: 1, display: "flex", flexDirection: "column" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      marginBottom: 13,
+                      gap: 12,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 14,
+                          background: isConnected ? `${meta.color}18` : css.surfaceSoft,
+                          border: `1px solid ${isConnected ? `${meta.color}55` : css.border}`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: isConnected ? platformTextColor : css.muted,
+                          flexShrink: 0,
+                        }}
+                      >
+                        <PlatformIcon size={21} />
                       </div>
+
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc" }}>{meta.label}</div>
-                        {isConnected && <div style={{ fontSize: 12, color: "#64748b", marginTop: 1, fontWeight: 500 }}>{connection.account_name}</div>}
+                        <div
+                          style={{
+                            fontFamily: "var(--font-heading)",
+                            fontSize: 25,
+                            lineHeight: 1.05,
+                            fontWeight: 500,
+                            color: platformTextColor,
+                          }}
+                        >
+                          {meta.label}
+                        </div>
+
+                        {isConnected && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: css.muted,
+                              marginTop: 4,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {connection.account_name}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 20, background: isConnected ? "rgba(34,197,94,.1)" : "rgba(245,158,11,.08)", color: isConnected ? "#4ade80" : "#fbbf24", textTransform: "uppercase", letterSpacing: "0.05em", flexShrink: 0 }}>
+
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 900,
+                        padding: "5px 9px",
+                        borderRadius: 999,
+                        background: isConnected ? "#22c55e18" : css.warningBg,
+                        border: `1px solid ${isConnected ? "#22c55e40" : css.warningBorder}`,
+                        color: isConnected ? css.successText : css.warningText,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        flexShrink: 0,
+                      }}
+                    >
                       {isConnected ? "Aktywne" : "Niepołączone"}
                     </span>
                   </div>
 
-                  <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.55, marginBottom: 16 }}>{meta.desc}</p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: css.muted,
+                      lineHeight: 1.62,
+                      marginBottom: 15,
+                    }}
+                  >
+                    {meta.desc}
+                  </p>
 
                   {isConnected && (
-                    <div style={{ padding: "10px 12px", borderRadius: 10, background: "#070a13", border: "1px solid #1e293b", marginBottom: 16 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div
+                      style={{
+                        padding: "11px 12px",
+                        borderRadius: 15,
+                        background: css.surfaceSoft,
+                        border: `1px solid ${css.border}`,
+                        marginBottom: 14,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 2, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".02em" }}>Ostatnia synchronizacja</div>
-                          <div style={{ fontSize: 12, color: "#cbd5e1", fontWeight: 700 }}>{formatSync(connection.last_synced_at)}</div>
+                          <SectionLabel color={css.muted}>Ostatnia synchronizacja</SectionLabel>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: css.text,
+                              fontWeight: 900,
+                              marginTop: 6,
+                            }}
+                          >
+                            {formatSync(connection.last_synced_at)}
+                          </div>
                         </div>
+
                         {isExpiring(connection.token_expires_at) && (
-                          <span style={{ fontSize: 11, color: "#fbbf24", background: "rgba(245,158,11,.1)", padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center", gap: 4 }}>
-                            <AlertCircle size={12} /> Token wygasa
+                          <span
+                            style={{
+                              alignSelf: "flex-start",
+                              fontSize: 11,
+                              color: css.warningText,
+                              background: css.warningBg,
+                              border: `1px solid ${css.warningBorder}`,
+                              padding: "5px 8px",
+                              borderRadius: 9,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 5,
+                              fontWeight: 800,
+                            }}
+                          >
+                            <AlertCircle size={12} />
+                            Token wygasa
                           </span>
                         )}
                       </div>
@@ -541,14 +1607,38 @@ export default function IntegrationsPage() {
                   )}
 
                   {isConnected && platform === "spotify" && (
-                    <div style={{ padding: "10px 12px", borderRadius: 10, background: "#060d18", border: "1px solid #1a2740", marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: "#4a6480", marginBottom: 6 }}>Show ID podcastu</div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <input value={spotifyShowId} onChange={e => setSpotifyShowId(e.target.value)}
+                    <div
+                      style={{
+                        padding: 13,
+                        borderRadius: 15,
+                        background: css.surfaceSoft,
+                        border: `1px solid ${css.border}`,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: css.muted, marginBottom: 7 }}>
+                        Show ID podcastu
+                      </div>
+
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          value={spotifyShowId}
+                          onChange={(event) => setSpotifyShowId(event.target.value)}
                           placeholder="https://open.spotify.com/show/... lub samo ID"
-                          style={{ flex: 1, padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 11, fontFamily: "monospace" }} />
-                        <button className="btn" onClick={() => saveSpotifyShowId(connection.id)} disabled={spotifySaving}
-                          style={{ padding: "7px 12px", borderRadius: 7, background: "#1DB954", color: "#fff", border: "none", fontSize: 11, fontWeight: 600, opacity: spotifySaving ? 0.6 : 1 }}>
+                          style={{ ...inputStyle(), flex: 1 }}
+                        />
+
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => saveSpotifyShowId(connection.id)}
+                          disabled={spotifySaving}
+                          style={actionButtonStyle({
+                            background: "#1DB954",
+                            color: "#fff",
+                            disabled: spotifySaving,
+                          })}
+                        >
                           {spotifySaving ? "..." : "Zapisz"}
                         </button>
                       </div>
@@ -556,55 +1646,171 @@ export default function IntegrationsPage() {
                   )}
 
                   {!isConnected && platform === "blog" && (
-                    <div style={{ padding: "12px", borderRadius: 10, background: "#060d18", border: "1px solid #1a2740", marginBottom: 12 }}>
-                      <div style={{ fontSize: 11, color: "#4a6480", marginBottom: 8 }}>Dane połączenia</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <input value={blogUrl} onChange={e => setBlogUrl(e.target.value)} placeholder="https://twojblog.pl"
-                          style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 12 }} />
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                          <input value={blogUser} onChange={e => setBlogUser(e.target.value)} placeholder="Login WP"
-                            style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 11 }} />
-                          <input type="password" value={blogPass} onChange={e => setBlogPass(e.target.value)} placeholder="Application Password"
-                            style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #1a2740", background: "#080e1a", color: "#e8f0ff", fontSize: 11 }} />
+                    <div
+                      style={{
+                        padding: 13,
+                        borderRadius: 15,
+                        background: css.surfaceSoft,
+                        border: `1px solid ${css.border}`,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: css.muted, marginBottom: 8 }}>
+                        Dane połączenia WordPress
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <input
+                          value={blogUrl}
+                          onChange={(event) => setBlogUrl(event.target.value)}
+                          placeholder="https://twojblog.pl"
+                          style={inputStyle()}
+                        />
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <input
+                            value={blogUser}
+                            onChange={(event) => setBlogUser(event.target.value)}
+                            placeholder="Login WP"
+                            style={inputStyle()}
+                          />
+
+                          <input
+                            type="password"
+                            value={blogPass}
+                            onChange={(event) => setBlogPass(event.target.value)}
+                            placeholder="Application Password"
+                            style={inputStyle()}
+                          />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div style={{ display: "flex", gap: 8, marginTop: "auto", marginBottom: isConnected ? 12 : 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      marginTop: "auto",
+                      marginBottom: isConnected ? 12 : 0,
+                    }}
+                  >
                     {isConnected ? (
                       <>
-                        <button className="btn" onClick={() => syncOne(connection)} disabled={isSyncing}
-                          style={{ flex: 1, padding: "10px", borderRadius: 8, background: "rgba(59,130,246,.1)", border: "1px solid rgba(59,130,246,.22)", color: "#3b82f6", fontSize: 13, fontWeight: 700, opacity: isSyncing ? 0.6 : 1 }}>
-                          <RefreshCw size={14} className={isSyncing ? "spin" : ""} /> {isSyncing ? "Pobieranie..." : "Synchronizuj"}
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => syncOne(connection)}
+                          disabled={isSyncing}
+                          style={{
+                            flex: 1,
+                            ...actionButtonStyle({
+                              background: `${meta.color}18`,
+                              color: platformTextColor,
+                              border: `1px solid ${meta.color}44`,
+                              disabled: isSyncing,
+                            }),
+                          }}
+                        >
+                          <RefreshCw size={14} className={isSyncing ? "spin" : ""} />
+                          {isSyncing ? "Pobieranie..." : "Synchronizuj"}
                         </button>
-                        <button className="btn" onClick={() => window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`}
+
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() =>
+                            (window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`)
+                          }
                           title="Zreautoryzuj profil"
-                          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #1e293b", background: "transparent", color: "#64748b", fontSize: 11 }}>
+                          style={actionButtonStyle({
+                            background: css.surfaceSoft,
+                            color: css.muted,
+                            border: `1px solid ${css.border}`,
+                          })}
+                        >
                           <ExternalLink size={14} />
                         </button>
-                        <button className="btn" onClick={() => disconnect(connection)} disabled={isDisconnecting}
-                          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(239,68,68,.22)", background: "rgba(239,68,68,.05)", color: "#ef4444", fontSize: 11, fontWeight: 700, opacity: isDisconnecting ? 0.6 : 1 }}>
-                          {isDisconnecting ? <RefreshCw size={14} className="spin" /> : <X size={14} />}
+
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => disconnect(connection)}
+                          disabled={isDisconnecting}
+                          style={actionButtonStyle({
+                            background: css.dangerBg,
+                            color: css.dangerText,
+                            border: `1px solid ${css.dangerBorder}`,
+                            disabled: isDisconnecting,
+                          })}
+                        >
+                          {isDisconnecting ? (
+                            <RefreshCw size={14} className="spin" />
+                          ) : (
+                            <X size={14} />
+                          )}
                         </button>
                       </>
                     ) : (
-                      <button className="btn"
-                        onClick={() => { if (meta.type === "oauth") window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`; else saveBlog(); }}
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => {
+                          if (meta.type === "oauth") {
+                            window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`;
+                          } else {
+                            void saveBlog();
+                          }
+                        }}
                         disabled={platform === "blog" && blogSaving}
-                        style={{ width: "100%", padding: "10px", borderRadius: 8, background: meta.color, color: "#fff", border: "none", fontSize: 13, fontWeight: 800, opacity: blogSaving ? 0.6 : 1 }}>
-                        {platform === "blog" ? (blogSaving ? "Łączę..." : "Połącz blog") : <><Plus size={14} /> Połącz z {meta.label}</>}
+                        style={{
+                          width: "100%",
+                          ...actionButtonStyle({
+                            background: meta.color,
+                            color: platform === "tiktok" ? "#050505" : "#fff",
+                            disabled: platform === "blog" && blogSaving,
+                          }),
+                        }}
+                      >
+                        {platform === "blog" ? (
+                          blogSaving ? (
+                            "Łączę..."
+                          ) : (
+                            "Połącz blog"
+                          )
+                        ) : (
+                          <>
+                            <Plus size={14} />
+                            Połącz z {meta.label}
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
 
                   {isConnected && (
                     <>
-                      <button className="btn" onClick={() => setExpanded(isExpanded ? null : platform)}
-                        style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px dashed ${isExpanded ? meta.color + "60" : "#1e293b"}`, background: isExpanded ? meta.color + "08" : "transparent", color: isExpanded ? meta.color : "#64748b", fontSize: 12, fontWeight: 600 }}>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setExpanded(isExpanded ? null : platform)}
+                        style={{
+                          width: "100%",
+                          padding: "9px",
+                          borderRadius: 13,
+                          border: `1px dashed ${isExpanded ? `${meta.color}70` : css.border}`,
+                          background: isExpanded ? `${meta.color}10` : "transparent",
+                          color: isExpanded ? platformTextColor : css.muted,
+                          fontSize: 12,
+                          fontWeight: 800,
+                        }}
+                      >
                         {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                        {isExpanded ? "Ukryj linki" : "Zarządzaj wpisami i linkami profilu"}
+                        {isExpanded
+                          ? "Ukryj linki"
+                          : "Zarządzaj linkami profilu i postów"}
                       </button>
+
                       {isExpanded && <ManualLinksPanel connection={connection} />}
                     </>
                   )}
@@ -614,12 +1820,39 @@ export default function IntegrationsPage() {
           })}
         </div>
 
-        <div style={{ marginTop: 64, paddingTop: 24, borderTop: "1px solid #1e293b", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 28 }}>
-          <a href="https://contentiq.anmcollective.fun/privacy" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Polityka prywatności</a>
-          <a href="https://contentiq.anmcollective.fun/terms" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Regulamin</a>
-          <a href="https://contentiq.anmcollective.fun/contact" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Contact</a>
-          <a href="https://contentiq.anmcollective.fun/delete-data" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#64748b", textDecoration: "none" }}>Delete Data</a>
-        </div>
+        <footer
+          style={{
+            marginTop: 58,
+            paddingTop: 24,
+            borderTop: `1px solid ${css.border}`,
+            display: "flex",
+            justifyContent: "center",
+            flexWrap: "wrap",
+            gap: 26,
+          }}
+        >
+          {[
+            ["Polityka prywatności", "https://contentiq.anmcollective.fun/privacy"],
+            ["Regulamin", "https://contentiq.anmcollective.fun/terms"],
+            ["Contact", "https://contentiq.anmcollective.fun/contact"],
+            ["Delete Data", "https://contentiq.anmcollective.fun/delete-data"],
+          ].map(([label, href]) => (
+            <a
+              key={label}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 12,
+                color: css.muted,
+                textDecoration: "none",
+                fontWeight: 700,
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </footer>
       </main>
     </div>
   );
