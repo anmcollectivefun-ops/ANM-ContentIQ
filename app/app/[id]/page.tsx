@@ -1747,281 +1747,691 @@ const formatProfileNumber = (value: any) => {
           </header>
 
           <div style={st.content}>
+
  {/* ================= PODSUMOWANIE KONT ================= */}
- {activeTab === "accounts" && !activeAccount && (
+{activeTab === "accounts" && !activeAccount && (
+  <div style={{ display: "grid", gap: 22 }}>
+    <div className="ciq-summary-grid" style={st.summaryGrid}>
+      <div
+        className="ciq-mini-card"
+        style={{
+          ...st.summaryCard,
+          background: css.surface,
+          border: `1px solid ${css.border}`,
+          boxShadow: "0 14px 34px rgba(0,0,0,0.18)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            right: 18,
+            top: 8,
+            color: css.accent,
+            opacity: 0.08,
+            fontSize: 70,
+            lineHeight: 1,
+            fontFamily: "var(--font-heading)",
+          }}
+        >
+          7
+        </div>
+
+        <p
+          style={{
+            ...st.smallLabel,
+            color: css.accent,
+            fontFamily: "var(--font-label)",
+            letterSpacing: ".12em",
+          }}
+        >
+          Analiza live
+        </p>
+
+        <h3
+          style={{
+            ...st.summaryValue,
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+          }}
+        >
+          7 kanałów w jednym widoku
+        </h3>
+
+        <p style={{ ...st.summaryNote, color: css.muted }}>
+          Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify i Blog
+          zebrane w jednym centrum analitycznym.
+        </p>
+      </div>
+
+      <div
+        className="ciq-mini-card"
+        style={{
+          ...st.summaryCard,
+          background: css.surface,
+          border: `1px solid ${css.aiBorder}`,
+          boxShadow:
+            "0 16px 40px rgba(0,0,0,0.24), 0 18px 42px rgba(168,85,247,0.14)",
+          color: css.text,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            right: 18,
+            bottom: -18,
+            height: 38,
+            background: "rgba(168,85,247,0.18)",
+            filter: "blur(22px)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <p
+            style={{
+              ...st.smallLabel,
+              color: css.aiText,
+              fontFamily: "var(--font-label)",
+              letterSpacing: ".12em",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+          >
+            <Wand2 size={15} color={css.aiIcon} />
+            AI rekomendacja
+          </p>
+
+          <h3
+            style={{
+              ...st.summaryValue,
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+            }}
+          >
+            Najmocniejszy kanał: {bestAccount.name}
+          </h3>
+
+          <p style={{ ...st.summaryNote, color: css.muted }}>
+            {bestAccount.aiTag}
+          </p>
+        </div>
+      </div>
+
+      <div
+        className="ciq-mini-card"
+        style={{
+          ...st.summaryCard,
+          background: css.surface,
+          border: `1px solid ${css.aiBorder}`,
+          boxShadow:
+            "0 16px 40px rgba(0,0,0,0.24), 0 18px 42px rgba(168,85,247,0.14)",
+          color: css.text,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            left: 18,
+            right: 18,
+            bottom: -18,
+            height: 38,
+            background: "rgba(168,85,247,0.18)",
+            filter: "blur(22px)",
+            pointerEvents: "none",
+          }}
+        />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <p
+            style={{
+              ...st.smallLabel,
+              color: css.aiText,
+              fontFamily: "var(--font-label)",
+              letterSpacing: ".12em",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+            }}
+          >
+            <Wand2 size={15} color={css.aiIcon} />
+            AI alert
+          </p>
+
+          <h3
+            style={{
+              ...st.summaryValue,
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+            }}
+          >
+            Do poprawy: {weakestAccount.name}
+          </h3>
+
+          <p style={{ ...st.summaryNote, color: css.muted }}>
+            {weakestAccount.aiTag}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow:
+          "0 20px 50px rgba(0,0,0,0.22), 0 20px 46px rgba(168,85,247,0.13)",
+        color: css.text,
+        position: "relative",
+        overflow: "hidden",
+        marginBottom: 6,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 22,
+          right: 22,
+          bottom: -24,
+          height: 48,
+          background: "rgba(168,85,247,0.17)",
+          filter: "blur(24px)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <p
+          style={{
+            ...st.smallLabel,
+            color: css.aiText,
+            fontFamily: "var(--font-label)",
+            letterSpacing: ".12em",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <Wand2 size={15} color={css.aiIcon} />
+          AI analiza cross-platform
+        </p>
+
+        <h2
+          style={{
+            margin: "4px 0 14px",
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 30,
+            lineHeight: 1.05,
+            fontWeight: 500,
+          }}
+        >
+          Co działa najlepiej i gdzie warto podkręcić wynik?
+        </h2>
+
+        <div
+          style={{
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          {realInsights.map((insight, index) => {
+            const color =
+              insight.type === "up"
+                ? "#22c55e"
+                : insight.type === "warn"
+                  ? "#f59e0b"
+                  : css.aiText;
+
+            return (
+              <div
+                key={index}
+                style={{
+                  background: css.liveSoft,
+                  border: `1px solid ${css.border}`,
+                  borderLeft: `4px solid ${color}`,
+                  borderRadius: 15,
+                  padding: "11px 13px",
+                }}
+              >
+                <p
+                  style={{
+                    ...st.insightText,
+                    color: css.text,
+                    margin: 0,
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {insight.text}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 16,
+        alignItems: "flex-end",
+        flexWrap: "wrap",
+      }}
+    >
+      <div>
+        <div
+          style={{
+            ...st.tilesLabel,
+            color: css.accent,
+            fontFamily: "var(--font-label)",
+            letterSpacing: ".12em",
+            marginBottom: 6,
+          }}
+        >
+          Podsumowanie kont
+        </div>
+
+        <h2
+          style={{
+            margin: 0,
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 30,
+            lineHeight: 1.05,
+            fontWeight: 500,
+          }}
+        >
+          Kliknij konto, żeby zobaczyć szczegóły i publikacje
+        </h2>
+      </div>
+
+      <div
+        style={{
+          color: css.muted,
+          fontSize: 12,
+          lineHeight: 1.5,
+          maxWidth: 420,
+        }}
+      >
+        Każdy kafelek pokazuje wynik live, podstawowe metryki i krótki wniosek
+        AI. Strzałka oraz przycisk „Zobacz szczegóły” prowadzą do pełnej analizy
+        konta.
+      </div>
+    </div>
+
+    <div className="ciq-tiles-grid" style={st.tilesGrid}>
+      {accounts.map((account) => {
+        const score = Math.max(0, Math.min(100, Number(account.score || 0)));
+        const trend = Number(account.trend || 0);
+        const trendColor =
+          trend === 0 ? css.muted : trend > 0 ? "#22c55e" : "#ef4444";
+
+        return (
+          <button
+            key={account.id}
+            className="ciq-account-tile"
+            onClick={() => setActiveAccount(account)}
+            style={{
+              ...st.tile,
+              background: css.surface,
+              border: `1px solid ${css.border}`,
+              boxShadow: "0 16px 38px rgba(0,0,0,0.20)",
+              position: "relative",
+              overflow: "hidden",
+              cursor: "pointer",
+              textAlign: "left",
+              minHeight: 360,
+            }}
+          >
+            <span
+              style={{
+                ...st.socialWatermark,
+                color: account.color,
+                opacity: 0.08,
+                fontSize: 110,
+                right: 18,
+                top: 8,
+              }}
+            >
+              {SOCIAL_ICONS[account.id]}
+            </span>
+
+            <div
+              style={{
+                ...st.tileTopLine,
+                background: account.color,
+                height: 5,
+                borderRadius: "18px 18px 0 0",
+              }}
+            />
+
+            <div
+              style={{
+                ...st.tileTop,
+                position: "relative",
+                zIndex: 2,
+                alignItems: "flex-start",
+              }}
+            >
               <div>
-                <div className="ciq-summary-grid" style={st.summaryGrid}>
-                  <div
-                    className="ciq-mini-card"
-                    style={{
-                      ...st.summaryCard,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.muted }}>
-                      Analiza live
-                    </p>
+                <div
+                  style={{
+                    ...st.tileName,
+                    color: css.heading,
+                    fontFamily: "var(--font-heading)",
+                    fontSize: 25,
+                    lineHeight: 1.05,
+                  }}
+                >
+                  {account.name}
+                </div>
 
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      7 kanałów w jednym widoku
-                    </h3>
+                <div style={{ ...st.tileHandle, color: css.muted }}>
+                  {account.handle}
+                </div>
+              </div>
 
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify i
-                      Blog zebrane w jednym centrum analitycznym.
-                    </p>
-                  </div>
+              <span
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 999,
+                  display: "grid",
+                  placeItems: "center",
+                  background: css.liveSoft,
+                  border: `1px solid ${css.border}`,
+                  color: account.color,
+                  fontWeight: 900,
+                  fontSize: 17,
+                }}
+              >
+                →
+              </span>
+            </div>
 
-                  <div
-                    className="ciq-mini-card"
-                    style={{
-                      ...st.summaryCard,
-                      background: css.aiBg,
-                      border: `1px solid ${css.aiBorder}`,
-                      boxShadow: css.aiGlow,
-                      color: css.text,
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.aiText }}>
-                      <Wand2 size={15} color={css.aiIcon} />
-                      AI rekomendacja
-                    </p>
+            <div
+              style={{
+                ...st.connectionRow,
+                position: "relative",
+                zIndex: 2,
+                marginTop: 12,
+              }}
+            >
+              <span
+                style={{
+                  ...st.connectionPill,
+                  background: account.connected ? "#22c55e18" : "#f59e0b18",
+                  color: account.connected ? "#22c55e" : "#f59e0b",
+                }}
+              >
+                {account.connected ? "API podłączone" : "Do podłączenia"}
+              </span>
 
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      Najmocniejszy kanał: {bestAccount.name}
-                    </h3>
+              <span style={{ color: css.muted, fontSize: 11 }}>
+                Sync: {account.lastSync}
+              </span>
+            </div>
 
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      {bestAccount.aiTag}
-                    </p>
-                  </div>
-
-                  <div
-                    className="ciq-mini-card"
-                    style={{
-                      ...st.summaryCard,
-                      background: css.aiBg,
-                      border: `1px solid ${css.aiBorder}`,
-                      boxShadow: css.aiGlow,
-                      color: css.text,
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.aiText }}>
-                      <Wand2 size={15} color={css.aiIcon} />
-                      AI alert
-                    </p>
-
-                    <h3 style={{ ...st.summaryValue, color: css.text }}>
-                      Do poprawy: {weakestAccount.name}
-                    </h3>
-
-                    <p style={{ ...st.summaryNote, color: css.muted }}>
-                      {weakestAccount.aiTag}
-                    </p>
-                  </div>
+            <div
+              style={{
+                marginTop: 18,
+                position: "relative",
+                zIndex: 2,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  alignItems: "center",
+                  marginBottom: 8,
+                }}
+              >
+                <div
+                  style={{
+                    color: css.accent,
+                    fontFamily: "var(--font-label)",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    letterSpacing: ".1em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Wynik konta
                 </div>
 
                 <div
                   style={{
-                    ...st.panel,
-                    background: css.aiBg,
-                    border: `1px solid ${css.aiBorder}`,
-                    boxShadow: css.aiGlow,
-                    color: css.text,
-                    position: "relative",
-                    overflow: "hidden",
-                    marginBottom: 22,
+                    color: getScoreColor(score),
+                    fontFamily: "var(--font-heading)",
+                    fontSize: 28,
+                    lineHeight: 1,
                   }}
                 >
-                  <p style={{ ...st.smallLabel, color: css.aiText }}>
-                    <Wand2 size={15} color={css.aiIcon} />
-                    AI analiza cross-platform
-                  </p>
-
-                  <div style={st.aiStack}>
-                    {realInsights.map((insight, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          ...st.aiInsightRow,
-                          borderLeft: `3px solid ${
-                            insight.type === "up"
-                              ? "#22c55e"
-                              : insight.type === "warn"
-                                ? "#f59e0b"
-                                : css.aiText
-                          }`,
-                        }}
-                      >
-                        <p style={{ ...st.insightText, color: css.text }}>
-                          {insight.text}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ ...st.tilesLabel, color: css.muted }}>
-                  Podsumowanie kont — kliknij kafelek, aby zobaczyć szczegóły i
-                  publikacje
-                </div>
-
-                <div className="ciq-tiles-grid" style={st.tilesGrid}>
-                  {accounts.map((account) => (
-                    <button
-                      key={account.id}
-                      className="ciq-account-tile"
-                      onClick={() => setActiveAccount(account)}
-                      style={{
-                        ...st.tile,
-                        background: css.surface,
-                        border: `1px solid ${css.border}`,
-                      }}
-                    >
-                      <span
-                        style={{
-                          ...st.socialWatermark,
-                          color: account.color,
-                        }}
-                      >
-                        {SOCIAL_ICONS[account.id]}
-                      </span>
-
-                      <div
-                        style={{
-                          ...st.tileTopLine,
-                          background: account.color,
-                        }}
-                      />
-
-                      <div style={st.tileTop}>
-                        <div>
-                          <div style={{ ...st.tileName, color: css.text }}>
-                            {account.name}
-                          </div>
-
-                          <div style={{ ...st.tileHandle, color: css.muted }}>
-                            {account.handle}
-                          </div>
-                        </div>
-
-                        <span style={{ ...st.tileArrow, color: css.muted }}>
-                          →
-                        </span>
-                      </div>
-
-                      <div style={st.connectionRow}>
-                        <span
-                          style={{
-                            ...st.connectionPill,
-                            background: account.connected
-                              ? "#22c55e18"
-                              : "#f59e0b18",
-                            color: account.connected ? "#22c55e" : "#f59e0b",
-                          }}
-                        >
-                          {account.connected ? "API podłączone" : "Do podłączenia"}
-                        </span>
-
-                        <span style={{ color: css.muted, fontSize: 11 }}>
-                          Sync: {account.lastSync}
-                        </span>
-                      </div>
-
-                      <div style={{ ...st.liveLabel, color: css.muted }}>
-                        Analiza live
-                      </div>
-
-                      <ScoreBar score={account.score} />
-
-                      <div
-                        style={{
-                          ...st.tileStats,
-                          borderTop: `1px solid ${css.border}`,
-                        }}
-                      >
-                        <div>
-                          <div style={{ ...st.tileStatValue, color: css.text }}>
-                            {account.posts}
-                          </div>
-                          <div style={{ ...st.tileStatLabel, color: css.muted }}>
-                            posty
-                          </div>
-                        </div>
-
-                        <div>
-                          <div style={{ ...st.tileStatValue, color: css.text }}>
-                            {account.engRate}
-                          </div>
-                          <div style={{ ...st.tileStatLabel, color: css.muted }}>
-                            engagement
-                          </div>
-                        </div>
-
-                        <div>
-                          <div style={{ ...st.tileStatValue, color: css.text }}>
-                            {account.reach}
-                          </div>
-                          <div style={{ ...st.tileStatLabel, color: css.muted }}>
-                            średni zasięg
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        style={{
-                          ...st.tileBestFormat,
-                          background: css.liveSoft,
-                          border: `1px solid ${css.border}`,
-                        }}
-                      >
-                        <span style={{ ...st.smallMiniLabel, color: css.muted }}>
-                          Najlepszy format
-                        </span>
-                        <span style={{ color: css.text, fontWeight: 700 }}>
-                          {account.bestFormat}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          ...st.tileAI,
-                          background: css.aiBg,
-                          border: `1px solid ${css.aiBorder}`,
-                          boxShadow: css.aiGlow,
-                          color: css.text,
-                        }}
-                      >
-                        <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
-                          <Wand2 size={15} color={css.aiIcon} />
-                          AI wniosek
-                        </div>
-
-                        <span style={{ fontSize: 11, lineHeight: 1.55 }}>
-                          {account.aiTag}
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          ...st.tileTrend,
-                          color: account.trend === 0 ? css.muted : account.trend > 0 ? "#22c55e" : "#ef4444",
-                        }}
-                      >
-                        {account.trend === 0
-                          ? "0% miesiąc do miesiąca"
-                          : `${account.trend > 0 ? "↑" : "↓"} ${Math.abs(account.trend)}% miesiąc do miesiąca`}
-                      </div>
-                    </button>
-                  ))}
+                  {score}
                 </div>
               </div>
-            )}
+
+              <div
+                style={{
+                  height: 9,
+                  borderRadius: 999,
+                  background: css.liveSoft,
+                  border: `1px solid ${css.border}`,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${score}%`,
+                    height: "100%",
+                    borderRadius: 999,
+                    background: getScoreColor(score),
+                  }}
+                />
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                gap: 8,
+                marginTop: 16,
+                position: "relative",
+                zIndex: 2,
+              }}
+            >
+              {[
+                ["Posty", account.posts],
+                ["Eng.", account.engRate],
+                ["Śr. zasięg", account.reach],
+              ].map(([label, value]) => (
+                <div
+                  key={`${account.id}-${label}`}
+                  style={{
+                    background: css.liveSoft,
+                    border: `1px solid ${css.border}`,
+                    borderRadius: 15,
+                    padding: "11px 9px",
+                    minHeight: 72,
+                  }}
+                >
+                  <div
+                    style={{
+                      color: css.text,
+                      fontFamily: "var(--font-heading)",
+                      fontSize: 20,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {value}
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 7,
+                      color: css.muted,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: ".04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                ...st.tileBestFormat,
+                background: css.liveSoft,
+                border: `1px solid ${css.border}`,
+                marginTop: 12,
+                position: "relative",
+                zIndex: 2,
+              }}
+            >
+              <span
+                style={{
+                  ...st.smallMiniLabel,
+                  color: css.muted,
+                  fontFamily: "var(--font-label)",
+                  letterSpacing: ".08em",
+                }}
+              >
+                Najlepszy format
+              </span>
+
+              <span
+                style={{
+                  color: css.heading,
+                  fontFamily: "var(--font-heading)",
+                  fontWeight: 500,
+                  fontSize: 18,
+                  lineHeight: 1.1,
+                }}
+              >
+                {account.bestFormat}
+              </span>
+            </div>
+
+            <div
+              style={{
+                background: css.surface,
+                border: `1px solid ${css.aiBorder}`,
+                boxShadow:
+                  "0 12px 30px rgba(0,0,0,0.20), 0 16px 32px rgba(168,85,247,0.12)",
+                color: css.text,
+                borderRadius: 18,
+                padding: 13,
+                marginTop: 12,
+                position: "relative",
+                zIndex: 2,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  right: 14,
+                  bottom: -14,
+                  height: 28,
+                  background: "rgba(168,85,247,0.16)",
+                  filter: "blur(18px)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <div
+                  style={{
+                    ...st.aiBoxLabel,
+                    color: css.aiText,
+                    fontFamily: "var(--font-label)",
+                    letterSpacing: ".09em",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                  }}
+                >
+                  <Wand2 size={15} color={css.aiIcon} />
+                  AI wniosek
+                </div>
+
+                <span
+                  style={{
+                    fontSize: 11,
+                    lineHeight: 1.55,
+                    color: css.text,
+                  }}
+                >
+                  {account.aiTag}
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: 12,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+                position: "relative",
+                zIndex: 2,
+              }}
+            >
+              <div
+                style={{
+                  color: trendColor,
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                {trend === 0
+                  ? "0% miesiąc do miesiąca"
+                  : `${trend > 0 ? "↑" : "↓"} ${Math.abs(
+                      trend
+                    )}% miesiąc do miesiąca`}
+              </div>
+
+              <div
+                style={{
+                  borderRadius: 999,
+                  border: `1px solid ${account.color}55`,
+                  background: `${account.color}18`,
+                  color: account.color,
+                  padding: "7px 10px",
+                  fontSize: 11,
+                  fontWeight: 900,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Zobacz szczegóły
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+)}
 
 
 {/* ================= PODSUMOWANIE CONTENTU ================= */}
@@ -3547,41 +3957,50 @@ const formatProfileNumber = (value: any) => {
    {activeTab === "calendar" && (
   <Schedule dark={dark} workspaceId={workspaceId} />
 )}
- {/* ================= CONTENT STUDIO ================= */}
- {activeTab === "studio" && (
-              <div>
-                <div
-                  style={{
-                    ...st.panel,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                    marginBottom: 18,
-                  }}
-                >
-                  <p style={{ ...st.smallLabel, color: css.accent }}>
-                    Content Studio AI
-                  </p>
+{/* ================= CONTENT STUDIO ================= */}
+{activeTab === "studio" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        Content Studio AI
+      </p>
 
-                  <h2
-                    style={{
-                      ...st.sectionTitle,
-                      color: css.text,
-                      fontFamily: "var(--font-heading)",
-                    }}
-                  >
-                    Twórz, analizuj, adaptuj i testuj hooki
-                  </h2>
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.heading,
+          fontFamily: "var(--font-heading)",
+          fontWeight: 500,
+        }}
+      >
+        Twórz, analizuj, adaptuj i testuj hooki
+      </h2>
 
-                  <p style={{ ...st.sectionText, color: css.muted }}>
-                    Ten moduł zna treść przed publikacją. Dzięki temu po
-                    opublikowaniu system porównuje treść z realnym wynikiem i
-                    uczy AI, jaki styl działa najlepiej na danej platformie.
-                  </p>
-                </div>
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Ten moduł zna treść przed publikacją. Dzięki temu po opublikowaniu
+        system porównuje treść z realnym wynikiem i uczy AI, jaki styl działa
+        najlepiej na danej platformie.
+      </p>
+    </div>
 
-                <ContentStudio dark={dark} workspaceId={workspaceId} />
-              </div>
-            )}
+    <ContentStudio dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
 {/* ================= VIDEO STUDIO ================= */}
 {activeTab === "video" && (
   <div>
@@ -3593,15 +4012,24 @@ const formatProfileNumber = (value: any) => {
         marginBottom: 18,
       }}
     >
-      <p style={{ ...st.smallLabel, color: css.accent }}>
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
         Video Studio
       </p>
 
       <h2
         style={{
           ...st.sectionTitle,
-          color: css.text,
+          color: css.heading,
           fontFamily: "var(--font-heading)",
+          fontWeight: 500,
         }}
       >
         TikTok, Reels i Shorts od pomysłu do scenariusza
@@ -3628,15 +4056,24 @@ const formatProfileNumber = (value: any) => {
         marginBottom: 18,
       }}
     >
-      <p style={{ ...st.smallLabel, color: css.accent }}>
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
         Short Studio
       </p>
 
       <h2
         style={{
           ...st.sectionTitle,
-          color: css.text,
+          color: css.heading,
           fontFamily: "var(--font-heading)",
+          fontWeight: 500,
         }}
       >
         Jedna idea, wiele krótkich video
@@ -3662,15 +4099,24 @@ const formatProfileNumber = (value: any) => {
         marginBottom: 18,
       }}
     >
-      <p style={{ ...st.smallLabel, color: css.accent }}>
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
         Creative Studio
       </p>
 
       <h2
         style={{
           ...st.sectionTitle,
-          color: css.text,
+          color: css.heading,
           fontFamily: "var(--font-heading)",
+          fontWeight: 500,
         }}
       >
         Generowanie grafik AI do contentu
@@ -3768,42 +4214,336 @@ const formatProfileNumber = (value: any) => {
     />
   </div>
 )}
- {/* ================= AI PARTNER ================= */}
- {activeTab === "partner" && (
-              <div>
+{/* ================= AI PARTNER ================= */}
+{activeTab === "partner" && (
+  <div style={{ display: "grid", gap: 18 }}>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 0,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          right: 22,
+          top: 12,
+          fontSize: 118,
+          lineHeight: 1,
+          color: css.accent,
+          opacity: 0.05,
+          fontFamily: "var(--font-heading)",
+          pointerEvents: "none",
+        }}
+      >
+        AI
+      </div>
+
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        AI Partner
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.heading,
+          fontFamily: "var(--font-heading)",
+          fontWeight: 500,
+          maxWidth: 820,
+        }}
+      >
+        Twój samouczący się partner contentowy
+      </h2>
+
+      <p
+        style={{
+          ...st.sectionText,
+          color: css.muted,
+          maxWidth: 920,
+          lineHeight: 1.75,
+        }}
+      >
+        Ten moduł ma działać jak strateg, redaktor i analityk w jednym. Łączy
+        Brand Voice, szkice, szablony i realne wyniki z platform, a potem
+        podpowiada: co rozwijać, co poprawić, które formaty skalować i jak
+        dopasować komunikację do TikToka, Instagrama, Facebooka, YouTube,
+        LinkedIna oraz bloga.
+      </p>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gap: 12,
+      }}
+    >
+      {[
+        {
+          label: "01 / Uczy się stylu",
+          title: "Brand Voice",
+          text:
+            "Zbiera ton marki, słowa-klucze, zakazy, styl komunikacji i przykłady najlepszych treści.",
+          ai: false,
+        },
+        {
+          label: "02 / Czyta wyniki",
+          title: "Realne dane",
+          text:
+            "Patrzy na zasięg, reakcje, komentarze, udostępnienia i AI Score z opublikowanych postów.",
+          ai: false,
+        },
+        {
+          label: "03 / Myśli strategicznie",
+          title: "AI wskazówki",
+          text:
+            "Podpowiada, które tematy rozwijać, które platformy poprawić i co przerobić na inny format.",
+          ai: true,
+        },
+        {
+          label: "04 / Planuje dalej",
+          title: "Następny krok",
+          text:
+            "Pomaga zamienić wnioski w konkret: hook, format, harmonogram, szablon albo inspirację.",
+          ai: true,
+        },
+      ].map((item) => (
+        <div
+          key={item.title}
+          style={{
+            background: css.surface,
+            border: `1px solid ${item.ai ? css.aiBorder : css.border}`,
+            boxShadow: item.ai
+              ? "0 16px 38px rgba(168,85,247,0.13)"
+              : "0 12px 28px rgba(0,0,0,0.16)",
+            borderRadius: 20,
+            padding: 16,
+            position: "relative",
+            overflow: "hidden",
+            minHeight: 176,
+          }}
+        >
+          {item.ai && (
+            <div
+              style={{
+                position: "absolute",
+                left: 18,
+                right: 18,
+                bottom: -18,
+                height: 36,
+                background: "rgba(168,85,247,0.17)",
+                filter: "blur(20px)",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                color: item.ai ? css.aiText : css.accent,
+                fontFamily: "var(--font-label)",
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              {item.ai && <Wand2 size={15} color={css.aiIcon} />}
+              {item.label}
+            </div>
+
+            <div
+              style={{
+                marginTop: 10,
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 25,
+                lineHeight: 1.05,
+                fontWeight: 500,
+              }}
+            >
+              {item.title}
+            </div>
+
+            <p
+              style={{
+                margin: "10px 0 0",
+                color: css.muted,
+                fontSize: 12,
+                lineHeight: 1.65,
+              }}
+            >
+              {item.text}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow:
+          "0 20px 50px rgba(0,0,0,0.24), 0 20px 46px rgba(168,85,247,0.13)",
+        borderRadius: 24,
+        padding: 18,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 22,
+          right: 22,
+          bottom: -22,
+          height: 46,
+          background: "rgba(168,85,247,0.18)",
+          filter: "blur(24px)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div
+          style={{
+            color: css.aiText,
+            fontFamily: "var(--font-label)",
+            fontWeight: 900,
+            letterSpacing: ".1em",
+            textTransform: "uppercase",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <Wand2 size={15} color={css.aiIcon} />
+          Jak korzystać z AI Partnera?
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.1fr .9fr",
+            gap: 16,
+            marginTop: 14,
+            alignItems: "stretch",
+          }}
+        >
+          <div
+            style={{
+              background: css.liveSoft,
+              border: `1px solid ${css.border}`,
+              borderRadius: 18,
+              padding: 16,
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 10px",
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 25,
+                lineHeight: 1.08,
+                fontWeight: 500,
+              }}
+            >
+              Nie pytaj tylko „co opublikować?” — pytaj „co rozwijać dalej?”
+            </h3>
+
+            <p
+              style={{
+                margin: 0,
+                color: css.text,
+                fontSize: 13,
+                lineHeight: 1.75,
+              }}
+            >
+              AI Partner powinien pomagać podejmować decyzje. Ma wskazać, które
+              konto jest wzorem, które wymaga poprawy, jaki format warto
+              powtórzyć, gdzie zmienić hook i co można przerobić na short,
+              karuzelę, post ekspercki albo wpis blogowy.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            {[
+              "Zapisz Brand Voice i zasady marki.",
+              "Wybierz najlepsze szablony oraz szkice.",
+              "Porównaj je z realnymi wynikami z social mediów.",
+              "Poproś AI o plan: co powtórzyć, co naprawić, co przetestować.",
+            ].map((item, index) => (
+              <div
+                key={item}
+                style={{
+                  background: css.surface,
+                  border: `1px solid ${css.aiBorder}`,
+                  borderRadius: 16,
+                  padding: 12,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+              >
                 <div
                   style={{
-                    ...st.panel,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                    marginBottom: 18,
+                    width: 26,
+                    height: 26,
+                    borderRadius: 999,
+                    display: "grid",
+                    placeItems: "center",
+                    background: css.aiBgSoft,
+                    color: css.aiText,
+                    border: `1px solid ${css.aiBorder}`,
+                    fontSize: 11,
+                    fontWeight: 900,
+                    flexShrink: 0,
                   }}
                 >
-                  <p style={{ ...st.smallLabel, color: css.accent }}>
-                    AI Partner
-                  </p>
-
-                  <h2
-                    style={{
-                      ...st.sectionTitle,
-                      color: css.text,
-                      fontFamily: "var(--font-heading)",
-                    }}
-                  >
-                    Samouczący się partner contentowy
-                  </h2>
-
-                  <p style={{ ...st.sectionText, color: css.muted }}>
-                    Ten moduł łączy Brand Voice, wybrane szablony, szkice i realne
-                    wyniki z social mediów. AI ma uczyć się stylu twórcy oraz
-                    podpowiadać, co rozwijać, co testować i jak dopasować treść
-                    do platformy.
-                  </p>
+                  {index + 1}
                 </div>
 
-                <AIPartner dark={dark} workspaceId={workspaceId} />
+                <div
+                  style={{
+                    color: css.text,
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {item}
+                </div>
               </div>
-    )}
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <AIPartner dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
     {/* ================= AI strateg ================= */}
 {activeTab === "strategist" && (
   <div>
