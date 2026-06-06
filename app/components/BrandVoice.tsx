@@ -4,7 +4,7 @@
 // Brand profiles + platform-specific Brand Voice for ANM ContentIQ
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Wand2 } from "lucide-react";
+import { Pencil, Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Platform =
@@ -182,6 +182,47 @@ function emptyPlatformProfiles() {
 
 function safeArray<T>(value: T[] | null | undefined): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+function safeText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeBrandProfile(value: Partial<BrandProfile>): BrandProfile {
+  return {
+    ...EMPTY_BRAND,
+    ...value,
+    name: safeText(value.name) || EMPTY_BRAND.name,
+    website_url: safeText(value.website_url),
+    logo_url: safeText(value.logo_url),
+    brand_description: safeText(value.brand_description),
+    brand_values: safeText(value.brand_values),
+    target_audience: safeText(value.target_audience),
+    keywords: safeArray(value.keywords),
+    avoid_words: safeArray(value.avoid_words),
+    source_notes: safeText(value.source_notes),
+    is_default: Boolean(value.is_default),
+  };
+}
+
+function normalizePlatformProfile(
+  platform: Platform,
+  value: Partial<PlatformProfile> = {}
+): PlatformProfile {
+  const defaults = emptyPlatformProfile(platform);
+
+  return {
+    ...defaults,
+    ...value,
+    platform,
+    tone: safeText(value.tone) || defaults.tone,
+    style: safeText(value.style),
+    cta_style: safeText(value.cta_style) || defaults.cta_style,
+    content_rules: safeText(value.content_rules),
+    ai_suggestions: (value.ai_suggestions || {}) as PlatformSuggestion,
+    selected_examples: safeArray(value.selected_examples),
+    user_notes: safeText(value.user_notes),
+  };
 }
 
 function parseList(value: string) {
@@ -389,12 +430,9 @@ export default function BrandVoice({
 
       if (brandError) throw new Error(brandError.message);
 
-      const typedBrands = ((brandRows || []) as BrandProfile[]).map((item) => ({
-        ...EMPTY_BRAND,
-        ...item,
-        keywords: safeArray(item.keywords),
-        avoid_words: safeArray(item.avoid_words),
-      }));
+      const typedBrands = ((brandRows || []) as BrandProfile[]).map((item) =>
+        normalizeBrandProfile(item)
+      );
 
       setBrands(typedBrands);
 
@@ -428,12 +466,7 @@ export default function BrandVoice({
 
     ((rows || []) as PlatformProfile[]).forEach((row) => {
       if (PLATFORMS.some((item) => item.id === row.platform)) {
-        next[row.platform] = {
-          ...emptyPlatformProfile(row.platform),
-          ...row,
-          ai_suggestions: (row.ai_suggestions || {}) as PlatformSuggestion,
-          selected_examples: safeArray(row.selected_examples),
-        };
+        next[row.platform] = normalizePlatformProfile(row.platform, row);
       }
     });
 
@@ -448,19 +481,20 @@ export default function BrandVoice({
   async function ensureBrandSaved() {
     const wsId = workspaceUuid || (await getWsId());
     setWorkspaceUuid(wsId);
+    const normalizedBrand = normalizeBrandProfile(brand);
 
     const payload = {
       workspace_id: wsId,
-      name: brand.name.trim() || "Główna marka",
-      website_url: brand.website_url.trim() || null,
-      logo_url: brand.logo_url.trim() || null,
-      brand_description: brand.brand_description.trim() || null,
-      brand_values: brand.brand_values.trim() || null,
-      target_audience: brand.target_audience.trim() || null,
-      keywords: safeArray(brand.keywords),
-      avoid_words: safeArray(brand.avoid_words),
-      source_notes: brand.source_notes.trim() || null,
-      is_default: brand.is_default,
+      name: normalizedBrand.name.trim() || "Główna marka",
+      website_url: normalizedBrand.website_url.trim() || null,
+      logo_url: normalizedBrand.logo_url.trim() || null,
+      brand_description: normalizedBrand.brand_description.trim() || null,
+      brand_values: normalizedBrand.brand_values.trim() || null,
+      target_audience: normalizedBrand.target_audience.trim() || null,
+      keywords: normalizedBrand.keywords,
+      avoid_words: normalizedBrand.avoid_words,
+      source_notes: normalizedBrand.source_notes.trim() || null,
+      is_default: normalizedBrand.is_default,
       updated_at: new Date().toISOString(),
     };
 
@@ -472,6 +506,25 @@ export default function BrandVoice({
         .eq("id", brand.id);
 
       if (updateError) throw new Error(updateError.message);
+      const normalized = normalizeBrandProfile({
+        ...brand,
+        id: brand.id,
+        workspace_id: wsId,
+        name: payload.name,
+        website_url: payload.website_url || "",
+        logo_url: payload.logo_url || "",
+        brand_description: payload.brand_description || "",
+        brand_values: payload.brand_values || "",
+        target_audience: payload.target_audience || "",
+        keywords: payload.keywords,
+        avoid_words: payload.avoid_words,
+        source_notes: payload.source_notes || "",
+        is_default: payload.is_default,
+      });
+      setBrand(normalized);
+      setBrands((current) =>
+        current.map((item) => (item.id === brand.id ? normalized : item))
+      );
       return brand.id;
     }
 
@@ -484,7 +537,7 @@ export default function BrandVoice({
 
     if (insertError || !created?.id) throw new Error(insertError?.message || "Nie udało się utworzyć brandu.");
 
-    const createdBrand = { ...EMPTY_BRAND, ...(created as BrandProfile) };
+    const createdBrand = normalizeBrandProfile(created as BrandProfile);
     setBrand(createdBrand);
     setBrands((current) => [createdBrand, ...current]);
 
@@ -524,6 +577,21 @@ export default function BrandVoice({
       setSaved(true);
       setTimeout(() => setSaved(false), 2800);
       await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveBrandProfile() {
+    setSaving(true);
+    setError("");
+
+    try {
+      await ensureBrandSaved();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2800);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -859,7 +927,8 @@ Zwróć wyłącznie JSON:
         .bv-btn{transition:opacity .15s, transform .15s; cursor:pointer; font-family:inherit}
         .bv-btn:hover{opacity:.86; transform:translateY(-1px)}
         textarea{resize:vertical; font-family:inherit}
-        @media(max-width:980px){.bv-grid{grid-template-columns:1fr!important}.bv-platform-layout{grid-template-columns:1fr!important}}
+        @media(max-width:980px){.bv-grid{grid-template-columns:1fr!important}.bv-platform-layout{grid-template-columns:1fr!important}.bv-saved-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+        @media(max-width:620px){.bv-saved-grid{grid-template-columns:1fr!important}}
       `}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -897,6 +966,64 @@ Zwróć wyłącznie JSON:
           </button>
         </div>
       </div>
+
+      {brands.length > 0 ? (
+        <section style={cardStyle}>
+          <SectionLabel color={css.accent}>Zapisane profile firm</SectionLabel>
+          <p style={{ color: css.muted, fontSize: 12, lineHeight: 1.6, margin: "0 0 14px" }}>
+            Te profile są zapisane w bazie i stanowią stały kontekst marki dla funkcji AI.
+          </p>
+          <div className="bv-saved-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+            {brands.map((item) => {
+              const selected = item.id === brand.id;
+              return (
+                <article
+                  key={item.id}
+                  style={{
+                    padding: 14,
+                    borderRadius: 16,
+                    background: selected ? css.surfaceSoft : css.surface,
+                    border: `1px solid ${selected ? css.accent : css.border}`,
+                    minWidth: 0,
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    {item.logo_url ? (
+                      <img
+                        src={item.logo_url}
+                        alt=""
+                        style={{ width: 42, height: 42, borderRadius: 12, objectFit: "cover", border: `1px solid ${css.border}` }}
+                      />
+                    ) : (
+                      <div style={{ width: 42, height: 42, borderRadius: 12, display: "grid", placeItems: "center", background: `${css.accent}22`, color: css.accent, fontWeight: 900 }}>
+                        {(item.name || "B").slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ color: css.text, fontWeight: 900, fontSize: 14 }}>{item.name}</div>
+                      <div style={{ color: css.muted, fontSize: 11, marginTop: 3 }}>
+                        {item.is_default ? "Główny profil marki" : "Profil marki"}
+                      </div>
+                    </div>
+                  </div>
+                  <p style={{ color: css.muted, fontSize: 12, lineHeight: 1.55, margin: "12px 0", minHeight: 38 }}>
+                    {item.brand_description || "Profil zapisany. Uzupełnij opis, aby AI miało pełniejszy kontekst."}
+                  </p>
+                  <button
+                    className="bv-btn"
+                    type="button"
+                    onClick={() => item.id && void selectBrand(item.id)}
+                    style={{ ...secondaryButton(css), width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                  >
+                    <Pencil size={14} />
+                    {selected ? "Edytujesz ten profil" : "Edytuj profil"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="bv-grid" style={{ display: "grid", gridTemplateColumns: "1fr .9fr", gap: 14 }}>
         <div style={cardStyle}>
@@ -989,6 +1116,16 @@ Zwróć wyłącznie JSON:
                 inputStyle={inputStyle}
               />
             </div>
+
+            <button
+              className="bv-btn"
+              type="button"
+              onClick={saveBrandProfile}
+              disabled={saving}
+              style={{ ...primaryButton(dark), width: "100%" }}
+            >
+              {saving ? "Zapisuję profil firmy..." : "Zapisz profil firmy"}
+            </button>
           </div>
         </div>
 
@@ -1048,6 +1185,45 @@ Zwróć wyłącznie JSON:
 
       <div style={cardStyle}>
         <SectionLabel color={css.accent}>Profile per platforma</SectionLabel>
+
+        {PLATFORMS.some((item) => Boolean(platformProfiles[item.id].id)) ? (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ color: css.muted, fontSize: 12, lineHeight: 1.6, marginBottom: 10 }}>
+              Zapisane wzorce platformowe używane przez AI. Kliknij kafelek, aby edytować ton, CTA i zasady.
+            </div>
+            <div className="bv-saved-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+              {PLATFORMS.filter((item) => Boolean(platformProfiles[item.id].id)).map((platform) => {
+                const profile = platformProfiles[platform.id];
+                return (
+                  <button
+                    key={platform.id}
+                    type="button"
+                    onClick={() => setActivePlatform(platform.id)}
+                    style={{
+                      textAlign: "left",
+                      padding: 12,
+                      borderRadius: 14,
+                      border: `1px solid ${activePlatform === platform.id ? platform.color : css.border}`,
+                      background: activePlatform === platform.id ? `${platform.color}12` : css.surfaceSoft,
+                      color: css.text,
+                      cursor: "pointer",
+                      minWidth: 0,
+                    }}
+                  >
+                    <div style={{ color: platform.color, fontWeight: 900, fontSize: 12 }}>{platform.name}</div>
+                    <div style={{ color: css.muted, fontSize: 11, lineHeight: 1.45, marginTop: 6 }}>
+                      {(profile.tone || profile.style || "Zapisany profil platformy").slice(0, 90)}
+                    </div>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, color: css.aiText, fontSize: 10, fontWeight: 900, marginTop: 9 }}>
+                      <Pencil size={12} />
+                      Edytuj wzorzec AI
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           {PLATFORMS.map((platform) => {
