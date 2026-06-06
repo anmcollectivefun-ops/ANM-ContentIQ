@@ -1,9 +1,13 @@
 // app/api/chat/route.ts
-// DeepSeek R1 — silnik AI dla ANM ContentIQ
-// Obsługuje: generowanie contentu, analizę, adaptację, rekomendacje i kreator hooków
+// ANM ContentIQ AI route
+// Obsługuje: DeepSeek + Gemini
+// Tryby: generowanie contentu, analiza, adaptacja, rekomendacje, hooki, strategia, chat
 
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
+
+export const runtime = "nodejs";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -16,8 +20,13 @@ type AiMode =
   | "strategy"
   | "chat";
 
+type AiProvider = "deepseek" | "gemini";
+
 type RequestBody = {
   mode?: AiMode;
+  provider?: AiProvider;
+  aiProvider?: AiProvider;
+  ai_provider?: AiProvider;
   prompt?: string;
   platform?: string;
   platforms?: string[];
@@ -245,6 +254,26 @@ function cleanJsonAnswer(answer: string) {
     .trim();
 }
 
+function normalizeProvider(value: unknown): AiProvider {
+  return value === "gemini" ? "gemini" : "deepseek";
+}
+
+function getGeminiApiKey() {
+  return (
+    process.env.GOOGLE_GENAI_API_KEY?.trim() ||
+    process.env.GEMINI_API_KEY?.trim() ||
+    ""
+  );
+}
+
+function getGeminiTextModel() {
+  return process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-2.5-flash";
+}
+
+function getDeepSeekModel() {
+  return process.env.DEEPSEEK_MODEL?.trim() || "deepseek-reasoner";
+}
+
 function buildPrompt({
   mode,
   prompt,
@@ -378,18 +407,104 @@ ${JSON_SCHEMAS.strategy}
   return prompt;
 }
 
+async function askDeepSeek({
+  systemPrompt,
+  fullPrompt,
+}: {
+  systemPrompt: string;
+  fullPrompt: string;
+}) {
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+
+  if (!apiKey) {
+    throw new Error("Brakuje zmiennej środowiskowej DEEPSEEK_API_KEY.");
+  }
+
+  const openai = new OpenAI({
+    baseURL: "https://api.deepseek.com",
+    apiKey,
+  });
+
+  const response = await openai.chat.completions.create({
+    model: getDeepSeekModel(),
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: fullPrompt },
+    ],
+  });
+
+  return {
+    answer: response.choices[0]?.message?.content || "",
+    usage: {
+      prompt_tokens: response.usage?.prompt_tokens ?? null,
+      completion_tokens: response.usage?.completion_tokens ?? null,
+      total_tokens: response.usage?.total_tokens ?? null,
+    },
+  };
+}
+
+async function askGemini({
+  systemPrompt,
+  fullPrompt,
+}: {
+  systemPrompt: string;
+  fullPrompt: string;
+}) {
+  const apiKey = getGeminiApiKey();
+
+  if (!apiKey) {
+    throw new Error(
+      "Brakuje klucza Gemini. Dodaj GOOGLE_GENAI_API_KEY albo GEMINI_API_KEY w Vercel Environment Variables."
+    );
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const response = await ai.models.generateContent({
+    model: getGeminiTextModel(),
+    contents: fullPrompt,
+    config: {
+      systemInstruction: systemPrompt,
+    },
+  });
+
+  const answer =
+    response.text ||
+    response.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text || "")
+      .join("")
+      .trim() ||
+    "";
+
+  if (!answer) {
+    throw new Error("Gemini nie zwrócił odpowiedzi tekstowej.");
+  }
+
+  return {
+    answer,
+    usage: {
+      prompt_tokens: null,
+      completion_tokens: null,
+      total_tokens: null,
+    },
+  };
+}
+
 // ─── MAIN HANDLER ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as RequestBody;
+    const body = (await req.json().catch(() => null)) as RequestBody | null;
 
-    const mode: AiMode = body.mode || "chat";
-    const prompt = body.prompt || "";
-    const platform = body.platform || "";
-    const platforms = Array.isArray(body.platforms) ? body.platforms : [];
-    const contentType = body.contentType || "";
-    const historicalData = body.historicalData || null;
+    const mode: AiMode = body?.mode || "chat";
+    const provider = normalizeProvider(
+      body?.ai_provider || body?.provider || body?.aiProvider || "deepseek"
+    );
+    const prompt = body?.prompt || "";
+    const platform = body?.platform || "";
+    const platforms = Array.isArray(body?.platforms) ? body.platforms : [];
+    const contentType = body?.contentType || "";
+    const historicalData = body?.historicalData || null;
 
     if (!prompt.trim()) {
       return NextResponse.json(
@@ -397,20 +512,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Brakuje zmiennej środowiskowej DEEPSEEK_API_KEY." },
-        { status: 500 }
-      );
-    }
-
-    const openai = new OpenAI({
-      baseURL: "https://api.deepseek.com",
-      apiKey,
-    });
 
     const fullPrompt = buildPrompt({
       mode,
@@ -423,21 +524,21 @@ export async function POST(req: Request) {
 
     const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
 
-    const response = await openai.chat.completions.create({
-      model: "deepseek-reasoner",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: fullPrompt },
-      ],
-    });
+    const aiResult =
+      provider === "gemini"
+        ? await askGemini({ systemPrompt, fullPrompt })
+        : await askDeepSeek({ systemPrompt, fullPrompt });
 
-    const message = response.choices[0]?.message;
-    const rawAnswer = message?.content || "";
+    const rawAnswer = aiResult.answer || "";
 
     let parsedData: unknown = null;
     let parseError: string | null = null;
 
-    if (["generate", "analyze", "adapt", "recommend", "hooks", "strategy"].includes(mode)) {
+    if (
+      ["generate", "analyze", "adapt", "recommend", "hooks", "strategy"].includes(
+        mode
+      )
+    ) {
       try {
         const cleaned = cleanJsonAnswer(rawAnswer);
         parsedData = JSON.parse(cleaned);
@@ -449,17 +550,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       mode,
+      provider,
       answer: rawAnswer,
       data: parsedData,
       parseError,
-      usage: {
-        prompt_tokens: response.usage?.prompt_tokens ?? null,
-        completion_tokens: response.usage?.completion_tokens ?? null,
-        total_tokens: response.usage?.total_tokens ?? null,
-      },
+      usage: aiResult.usage,
     });
   } catch (error) {
-    console.error("Błąd DeepSeek:", error);
+    console.error("Błąd /api/chat:", error);
 
     return NextResponse.json(
       {

@@ -25,6 +25,7 @@ type ContentKind =
 
 type StrategyItemStatus = "planned" | "scheduled" | "published" | "done";
 type ViewMode = "calendar" | "timeline";
+type StrategyAiProvider = "gemini" | "deepseek";
 
 interface StrategyDayItem {
   id?: string;
@@ -464,6 +465,7 @@ export default function AIStrategist({
 
   const [activeWeek, setActiveWeek] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [strategyAiProvider, setStrategyAiProvider] = useState<StrategyAiProvider>("gemini");
   const [showBriefPanel, setShowBriefPanel] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
 
@@ -531,6 +533,26 @@ export default function AIStrategist({
     return strategy.weekly_plan.findIndex(
       (r) => r.id === item.id || (r.date === item.date && r.time === item.time && r.platform === item.platform && r.title === item.title)
     );
+  }
+
+  function exportStrategy() {
+    if (!strategy) return;
+    const fileName = (strategy.strategy_name || "strategia-contentu")
+      .toLowerCase()
+      .replace(/[^a-z0-9ąćęłńóśźż]+/gi, "-")
+      .replace(/^-|-$/g, "");
+    const blob = new Blob([JSON.stringify(strategy, null, 2)], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${fileName || "strategia-contentu"}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    showToast("Strategia wyeksportowana");
   }
 
   // ── Auth / workspace ──────────────────────────────────────────────────────
@@ -679,6 +701,7 @@ export default function AIStrategist({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "strategy",
+          ai_provider: strategyAiProvider,
           prompt,
           historicalData: { periodStart, periodEnd: addDaysIso(periodStart, 27), selectedPlatforms, contextPack: pack },
         }),
@@ -865,6 +888,26 @@ export default function AIStrategist({
         .ais-post-row:hover { background: ${css.surfaceHover} !important; cursor: pointer; }
         .ais-week-tab { transition: all .14s; }
         .ais-brief-panel { animation: ais-slide-in .2s ease; }
+        .ais-calendar-grid { min-width: 820px; }
+        .ais-scrollbar { scrollbar-width: thin; scrollbar-color: ${css.borderMed} transparent; }
+        .ais-scrollbar::-webkit-scrollbar { height: 8px; }
+        .ais-scrollbar::-webkit-scrollbar-thumb { background: ${css.borderMed}; border-radius: 999px; }
+        @media (max-width: 900px) {
+          .ais-topbar { align-items: stretch !important; }
+          .ais-topbar-actions { width: 100%; }
+          .ais-topbar-actions button { flex: 1 1 auto; justify-content: center; }
+          .ais-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .ais-two-col { grid-template-columns: 1fr !important; }
+          .ais-timeline-row { grid-template-columns: 76px 1fr auto !important; }
+          .ais-timeline-platform, .ais-timeline-status { display: none !important; }
+        }
+        @media (max-width: 560px) {
+          .ais-brief-actions { grid-template-columns: 1fr !important; }
+          .ais-view-controls { align-items: stretch !important; }
+          .ais-view-controls > div { width: 100%; overflow-x: auto; }
+          .ais-topbar-actions { display: grid !important; grid-template-columns: 1fr 1fr; }
+          .ais-topbar-actions button:last-child { grid-column: 1 / -1; }
+        }
         @keyframes ais-slide-in { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:none } }
         @keyframes ais-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
       `}</style>
@@ -884,7 +927,7 @@ export default function AIStrategist({
       {/* ═══════════════════════════════════════
           TOP BAR
       ═══════════════════════════════════════ */}
-      <div style={{
+      <div className="ais-topbar" style={{
         display: "flex", alignItems: "flex-start", justifyContent: "space-between",
         gap: 16, marginBottom: 20, flexWrap: "wrap",
       }}>
@@ -904,7 +947,7 @@ export default function AIStrategist({
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div className="ais-topbar-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           {strategy && (
             <>
               <button
@@ -929,7 +972,7 @@ export default function AIStrategist({
             {strategy ? "Nowa strategia" : "Utwórz strategię AI"}
           </button>
           {strategy && (
-            <button style={btnPrimary} onClick={saveStrategy} disabled={saving}>
+            <button style={btnPrimary} onClick={exportStrategy}>
               <Download size={14} />
               Eksportuj
             </button>
@@ -1007,6 +1050,44 @@ export default function AIStrategist({
                     }}
                   >
                     {p.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: css.muted, textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
+              Silnik AI
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {([
+                { id: "gemini" as StrategyAiProvider, label: "Gemini", note: "Szybka analiza dużego kontekstu" },
+                { id: "deepseek" as StrategyAiProvider, label: "DeepSeek", note: "Rozumowanie strategiczne" },
+              ]).map((provider) => {
+                const active = strategyAiProvider === provider.id;
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() => setStrategyAiProvider(provider.id)}
+                    style={{
+                      borderRadius: 12,
+                      border: `1px solid ${active ? css.accentBorder : css.borderMed}`,
+                      background: active ? css.accentBg : css.surfaceSoft,
+                      color: active ? css.accentText : css.muted,
+                      padding: "11px 12px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 800, marginBottom: 3 }}>
+                      {provider.label}
+                    </span>
+                    <span style={{ display: "block", fontSize: 11, lineHeight: 1.4 }}>
+                      {provider.note}
+                    </span>
                   </button>
                 );
               })}

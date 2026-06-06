@@ -93,7 +93,7 @@ const QUICK_PROMPTS = [
   "Napisz mi post na Instagram bazując na moim stylu",
   "Który temat warto teraz rozwijać?",
   "Co powinienem przestać robić?",
-  "Zaproponuj 3 pomysły na contennt na ten tydzień",
+  "Zaproponuj 3 pomysły na content na ten tydzień",
   "Porównaj moje platformy — gdzie tracę potencjał?",
 ];
 
@@ -154,6 +154,7 @@ export default function AIPartner({
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [aiProvider, setAiProvider] = useState<"deepseek" | "gemini">("deepseek");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const css = dark
@@ -372,37 +373,98 @@ ${learningsSection}
 Twój priorytet: pomagaj twórcy rozwijać się szybciej, unikać powtarzania błędów i tworzyć lepszy content — oparty na tym co realnie działa w jego danych.`;
   };
 
-  const sendChat = async (messageText?: string) => {
-    const text = (messageText ?? chatInput).trim();
-    if (!text || chatLoading) return;
+const sendChat = async (messageText?: string) => {
+  const text = (messageText ?? chatInput).trim();
+  if (!text || chatLoading) return;
 
-    const userMsg: ChatMessage = { role: "user", content: text };
-    const newMessages = [...chatMessages, userMsg];
-    setChatMessages(newMessages);
-    setChatInput("");
-    setChatLoading(true);
+  const userMsg: ChatMessage = { role: "user", content: text };
+  const newMessages = [...chatMessages, userMsg];
 
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: buildSystemPrompt(),
-          messages: newMessages.map((m) => ({ role: m.role, content: m.content })),
-        }),
-      });
+  setChatMessages(newMessages);
+  setChatInput("");
+  setChatLoading(true);
 
-      const data = await response.json();
-      const reply = data.content?.find((b: { type: string }) => b.type === "text")?.text || "Nie udało się uzyskać odpowiedzi.";
-      setChatMessages([...newMessages, { role: "assistant", content: reply }]);
-    } catch {
-      setChatMessages([...newMessages, { role: "assistant", content: "Błąd połączenia z AI. Sprawdź konfigurację API." }]);
-    } finally {
-      setChatLoading(false);
+  try {
+    const conversationContext = newMessages
+      .slice(-8)
+      .map((message) =>
+        `${message.role === "user" ? "Użytkownik" : "AI Partner"}:\n${message.content}`
+      )
+      .join("\n\n---\n\n");
+
+    const partnerPrompt = `
+${buildSystemPrompt()}
+
+## OSTATNIA ROZMOWA
+${conversationContext}
+
+## AKTUALNE PYTANIE UŻYTKOWNIKA
+${text}
+
+Odpowiedz jako AI Partner ANM ContentIQ.
+
+Zasady:
+- Nie odpowiadaj ogólnikowo.
+- Nie wymyślaj danych.
+- Bazuj na danych z aplikacji przekazanych powyżej.
+- Jeżeli danych brakuje, powiedz konkretnie, czego brakuje.
+- Daj praktyczne wskazówki: co poprawić, co przetestować, co rozwinąć.
+- Jeżeli użytkownik prosi o treść posta, napisz ją w stylu Brand Voice.
+- Jeżeli pytanie dotyczy wyników, odnieś się do pobranych postów, platform, szablonów i learningów.
+- Odpowiadaj po polsku, konkretnie i praktycznie.
+`.trim();
+
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "chat",
+        provider: aiProvider,
+        prompt: partnerPrompt,
+        historicalData: {
+          workspaceId,
+          brandVoice,
+          selectedDrafts,
+          platformStats,
+          learnings,
+          profile,
+          postsCount: posts.length,
+          draftsCount: selectedDrafts.length,
+          connectedPlatforms: connections.map((connection) => connection.platform),
+        },
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || data?.error) {
+      throw new Error(
+        data?.details || data?.error || "Nie udało się uzyskać odpowiedzi AI."
+      );
     }
-  };
+
+    setChatMessages([
+      ...newMessages,
+      {
+        role: "assistant",
+        content: data.answer || "Nie udało się uzyskać odpowiedzi.",
+      },
+    ]);
+  } catch (err) {
+    setChatMessages([
+      ...newMessages,
+      {
+        role: "assistant",
+        content:
+          err instanceof Error
+            ? `Błąd AI: ${err.message}`
+            : "Błąd połączenia z AI.",
+      },
+    ]);
+  } finally {
+    setChatLoading(false);
+  }
+};
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -537,13 +599,67 @@ Twój priorytet: pomagaj twórcy rozwijać się szybciej, unikać powtarzania b�
             uczy się z Twoich danych · pewność modelu {confidenceScore}%
           </p>
         </div>
-        <div style={{ display: "flex", gap: 4, background: css.surface, padding: 4, borderRadius: 12, border: `1px solid ${css.border}` }}>
-          {(["overview", "chat", "platforms"] as const).map((t) => (
-            <button key={t} type="button" style={TAB_STYLES(tab === t)} onClick={() => setTab(t)}>
-              {t === "overview" ? "Analiza" : t === "chat" ? "Czat" : "Platformy"}
-            </button>
-          ))}
-        </div>
+  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+  <div
+    style={{
+      display: "flex",
+      gap: 4,
+      background: css.surface,
+      padding: 4,
+      borderRadius: 12,
+      border: `1px solid ${css.border}`,
+    }}
+  >
+    {(["overview", "chat", "platforms"] as const).map((t) => (
+      <button
+        key={t}
+        type="button"
+        style={TAB_STYLES(tab === t)}
+        onClick={() => setTab(t)}
+      >
+        {t === "overview" ? "Analiza" : t === "chat" ? "Czat" : "Platformy"}
+      </button>
+    ))}
+  </div>
+
+  <div
+    style={{
+      display: "flex",
+      gap: 4,
+      background: css.surface,
+      padding: 4,
+      borderRadius: 12,
+      border: `1px solid ${css.border}`,
+    }}
+  >
+    {(["deepseek", "gemini"] as const).map((provider) => {
+      const active = aiProvider === provider;
+
+      return (
+        <button
+          key={provider}
+          type="button"
+          onClick={() => setAiProvider(provider)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "none",
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: "pointer",
+            letterSpacing: "0.04em",
+            background: active ? css.accentSoft : "transparent",
+            color: active ? css.accent : css.muted,
+            fontFamily: "inherit",
+            textTransform: "uppercase",
+          }}
+        >
+          {provider === "deepseek" ? "DeepSeek" : "Gemini"}
+        </button>
+      );
+    })}
+  </div>
+</div>
       </div>
 
       {/* OVERVIEW TAB */}
@@ -591,7 +707,7 @@ Twój priorytet: pomagaj twórcy rozwijać się szybciej, unikać powtarzania b�
                   brandVoice?.tone && { label: "Ton", value: brandVoice.tone },
                   brandVoice?.target_audience && { label: "Odbiorca", value: brandVoice.target_audience.slice(0, 120) },
                   brandVoice?.cta_style && { label: "Styl CTA", value: brandVoice.cta_style },
-                  safeArray(brandVoice?.keywords).length > 0 && { label: "Kluczowe słowa", value: safeArray(brandVoice.keywords).slice(0, 6).join(", ") },
+                  safeArray(brandVoice?.keywords).length > 0 && { label: "Kluczowe słowa", value: safeArray(brandVoice?.keywords).slice(0, 6).join(", ") },
                 ].filter(Boolean).map((item, i) => (
                   <div key={i} style={{ padding: 12, borderRadius: 12, background: css.card, border: `1px solid ${css.border}` }}>
                     <div style={{ fontSize: 10, color: css.muted, fontWeight: 700, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>
@@ -613,7 +729,7 @@ Twój priorytet: pomagaj twórcy rozwijać się szybciej, unikać powtarzania b�
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {(safeArray(profile?.experiment_queue).length > 0
-                ? safeArray(profile.experiment_queue)
+                ? safeArray(profile?.experiment_queue)
                 : [
                     "Seria 3 postów: problem odbiorcy → kulisy rozwiązania → konkretna instrukcja",
                     "Ten sam temat w 3 wersjach: ekspercka (LinkedIn), narracyjna (FB), hook (IG/TT)",
