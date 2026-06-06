@@ -29,7 +29,8 @@ import {
   Video,
   WandSparkles,
   Wand2,
-  BrainCircuit,
+  BrainCircuit, 
+  Package,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -47,6 +48,7 @@ import Inspirations from "@/app/components/Inspirations";
 import AIStrategist from "@/app/components/AIStrategist";
 import ContentSummaryImproved from "@/app/components/ContentSummaryImproved";
 import BlogStudio from "@/app/components/BlogStudio";
+import BrandOffers from "@/app/components/BrandOffers";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -64,6 +66,7 @@ type TabId =
   | "compare"
   | "calendar"
   | "studio"
+  | "blogStudio"
   | "video"
   | "shorts"
   | "creative"
@@ -82,6 +85,7 @@ type TabId =
 |"inspirationsShort"
 |"inspirationsCreative"
   | "strategist"
+  | "offers"
 ;
 
 interface Account {
@@ -301,10 +305,11 @@ const NAV_GROUPS: NavGroup[] = [
     title: "AI",
     icon: "groupAi",
     tabs: [
-      { id: "chat", label: "AI Chat", icon: "chat" },
+      { id: "offers", label: "Oferta i linki", icon: "package" },
       { id: "brand", label: "Brand Voice", icon: "brand" },
       { id: "partner", label: "AI Partner", icon: "partner" },
-       { id: "strategist", label: "AI Strateg", icon: "strategist" },
+      { id: "strategist", label: "AI Strateg", icon: "strategist" },
+      { id: "chat", label: "AI Chat", icon: "chat" },
     ],
   },
   {
@@ -467,6 +472,8 @@ const NAV_ICONS = {
   video: Video,
   shorts: Clapperboard,
   creative: ImagePlus,
+  fileText: FileText,
+  package: Package,
 
   templates: Library,
   templatesContent: FileText,
@@ -4356,6 +4363,12 @@ const formatProfileNumber = (value: any) => {
     </div>
 
     <VideoStudio dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
+{/* ================= OFERTA I LINKI ================= */}
+{activeTab === "offers" && (
+  <div>
+    <BrandOffers dark={dark} workspaceId={workspaceId} />
   </div>
 )}
 {/* ================= BLOG STUDIO ================= */}
