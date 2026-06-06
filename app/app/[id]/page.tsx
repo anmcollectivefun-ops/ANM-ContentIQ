@@ -46,6 +46,7 @@ import { calculatePerformanceScore } from "@/lib/performanceScore";
 import Inspirations from "@/app/components/Inspirations";
 import AIStrategist from "@/app/components/AIStrategist";
 import ContentSummaryImproved from "@/app/components/ContentSummaryImproved";
+import BlogStudio from "@/app/components/BlogStudio";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -245,17 +246,18 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    id: "creation",
-    title: "Tworzenie",
-    icon: "groupCreation",
-    tabs: [
-      { id: "studio", label: "Content Studio", icon: "studio" },
-      { id: "video", label: "Video Studio", icon: "video" },
-      { id: "shorts", label: "Short Studio", icon: "shorts" },
-      { id: "creative", label: "Creative Studio", icon: "creative" },
-      { id: "calendar", label: "Harmonogram", icon: "calendar" },
-    ],
-  },
+  id: "creation",
+  title: "Tworzenie",
+  icon: "groupCreation",
+  tabs: [
+    { id: "studio", label: "Content Studio", icon: "studio" },
+    { id: "blogStudio", label: "Blog Studio", icon: "fileText" },
+    { id: "video", label: "Video Studio", icon: "video" },
+    { id: "shorts", label: "Short Studio", icon: "shorts" },
+    { id: "creative", label: "Creative Studio", icon: "creative" },
+    { id: "calendar", label: "Harmonogram", icon: "calendar" },
+  ],
+},
     {
   id: "inspirationLibrary",
   title: "Inspiracje",
@@ -4356,7 +4358,50 @@ const formatProfileNumber = (value: any) => {
     <VideoStudio dark={dark} workspaceId={workspaceId} />
   </div>
 )}
+{/* ================= BLOG STUDIO ================= */}
+{activeTab === "blogStudio" && (
+  <div>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 18,
+      }}
+    >
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        Blog Studio
+      </p>
 
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.heading,
+          fontFamily: "var(--font-heading)",
+          fontWeight: 500,
+        }}
+      >
+        Notatnik pisarza z AI do tworzenia wpisów blogowych
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        Twórz szkice, rozwijaj artykuły, zapisuj tematy i używaj bloga jako
+        źródła contentu na social media. AI pomaga wtedy, kiedy brakuje pomysłu,
+        słów albo kolejnego akapitu.
+      </p>
+    </div>
+
+    <BlogStudio dark={dark} workspaceId={workspaceId} />
+  </div>
+)}
 {/* ================= SHORT STUDIO ================= */}
 {activeTab === "shorts" && (
   <div>
