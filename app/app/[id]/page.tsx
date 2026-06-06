@@ -83,14 +83,12 @@ type TabId =
   | "chat"
   | "integrations"
   | "settings"
-  |"inspirationsContent"
-|"inspirationsVideo"
-|"inspirationsShort"
-|"inspirationsCreative"
+  | "inspirationsContent"
+  | "inspirationsVideo"
+  | "inspirationsShort"
+  | "inspirationsCreative"
   | "strategist"
-  | "offers"
-  | "blogLibrary"
-;
+  | "offers";
 
 interface Account {
   id: Platform;
@@ -254,19 +252,19 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-  id: "creation",
-  title: "Tworzenie",
-  icon: "groupCreation",
-  tabs: [
-    { id: "studio", label: "Content Studio", icon: "studio" },
-    { id: "blogStudio", label: "Blog Studio", icon: "fileText" },
-    { id: "video", label: "Video Studio", icon: "video" },
-    { id: "shorts", label: "Short Studio", icon: "shorts" },
-    { id: "creative", label: "Creative Studio", icon: "creative" },
-    { id: "calendar", label: "Harmonogram", icon: "calendar" },
-    { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
-  ],
-},
+    id: "creation",
+    title: "Tworzenie",
+    icon: "groupCreation",
+    tabs: [
+      { id: "studio", label: "Content Studio", icon: "studio" },
+      { id: "blogStudio", label: "Blog Studio", icon: "fileText" },
+      { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
+      { id: "video", label: "Video Studio", icon: "video" },
+      { id: "shorts", label: "Short Studio", icon: "shorts" },
+      { id: "creative", label: "Creative Studio", icon: "creative" },
+      { id: "calendar", label: "Harmonogram", icon: "calendar" },
+    ],
+  },
     {
   id: "inspirationLibrary",
   title: "Inspiracje",
@@ -1230,7 +1228,15 @@ const formatProfileNumber = (value: any) => {
 };
 
   return (
-    <div style={{ ...st.root, background: css.bg, color: css.text }}>
+    <div
+      style={{
+        ...st.root,
+        background: dark
+          ? `radial-gradient(circle at top left, ${css.accentSoft}, transparent 34%), ${css.bg}`
+          : `radial-gradient(circle at top left, rgba(181,147,122,0.22), transparent 34%), ${css.bg}`,
+        color: css.text,
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap');
 
@@ -1300,6 +1306,28 @@ const formatProfileNumber = (value: any) => {
         ::-webkit-scrollbar-thumb {
           background: ${css.border};
           border-radius: 999px;
+        }
+
+
+        .ciq-top-actions details[open] summary {
+          border-color: ${css.aiBorder} !important;
+        }
+
+        .ciq-panel-hero {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ciq-panel-hero::after {
+          content: "";
+          position: absolute;
+          left: 24px;
+          right: 24px;
+          bottom: -26px;
+          height: 52px;
+          background: rgba(168, 85, 247, 0.12);
+          filter: blur(26px);
+          pointer-events: none;
         }
 
         @media (max-width: 1080px) {
@@ -1698,28 +1726,83 @@ const formatProfileNumber = (value: any) => {
             style={{
               ...st.topbar,
               borderBottom: `1px solid ${css.border}`,
-              background: css.bg,
+              background: dark
+                ? "linear-gradient(135deg, rgba(26,34,51,0.96), rgba(5,5,5,0.96))"
+                : "linear-gradient(135deg, rgba(255,255,255,0.96), rgba(247,242,239,0.96))",
+              backdropFilter: "blur(18px)",
+              boxShadow: dark
+                ? "0 14px 38px rgba(0,0,0,0.22)"
+                : "0 14px 34px rgba(35,31,32,0.08)",
             }}
           >
             <div>
-              <div style={{ ...st.tabLabel, color: css.accent }}>
-                {NAV_TABS.find((tab) => tab.id === activeTab)?.label}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  flexWrap: "wrap",
+                  marginBottom: 7,
+                }}
+              >
+                <span
+                  style={{
+                    ...st.tabLabel,
+                    color: css.accent,
+                    fontFamily: "var(--font-label)",
+                    letterSpacing: ".14em",
+                    marginBottom: 0,
+                  }}
+                >
+                  {NAV_TABS.find((tab) => tab.id === activeTab)?.label}
+                </span>
+
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 99,
+                    background: css.accent,
+                    opacity: 0.65,
+                  }}
+                />
+
+                <span
+                  style={{
+                    color: css.muted,
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  Workspace: {workspaceId}
+                </span>
               </div>
 
               <h1
                 style={{
                   ...st.pageTitle,
                   fontFamily: "var(--font-heading)",
-                  color: css.text,
+                  color: css.heading,
+                  fontSize: 34,
+                  lineHeight: 1.02,
+                  fontWeight: 500,
+                  margin: 0,
                 }}
               >
-                {activeAccount
-                  ? activeAccount.name
-                  : "Centrum analityki contentu"}
+                {activeAccount ? activeAccount.name : "Centrum analityki contentu"}
               </h1>
 
-              <p style={{ ...st.pageSubtitle, color: css.muted }}>
-                Wszystkie konta, wyniki live i rekomendacje AI w jednym miejscu.
+              <p
+                style={{
+                  ...st.pageSubtitle,
+                  color: css.muted,
+                  marginTop: 8,
+                  maxWidth: 760,
+                  lineHeight: 1.65,
+                }}
+              >
+                Wszystkie konta, wyniki live, treści, blog, oferta i rekomendacje AI w
+                jednym miejscu.
               </p>
             </div>
 
@@ -1734,13 +1817,14 @@ const formatProfileNumber = (value: any) => {
                   background: css.surface,
                   border: `1px solid ${css.border}`,
                   color: css.muted,
+                  boxShadow: dark ? "0 12px 28px rgba(0,0,0,0.18)" : "none",
                 }}
               >
                 {dark ? <Sun size={17} /> : <Moon size={17} />}
               </button>
 
               <Link
-                href="/"
+                href="/dashboard"
                 style={{
                   ...st.topBtn,
                   background: css.surface,
@@ -1749,7 +1833,7 @@ const formatProfileNumber = (value: any) => {
                   textDecoration: "none",
                 }}
               >
-                Strona główna
+                Dashboard
               </Link>
 
               <button
@@ -1769,23 +1853,43 @@ const formatProfileNumber = (value: any) => {
                 Harmonogram
               </button>
 
+              <button
+                type="button"
+                onClick={() => openTab("studio")}
+                style={{
+                  ...st.topBtn,
+                  background: dark ? "#FFFFFF" : "#111111",
+                  color: dark ? "#050505" : "#FFFFFF",
+                  border: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  fontWeight: 900,
+                }}
+              >
+                <Sparkles size={15} />
+                Twórz content
+              </button>
+
               <details style={{ position: "relative" }}>
                 <summary
                   style={{
                     ...st.topBtn,
                     listStyle: "none",
-                    background: css.accent,
-                    color: "#FFFFFF",
-                    border: "none",
+                    background: css.aiBg,
+                    color: css.aiText,
+                    border: `1px solid ${css.aiBorder}`,
+                    boxShadow: css.aiGlow,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 8,
                     cursor: "pointer",
                     userSelect: "none",
+                    fontWeight: 900,
                   }}
                 >
                   <SlidersHorizontal size={15} />
-                  Personalizuj aplikację
+                  Personalizuj
                   <ChevronDown size={14} />
                 </summary>
 
@@ -1795,9 +1899,9 @@ const formatProfileNumber = (value: any) => {
                     top: "calc(100% + 9px)",
                     right: 0,
                     zIndex: 80,
-                    width: 250,
+                    width: 270,
                     padding: 8,
-                    borderRadius: 16,
+                    borderRadius: 18,
                     background: css.surface,
                     border: `1px solid ${css.border}`,
                     boxShadow: "0 18px 48px rgba(0,0,0,.32)",
@@ -1807,12 +1911,14 @@ const formatProfileNumber = (value: any) => {
                 >
                   {[
                     { id: "integrations" as TabId, label: "Integracje", icon: PlugZap },
-                    { id: "brand" as TabId, label: "Brand Voice", icon: WandSparkles },
                     { id: "offers" as TabId, label: "Oferta i linki", icon: Package },
+                    { id: "brand" as TabId, label: "Brand Voice", icon: WandSparkles },
+                    { id: "blogLibrary" as TabId, label: "Biblioteka bloga", icon: FileText },
                     { id: "strategist" as TabId, label: "AI Strateg", icon: BrainCircuit },
                     { id: "settings" as TabId, label: "Ustawienia", icon: Settings },
                   ].map((item) => {
                     const MenuIcon = item.icon;
+
                     return (
                       <button
                         key={item.id}
@@ -1827,7 +1933,7 @@ const formatProfileNumber = (value: any) => {
                           alignItems: "center",
                           gap: 10,
                           padding: "10px 11px",
-                          borderRadius: 11,
+                          borderRadius: 12,
                           border: "none",
                           background: activeTab === item.id ? css.activeBg : "transparent",
                           color: activeTab === item.id ? css.activeText : css.text,
@@ -1838,7 +1944,10 @@ const formatProfileNumber = (value: any) => {
                           cursor: "pointer",
                         }}
                       >
-                        <MenuIcon size={15} color={activeTab === item.id ? css.accent : css.muted} />
+                        <MenuIcon
+                          size={15}
+                          color={activeTab === item.id ? css.accent : css.muted}
+                        />
                         {item.label}
                       </button>
                     );
@@ -5533,13 +5642,14 @@ const st: Record<string, CSSProperties> = {
   },
 
   topbar: {
-    padding: "18px 28px",
+    padding: "18px 30px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     position: "sticky",
     top: 0,
     zIndex: 10,
+    gap: 18,
   },
 
   tabLabel: {
@@ -5552,14 +5662,14 @@ const st: Record<string, CSSProperties> = {
 
   pageTitle: {
     fontSize: 32,
-    fontWeight: 400,
+    fontWeight: 500,
     letterSpacing: "-0.03em",
     margin: 0,
   },
 
   pageSubtitle: {
     fontSize: 13,
-    marginTop: 4,
+    marginTop: 6,
   },
 
   topActions: {
@@ -5590,7 +5700,7 @@ const st: Record<string, CSSProperties> = {
   },
 
   content: {
-    padding: "24px 28px 34px",
+    padding: "28px 30px 76px",
     flex: 1,
     overflowY: "auto",
   },
