@@ -124,6 +124,40 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function resolveStrategyPayload(data: unknown, answer: unknown): unknown {
+  if (isRecord(data)) {
+    if (Array.isArray(data.weekly_plan)) return data;
+    if (isRecord(data.strategy) && Array.isArray(data.strategy.weekly_plan)) {
+      return data.strategy;
+    }
+    if (isRecord(data.data) && Array.isArray(data.data.weekly_plan)) {
+      return data.data;
+    }
+  }
+
+  if (typeof answer !== "string" || !answer.trim()) {
+    throw new Error("AI nie zwróciło danych strategii.");
+  }
+
+  const parsedAnswer = JSON.parse(cleanJsonAnswer(answer));
+  if (isRecord(parsedAnswer) && Array.isArray(parsedAnswer.weekly_plan)) {
+    return parsedAnswer;
+  }
+  if (
+    isRecord(parsedAnswer) &&
+    isRecord(parsedAnswer.strategy) &&
+    Array.isArray(parsedAnswer.strategy.weekly_plan)
+  ) {
+    return parsedAnswer.strategy;
+  }
+
+  throw new Error("Odpowiedź AI nie zawiera pola weekly_plan.");
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -170,6 +204,9 @@ function getWeekDays(weekIndex: number, periodStart: string): string[] {
 // ─── Parsing ─────────────────────────────────────────────────────────────────
 
 function parseStrategy(raw: unknown, fallbackStart: string): AiStrategyResult {
+  if (!isRecord(raw)) {
+    throw new Error("AI zwróciło nieprawidłowy format strategii.");
+  }
   const v = raw as Partial<AiStrategyResult>;
   const start = v.period_start || fallbackStart;
   const end = v.period_end || addDaysIso(start, 27);
@@ -469,6 +506,16 @@ export default function AIStrategist({
   const [showBriefPanel, setShowBriefPanel] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!strategy) return;
+    console.info("[AI Strategist] strategy state updated", {
+      name: strategy.strategy_name,
+      weeklyPlanLength: strategy.weekly_plan.length,
+      pillars: strategy.content_pillars.length,
+      platforms: strategy.platform_distribution.length,
+    });
+  }, [strategy]);
+
   // ── Derived data ──────────────────────────────────────────────────────────
   const todayIsoVal = todayIso();
 
@@ -706,11 +753,68 @@ export default function AIStrategist({
           historicalData: { periodStart, periodEnd: addDaysIso(periodStart, 27), selectedPlatforms, contextPack: pack },
         }),
       });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error || "Błąd generowania strategii AI.");
-      const parsed = json.data || JSON.parse(cleanJsonAnswer(json.answer || "{}"));
-      setStrategy(parseStrategy(parsed, periodStart));
+      const responseText = await res.text();
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(responseText) as Record<string, unknown>;
+      } catch {
+        console.error("[AI Strategist] /api/chat returned non-JSON", {
+          status: res.status,
+          responsePreview: responseText.slice(0, 800),
+        });
+        throw new Error("Endpoint AI zwrócił nieprawidłową odpowiedź.");
+      }
+
+      console.info("[AI Strategist] /api/chat response", {
+        status: res.status,
+        provider: json.provider,
+        hasData: Boolean(json.data),
+        hasAnswer: typeof json.answer === "string" && json.answer.length > 0,
+        parseError: json.parseError || null,
+        answerPreview:
+          typeof json.answer === "string" ? json.answer.slice(0, 800) : null,
+      });
+
+      if (!res.ok || json.error) {
+        throw new Error(
+          typeof json.error === "string"
+            ? json.error
+            : "Błąd generowania strategii AI."
+        );
+      }
+
+      let payload: unknown;
+      try {
+        payload = resolveStrategyPayload(json.data, json.answer);
+      } catch (parseErr) {
+        console.error("[AI Strategist] strategy payload parsing failed", {
+          parseError: json.parseError || null,
+          data: json.data,
+          answerPreview:
+            typeof json.answer === "string" ? json.answer.slice(0, 1200) : null,
+        });
+        throw parseErr;
+      }
+
+      const nextStrategy = parseStrategy(payload, periodStart);
+      console.info("[AI Strategist] parsed strategy before setState", {
+        name: nextStrategy.strategy_name,
+        weeklyPlanLength: nextStrategy.weekly_plan.length,
+        pillars: nextStrategy.content_pillars.length,
+        platforms: nextStrategy.platform_distribution.length,
+      });
+
+      if (nextStrategy.weekly_plan.length === 0) {
+        throw new Error(
+          "AI utworzyło strategię bez planu publikacji. Spróbuj ponownie lub wybierz drugi silnik AI."
+        );
+      }
+
+      setStrategy(nextStrategy);
       setSavedStrategyId(null);
+      setPeriodStart(nextStrategy.period_start);
+      setActiveWeek(1);
+      setExpandedPost(null);
       setShowBriefPanel(false);
       showToast("Strategia AI wygenerowana");
     } catch (err) {
