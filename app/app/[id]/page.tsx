@@ -258,7 +258,7 @@ const NAV_GROUPS: NavGroup[] = [
     tabs: [
       { id: "studio", label: "Content Studio", icon: "studio" },
       { id: "blogStudio", label: "Blog Studio", icon: "fileText" },
-      { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
+      
       { id: "video", label: "Video Studio", icon: "video" },
       { id: "shorts", label: "Short Studio", icon: "shorts" },
       { id: "creative", label: "Creative Studio", icon: "creative" },
@@ -301,6 +301,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "templatesVideo", label: "Szablony video", icon: "templatesVideo" },
       { id: "templatesShort", label: "Szablony short", icon: "templatesShort" },
       { id: "templatesCreative", label: "Szablony creative", icon: "templatesCreative" },
+      { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
     ],
   },
   {

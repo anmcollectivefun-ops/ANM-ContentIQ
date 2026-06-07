@@ -56,6 +56,26 @@ type ScrapeResponse = {
   text?: string;
   error?: string;
 };
+type BrandOffer = {
+  id: string;
+  name: string;
+  offer_type: string | null;
+  url: string | null;
+  image_url: string | null;
+  short_description: string | null;
+  full_description: string | null;
+  target_audience: string | null;
+  pain_points: string[] | null;
+  benefits: string[] | null;
+  features: string[] | null;
+  cta_options: string[] | null;
+  keywords: string[] | null;
+  avoid_words: string[] | null;
+  content_angles: string[] | null;
+  platforms: string[] | null;
+  is_primary: boolean | null;
+  status: string | null;
+};
 
 const EMPTY_DRAFT: BlogDraft = {
   title: "",
@@ -170,18 +190,32 @@ function buildPrompt({
   selectedText,
   selectedPlatforms,
   sourceNotes,
+  brandOffers,
 }: {
   action: BlogAiAction;
   draft: BlogDraft;
   selectedText: string;
   selectedPlatforms: Platform[];
   sourceNotes: string;
+  brandOffers: BrandOffer[];
 }) {
-  const base = `
-Jesteś AI pisarzem i redaktorem w ANM ContentIQ.
-Pomagasz twórcy pisać artykuł blogowy, który później może stać się źródłem contentu na social media.
+  const offersContext = formatBrandOffersForPrompt(brandOffers);
 
-Nie pisz ogólników. Pracuj na notatkach użytkownika, aktualnym szkicu i kontekście marki.
+  const base = `
+Jesteś AI pisarzem, redaktorem i strategiem content marketingu.
+Pomagasz twórcy pisać artykuł blogowy, który później może stać się źródłem contentu na social media i naturalnie prowadzić do realnej oferty marki.
+
+NAJWAŻNIEJSZA ZASADA:
+Najpierw korzystaj z danych zapisanych w aplikacji: oferty, produkty, aplikacje, linki, CTA i notatki użytkownika.
+Nie wymyślaj produktów spoza listy ofert.
+Jeśli brakuje danych, napisz czego brakuje zamiast zgadywać.
+
+OFERTA / PRODUKTY MARKI:
+${offersContext}
+
+Jesteś AI pisarzem i redaktorem.
+Nie pisz ogólników. Pracuj na notatkach użytkownika, aktualnym szkicu, kontekście marki i zapisanych ofertach.
+Jeżeli zadanie dotyczy pomysłów, planu, SEO albo social media, połącz temat z konkretną ofertą, produktem, aplikacją, usługą, kursem lub landing page z listy.
 Nie kończ całego artykułu na siłę, jeśli użytkownik prosi tylko o dalszy fragment.
 Pisz naturalnie, konkretnie i po polsku.
 
@@ -208,13 +242,33 @@ ${sourceNotes || "brak"}
     return `${base}
 
 ZADANIE:
-Zaproponuj 8 konkretnych pomysłów na wpis blogowy.
-Każdy pomysł ma mieć:
-- tytuł,
-- kąt komunikacji,
-- dla kogo jest wpis,
-- CTA,
-- jak można go potem przerobić na social media.
+Zaproponuj 8 konkretnych pomysłów na wpis blogowy, które wynikają z realnej oferty marki.
+
+ZASADY:
+1. Nie twórz ogólnych tematów blogowych typu „jak planować content”, jeśli nie są powiązane z konkretną ofertą marki.
+2. Każdy pomysł musi wskazywać, z którą ofertą jest powiązany.
+3. Każdy temat ma zaczynać od realnego problemu odbiorcy.
+4. Temat ma przyciągać uwagę, ale nie może być clickbaitem bez wartości.
+5. CTA ma prowadzić do konkretnego produktu, aplikacji, usługi albo linku z listy ofert.
+6. Jeżeli oferta ma link, użyj go jako sugerowanego CTA.
+7. Nie wymyślaj produktów spoza listy ofert.
+8. Nie pisz tylko o jednej ofercie, jeśli w bazie są też inne aktywne produkty.
+9. Jeśli brakuje danych o ofercie, napisz czego brakuje.
+10. Dla każdego pomysłu podaj też pomysł na dalszy content social media.
+
+FORMAT:
+### 1. Tytuł:
+Produkt / oferta:
+Problem odbiorcy:
+Kąt komunikacji:
+Dlaczego to przyciągnie uwagę:
+Jak wpis naturalnie sprzedaje ofertę:
+CTA:
+Social media po wpisie:
+- LinkedIn:
+- Facebook:
+- Instagram:
+- TikTok / Short:
 
 Nie zwracaj JSON. Daj gotową listę do wyboru.`;
   }
@@ -223,16 +277,18 @@ Nie zwracaj JSON. Daj gotową listę do wyboru.`;
     return `${base}
 
 ZADANIE:
-Ułóż konkretny plan wpisu blogowego.
+Ułóż konkretny plan wpisu blogowego powiązany z najlepszą pasującą ofertą marki.
 Daj:
+- wybraną ofertę / produkt i dlaczego pasuje,
 - mocny tytuł,
 - krótki lead,
 - strukturę H2/H3,
-- gdzie dodać CTA,
+- gdzie naturalnie dodać CTA,
 - jak zakończyć tekst,
-- 5 pytań FAQ.
+- 5 pytań FAQ,
+- 3 pomysły na social media po publikacji wpisu.
 
-Plan ma być praktyczny, a nie akademicki.`;
+Plan ma być praktyczny, sprzedażowo sprytny i nieakademicki.`;
   }
 
   if (action === "start") {
@@ -241,6 +297,7 @@ Plan ma być praktyczny, a nie akademicki.`;
 ZADANIE:
 Napisz początek wpisu blogowego: mocny lead i pierwsze 2-3 akapity.
 Styl: ciekawy, lekko narracyjny, ale konkretny.
+Jeżeli temat pasuje do jednej z ofert marki, zacznij od problemu odbiorcy tej oferty, a nie od opisu produktu.
 Nie rób podsumowania. Tekst ma dawać autorowi dobry start do dalszego pisania.`;
   }
 
@@ -250,6 +307,7 @@ Nie rób podsumowania. Tekst ma dawać autorowi dobry start do dalszego pisania.
 ZADANIE:
 Dopisz kolejną część wpisu blogowego w tym samym stylu.
 Nie powtarzaj tego, co już jest w szkicu.
+Jeżeli naturalnie pasuje, subtelnie zbliż tekst do problemu, który rozwiązuje konkretna oferta marki.
 Daj płynne przejście i 3-5 akapitów gotowych do wklejenia.`;
   }
 
@@ -283,8 +341,9 @@ Zwróć:
     return `${base}
 
 ZADANIE:
-Przygotuj SEO dla wpisu.
+Przygotuj SEO dla wpisu z uwzględnieniem oferty marki.
 Daj:
+- najlepszą pasującą ofertę / produkt,
 - 5 tytułów SEO,
 - meta title,
 - meta description,
@@ -292,7 +351,10 @@ Daj:
 - słowa kluczowe,
 - strukturę H2/H3,
 - FAQ,
-- propozycję tekstu CTA w środku i na końcu wpisu.`;
+- propozycję tekstu CTA w środku i na końcu wpisu,
+- sugestię linkowania wewnętrznego do produktu/oferty, jeśli ma URL.
+
+Nie wciskaj sprzedaży na siłę. CTA ma wynikać z problemu omawianego we wpisie.`;
   }
 
   return `${base}
@@ -300,6 +362,7 @@ Daj:
 ZADANIE:
 Na podstawie szkicu blogowego przygotuj content promujący wpis na platformy: ${getPlatformNames(selectedPlatforms)}.
 Blog jest źródłem. Nie publikujemy bloga z aplikacji, tylko tworzymy social media wokół niego.
+Jeżeli wpis pasuje do konkretnej oferty marki, użyj jej jako naturalnego CTA. Nie używaj CTA, które nie wynika z listy ofert.
 
 Dla każdej platformy przygotuj:
 - hook,
@@ -317,7 +380,61 @@ Dostosuj ton:
 - YouTube: tytuł/short/miniatura i retencja.
 Nie kopiuj jednego posta 1:1 na wszystkie platformy.`;
 }
+function formatBrandOffersForPrompt(offers: BrandOffer[]) {
+  if (!offers.length) {
+    return "Brak zapisanych produktów, usług lub aplikacji marki.";
+  }
 
+  return offers
+    .map((offer, index) => {
+      return `
+OFERTA ${index + 1}${offer.is_primary ? " — OFERTA GŁÓWNA" : ""}
+
+Nazwa:
+${offer.name}
+
+Typ:
+${offer.offer_type || "brak"}
+
+Link:
+${offer.url || "brak"}
+
+Krótki opis:
+${offer.short_description || "brak"}
+
+Pełny opis:
+${offer.full_description || "brak"}
+
+Dla kogo:
+${offer.target_audience || "brak"}
+
+Problemy odbiorcy:
+${(offer.pain_points || []).map((x) => `- ${x}`).join("\n") || "- brak"}
+
+Korzyści:
+${(offer.benefits || []).map((x) => `- ${x}`).join("\n") || "- brak"}
+
+Funkcje / elementy oferty:
+${(offer.features || []).map((x) => `- ${x}`).join("\n") || "- brak"}
+
+CTA:
+${(offer.cta_options || []).map((x) => `- ${x}`).join("\n") || "- brak"}
+
+Kąty contentowe:
+${(offer.content_angles || []).map((x) => `- ${x}`).join("\n") || "- brak"}
+
+Słowa kluczowe:
+${(offer.keywords || []).join(", ") || "brak"}
+
+Słowa, których unikać:
+${(offer.avoid_words || []).join(", ") || "brak"}
+
+Platformy:
+${(offer.platforms || []).join(", ") || "brak"}
+`.trim();
+    })
+    .join("\n\n---\n\n");
+}
 export default function BlogStudio({
   dark = true,
   workspaceId = "contentiq",
@@ -327,6 +444,8 @@ export default function BlogStudio({
 }) {
   const supabase = createClient();
   const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  const [brandOffers, setBrandOffers] = useState<BrandOffer[]>([]);
 
   const [aiProvider, setAiProvider] = useState<AiProvider>("deepseek");
   const [draft, setDraft] = useState<BlogDraft>(EMPTY_DRAFT);
@@ -390,8 +509,10 @@ export default function BlogStudio({
 
   useEffect(() => {
     void loadDrafts();
+    void loadBrandOffers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
+
 
   function showToast(message: string) {
     setToast(message);
@@ -434,6 +555,27 @@ export default function BlogStudio({
     updateDraft("body", draft.body.trim() ? `${draft.body.trim()}\n\n${cleaned}` : cleaned);
   }
 
+
+async function loadBrandOffers() {
+  try {
+    const wsId = await getOrCreateWorkspaceUuid();
+
+    const { data, error } = await supabase
+      .schema("contentiq")
+      .from("brand_offers")
+      .select("*")
+      .eq("workspace_id", wsId)
+      .eq("status", "active")
+      .order("is_primary", { ascending: false })
+      .order("updated_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    setBrandOffers((data || []) as BrandOffer[]);
+  } catch (err) {
+    console.error("Brand offers load error:", err);
+  }
+}
   async function getOrCreateWorkspaceUuid() {
     const { data: existing, error: existingError } = await supabase
       .schema("contentiq")
@@ -566,6 +708,7 @@ export default function BlogStudio({
         selectedText,
         selectedPlatforms,
         sourceNotes,
+        brandOffers,
       });
 
       const response = await fetch("/api/chat", {
@@ -583,6 +726,8 @@ export default function BlogStudio({
             title: draft.title,
             topic: draft.topic,
             hasSourceNotes: Boolean(sourceNotes),
+            brandOffersCount: brandOffers.length,
+            primaryOffer: brandOffers.find((offer) => offer.is_primary)?.name || null,
           },
         }),
       });
@@ -833,6 +978,54 @@ export default function BlogStudio({
                 );
               })}
             </div>
+          </div>
+
+          <div
+            style={{
+              borderRadius: 16,
+              border: `1px solid ${brandOffers.length ? css.aiBorder : css.border}`,
+              background: brandOffers.length ? css.aiBgSoft : css.surfaceSoft,
+              padding: 11,
+            }}
+          >
+            <div
+              style={{
+                color: brandOffers.length ? css.aiText : css.muted,
+                fontSize: 10,
+                fontWeight: 900,
+                letterSpacing: ".1em",
+                textTransform: "uppercase",
+                marginBottom: 6,
+              }}
+            >
+              Kontekst oferty dla AI
+            </div>
+            <div style={{ color: css.text, fontSize: 12, lineHeight: 1.55 }}>
+              {brandOffers.length
+                ? `AI widzi ${brandOffers.length} aktywnych ofert/produktów marki.`
+                : "Brak aktywnych ofert. Dodaj je w sekcji Oferta i linki, żeby AI pisało bardziej sprzedażowo."}
+            </div>
+            {brandOffers.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+                {brandOffers.slice(0, 4).map((offer) => (
+                  <span
+                    key={offer.id}
+                    style={{
+                      borderRadius: 999,
+                      border: `1px solid ${css.aiBorder}`,
+                      background: css.aiBg,
+                      color: css.aiText,
+                      padding: "4px 7px",
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {offer.is_primary ? "★ " : ""}
+                    {offer.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
