@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Lang = "pl" | "en";
@@ -96,7 +96,7 @@ function GoogleLogo() {
   );
 }
 
-export default function LoginPage() {
+function LoginPageInner() {
   const searchParams = useSearchParams();
   const lang: Lang = searchParams.get("lang") === "pl" ? "pl" : "en";
   const t = copy[lang];
@@ -171,7 +171,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/dashboard";
+      window.location.href = `/dashboard?lang=${lang}`;
       return;
     }
 
@@ -313,7 +313,10 @@ export default function LoginPage() {
                 />
                 <span>
                   {t.acceptPrefix}{" "}
-                  <Link href={privacyHref} className="font-bold text-cyan-300 hover:text-white">
+                  <Link
+                    href={privacyHref}
+                    className="font-bold text-cyan-300 hover:text-white"
+                  >
                     {t.privacy}
                   </Link>
                   .
@@ -329,7 +332,10 @@ export default function LoginPage() {
                 />
                 <span>
                   {t.acceptPrefix}{" "}
-                  <Link href={termsHref} className="font-bold text-cyan-300 hover:text-white">
+                  <Link
+                    href={termsHref}
+                    className="font-bold text-cyan-300 hover:text-white"
+                  >
                     {t.terms}
                   </Link>
                   .
@@ -370,6 +376,7 @@ export default function LoginPage() {
     </main>
   );
 }
+
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
