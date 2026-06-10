@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { appCopy, getLang, type Lang } from "@/lib/contentiq-app-copy";
 import {
   BarChart3,
   Bot,
@@ -240,222 +241,219 @@ const ACCOUNTS: Account[] = [
 
 const PLANNED_CONTENT: PlannedContent[] = [];
 
-const NAV_GROUPS: NavGroup[] = [
-  {
-    id: "stats",
-    title: "Analiza",
-    icon: "groupStats",
-    tabs: [
-      { id: "accounts", label: "Podsumowanie kont", icon: "accounts" },
-      { id: "content", label: "Podsumowanie contentu", icon: "content" },
-      { id: "compare", label: "Porównanie contentu", icon: "compare" },
-    ],
-  },
-  {
-    id: "creation",
-    title: "Tworzenie",
-    icon: "groupCreation",
-    tabs: [
-      { id: "studio", label: "Content Studio", icon: "studio" },
-      { id: "blogStudio", label: "Blog Studio", icon: "fileText" },
-      
-      { id: "video", label: "Video Studio", icon: "video" },
-      { id: "shorts", label: "Short Studio", icon: "shorts" },
-      { id: "creative", label: "Creative Studio", icon: "creative" },
-      { id: "calendar", label: "Harmonogram", icon: "calendar" },
-    ],
-  },
-    {
-  id: "inspirationLibrary",
-  title: "Inspiracje",
-  icon: "groupInspirations",
-  tabs: [
-    {
-      id: "inspirationsContent",
-      label: "Inspiracje contentu",
-      icon: "inspirationsContent",
-    },
-    {
-      id: "inspirationsVideo",
-      label: "Inspiracje video",
-      icon: "inspirationsVideo",
-    },
-    {
-      id: "inspirationsShort",
-      label: "Inspiracje short",
-      icon: "inspirationsShort",
-    },
-    {
-      id: "inspirationsCreative",
-      label: "Inspiracje creative",
-      icon: "inspirationsCreative",
-    },
-  ],
-},
-  {
-    id: "templateLibrary",
-    title: "Szablony",
-    icon: "groupTemplates",
-    tabs: [
-      { id: "templatesContent", label: "Szablony contentu", icon: "templatesContent" },
-      { id: "templatesVideo", label: "Szablony video", icon: "templatesVideo" },
-      { id: "templatesShort", label: "Szablony short", icon: "templatesShort" },
-      { id: "templatesCreative", label: "Szablony creative", icon: "templatesCreative" },
-      { id: "blogLibrary", label: "Biblioteka bloga", icon: "fileText" },
-    ],
-  },
-  {
-    id: "ai",
-    title: "AI",
-    icon: "groupAi",
-    tabs: [
-      { id: "offers", label: "Oferta i linki", icon: "package" },
-      { id: "brand", label: "Brand Voice", icon: "brand" },
-      { id: "partner", label: "AI Partner", icon: "partner" },
-      { id: "strategist", label: "AI Strateg", icon: "strategist" },
-      { id: "chat", label: "AI Chat", icon: "chat" },
-    ],
-  },
-  {
-    id: "settings",
-    title: "System",
-    icon: "groupSettings",
-    tabs: [
-      { id: "integrations", label: "Integracje", icon: "integrations" },
-      { id: "settings", label: "Ustawienia", icon: "settings" },
-    ],
-  },
+type AppCopy = (typeof appCopy)[Lang];
 
-];
+function makeNavGroups(t: AppCopy): NavGroup[] {
+  return [
+    {
+      id: "stats",
+      title: t.navGroups.stats,
+      icon: "groupStats",
+      tabs: [
+        { id: "accounts", label: t.nav.accounts, icon: "accounts" },
+        { id: "content", label: t.nav.content, icon: "content" },
+        { id: "compare", label: t.nav.compare, icon: "compare" },
+      ],
+    },
+    {
+      id: "creation",
+      title: t.navGroups.creation,
+      icon: "groupCreation",
+      tabs: [
+        { id: "studio", label: t.nav.studio, icon: "studio" },
+        { id: "blogStudio", label: t.nav.blogStudio, icon: "fileText" },
+        { id: "video", label: t.nav.video, icon: "video" },
+        { id: "shorts", label: t.nav.shorts, icon: "shorts" },
+        { id: "creative", label: t.nav.creative, icon: "creative" },
+        { id: "calendar", label: t.nav.calendar, icon: "calendar" },
+      ],
+    },
+    {
+      id: "inspirationLibrary",
+      title: t.navGroups.inspirationLibrary,
+      icon: "groupInspirations",
+      tabs: [
+        {
+          id: "inspirationsContent",
+          label: t.nav.inspirationsContent,
+          icon: "inspirationsContent",
+        },
+        {
+          id: "inspirationsVideo",
+          label: t.nav.inspirationsVideo,
+          icon: "inspirationsVideo",
+        },
+        {
+          id: "inspirationsShort",
+          label: t.nav.inspirationsShort,
+          icon: "inspirationsShort",
+        },
+        {
+          id: "inspirationsCreative",
+          label: t.nav.inspirationsCreative,
+          icon: "inspirationsCreative",
+        },
+      ],
+    },
+    {
+      id: "templateLibrary",
+      title: t.navGroups.templateLibrary,
+      icon: "groupTemplates",
+      tabs: [
+        {
+          id: "templatesContent",
+          label: t.nav.templatesContent,
+          icon: "templatesContent",
+        },
+        {
+          id: "templatesVideo",
+          label: t.nav.templatesVideo,
+          icon: "templatesVideo",
+        },
+        {
+          id: "templatesShort",
+          label: t.nav.templatesShort,
+          icon: "templatesShort",
+        },
+        {
+          id: "templatesCreative",
+          label: t.nav.templatesCreative,
+          icon: "templatesCreative",
+        },
+        {
+          id: "blogLibrary",
+          label: t.nav.blogLibrary,
+          icon: "fileText",
+        },
+      ],
+    },
+    {
+      id: "ai",
+      title: t.navGroups.ai,
+      icon: "groupAi",
+      tabs: [
+        { id: "offers", label: t.nav.offers, icon: "package" },
+        { id: "brand", label: t.nav.brand, icon: "brand" },
+        { id: "partner", label: t.nav.partner, icon: "partner" },
+        { id: "strategist", label: t.nav.strategist, icon: "strategist" },
+        { id: "chat", label: t.nav.chat, icon: "chat" },
+      ],
+    },
+    {
+      id: "settings",
+      title: t.navGroups.settings,
+      icon: "groupSettings",
+      tabs: [
+        { id: "integrations", label: t.nav.integrations, icon: "integrations" },
+        { id: "settings", label: t.nav.settings, icon: "settings" },
+      ],
+    },
+  ];
+}
 
-const NAV_TABS: NavTab[] = NAV_GROUPS.flatMap((group) => group.tabs);
+function makeTemplateViews(t: AppCopy) {
+  return {
+    templates: {
+      kind: "content",
+      label: t.templates.templatesContent.label,
+      title: t.templates.templatesContent.title,
+      description: t.templates.templatesContent.description,
+      targetTab: "studio",
+    },
+    templatesContent: {
+      kind: "content",
+      label: t.templates.templatesContent.label,
+      title: t.templates.templatesContent.title,
+      description: t.templates.templatesContent.description,
+      targetTab: "studio",
+    },
+    templatesVideo: {
+      kind: "video",
+      label: t.templates.templatesVideo.label,
+      title: t.templates.templatesVideo.title,
+      description: t.templates.templatesVideo.description,
+      targetTab: "video",
+    },
+    templatesShort: {
+      kind: "short",
+      label: t.templates.templatesShort.label,
+      title: t.templates.templatesShort.title,
+      description: t.templates.templatesShort.description,
+      targetTab: "shorts",
+    },
+    templatesCreative: {
+      kind: "creative",
+      label: t.templates.templatesCreative.label,
+      title: t.templates.templatesCreative.title,
+      description: t.templates.templatesCreative.description,
+      targetTab: "creative",
+    },
+  } as const satisfies Record<
+    Extract<
+      TabId,
+      | "templates"
+      | "templatesContent"
+      | "templatesVideo"
+      | "templatesShort"
+      | "templatesCreative"
+    >,
+    {
+      kind: "content" | "video" | "short" | "creative";
+      label: string;
+      title: string;
+      description: string;
+      targetTab: TabId;
+    }
+  >;
+}
 
-const TEMPLATE_VIEWS = {
-  templates: {
-    kind: "content",
-    label: "Szablony contentu",
-    title: "Gotowe szablony pod social media",
-    description: "Tutaj trzymasz treści zapisane jako szablon w Content Studio.",
-    targetTab: "studio",
-  },
-  templatesContent: {
-    kind: "content",
-    label: "Szablony contentu",
-    title: "Szablony z Content Studio",
-    description: "Treści tekstowe, posty, karuzele i warianty przygotowane w Content Studio.",
-    targetTab: "studio",
-  },
-  templatesVideo: {
-    kind: "video",
-    label: "Szablony video",
-    title: "Szablony z Video Studio",
-    description: "Briefy video, scenariusze, ujęcia, miniatury i checklisty zapisane z Video Studio.",
-    targetTab: "video",
-  },
-  templatesShort: {
-    kind: "short",
-    label: "Szablony short",
-    title: "Szablony z Short Studio",
-    description: "Krótkie formaty i warianty pod TikTok, Reels, Shorts i LinkedIn Video.",
-    targetTab: "shorts",
-  },
-  templatesCreative: {
-    kind: "creative",
-    label: "Szablony creative",
-    title: "Szablony z Creative Studio",
-    description: "Prompty, formaty i briefy grafik przygotowane w Creative Studio.",
-    targetTab: "creative",
-  },
-} as const satisfies Record<
-  Extract<TabId, "templates" | "templatesContent" | "templatesVideo" | "templatesShort" | "templatesCreative">,
-  { kind: "content" | "video" | "short" | "creative"; label: string; title: string; description: string; targetTab: TabId }
->;
-const INSPIRATION_VIEWS = {
-  inspirationsContent: {
-    kind: "content",
-    label: "Inspiracje contentu",
-    title: "Inspiracje z Content Studio",
-    description:
-      "Pomysły, propozycje postów, warianty hooków i treści robocze, które możesz edytować i zamienić w szablon.",
-    targetTab: "studio",
-  },
-  inspirationsVideo: {
-    kind: "video",
-    label: "Inspiracje video",
-    title: "Inspiracje z Video Studio",
-    description:
-      "Propozycje scenariuszy, ujęć, miniatur i opisów video do dalszej edycji.",
-    targetTab: "video",
-  },
-  inspirationsShort: {
-    kind: "short",
-    label: "Inspiracje short",
-    title: "Inspiracje z Short Studio",
-    description:
-      "Pomysły na krótkie formaty, hooki, opisy i warianty pod TikTok, Reels, Shorts oraz LinkedIn Video.",
-    targetTab: "shorts",
-  },
-  inspirationsCreative: {
-    kind: "creative",
-    label: "Inspiracje creative",
-    title: "Inspiracje z Creative Studio",
-    description:
-      "Pomysły na grafiki, miniatury, okładki, prompty i kreacje do social media.",
-    targetTab: "creative",
-  },
-} as const satisfies Record<
-  Extract<
-    TabId,
-    | "inspirationsContent"
-    | "inspirationsVideo"
-    | "inspirationsShort"
-    | "inspirationsCreative"
-  >,
-  {
-    kind: "content" | "video" | "short" | "creative";
-    label: string;
-    title: string;
-    description: string;
-    targetTab: TabId;
-  }
->;
-const INTEGRATIONS = [
-  {
-    name: "Instagram / Facebook",
-    status: "Do podłączenia",
-    description: "Meta Graph API: posty, Reels, zasięgi, komentarze, publikacja.",
-  },
-  {
-    name: "YouTube",
-    status: "Priorytet",
-    description: "Filmy, Shorts, opisy, miniatury, retencja i wyniki kanału.",
-  },
-  {
-    name: "LinkedIn",
-    status: "Planowane",
-    description: "Strony firmowe, posty B2B, komentarze i statystyki publikacji.",
-  },
-  {
-    name: "TikTok",
-    status: "Później",
-    description: "Video, wyniki, publikacja i dopasowanie formatu do platformy.",
-  },
-  {
-    name: "Blog / WordPress",
-    status: "Planowane",
-    description: "Artykuły, SEO score, blog → social, social → blog.",
-  },
-  {
-    name: "Spotify",
-    status: "Planowane",
-    description: "Podcasty, odcinki, słuchalność, completion rate i opisy.",
-  },
-  {
-    name: "Google Analytics",
-    status: "Planowane",
-    description: "Ruch, źródła, konwersje, blog i kampanie contentowe.",
-  },
-];
+function makeInspirationViews(t: AppCopy) {
+  return {
+    inspirationsContent: {
+      kind: "content",
+      label: t.inspirations.inspirationsContent.label,
+      title: t.inspirations.inspirationsContent.title,
+      description: t.inspirations.inspirationsContent.description,
+      targetTab: "studio",
+    },
+    inspirationsVideo: {
+      kind: "video",
+      label: t.inspirations.inspirationsVideo.label,
+      title: t.inspirations.inspirationsVideo.title,
+      description: t.inspirations.inspirationsVideo.description,
+      targetTab: "video",
+    },
+    inspirationsShort: {
+      kind: "short",
+      label: t.inspirations.inspirationsShort.label,
+      title: t.inspirations.inspirationsShort.title,
+      description: t.inspirations.inspirationsShort.description,
+      targetTab: "shorts",
+    },
+    inspirationsCreative: {
+      kind: "creative",
+      label: t.inspirations.inspirationsCreative.label,
+      title: t.inspirations.inspirationsCreative.title,
+      description: t.inspirations.inspirationsCreative.description,
+      targetTab: "creative",
+    },
+  } as const satisfies Record<
+    Extract<
+      TabId,
+      | "inspirationsContent"
+      | "inspirationsVideo"
+      | "inspirationsShort"
+      | "inspirationsCreative"
+    >,
+    {
+      kind: "content" | "video" | "short" | "creative";
+      label: string;
+      title: string;
+      description: string;
+      targetTab: TabId;
+    }
+  >;
+}
 
 const SOCIAL_ICONS: Record<Platform, string> = {
   instagram: "◎",
@@ -466,6 +464,7 @@ const SOCIAL_ICONS: Record<Platform, string> = {
   blog: "✎",
   spotify: "◉",
 };
+
 const NAV_ICONS = {
   accounts: Layers3,
   content: FileText,
@@ -792,9 +791,12 @@ function ScoreBar({ score }: { score: number }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 
-export default function AppWorkspacePage() {
+function AppWorkspacePageInner() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+  const lang: Lang = getLang(searchParams.get("lang"));
+  const t = appCopy[lang];
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
   const [syncingAccount, setSyncingAccount] = useState<string | null>(null);
@@ -816,44 +818,58 @@ export default function AppWorkspacePage() {
   const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
   const css = dark ? darkVars : lightVars;
+const navGroups = useMemo(() => makeNavGroups(t), [t]);
 
+const navTabs = useMemo(
+  () => navGroups.flatMap((group) => group.tabs),
+  [navGroups]
+);
+
+const templateViews = useMemo(() => makeTemplateViews(t), [t]);
+const inspirationViews = useMemo(() => makeInspirationViews(t), [t]);
+const integrations = t.integrations;
   const bestAccount = useMemo(() => [...accounts].sort((a, b) => b.score - a.score)[0], [accounts]);
   const weakestAccount = useMemo(() => [...accounts].sort((a, b) => a.score - b.score)[0], [accounts]);
 
 
-  const realInsights = useMemo<Insight[]>(() => {
-    const totalPosts = accounts.reduce((sum, account) => sum + account.posts, 0);
-    const connected = accounts.filter((account) => account.connected);
+ const realInsights = useMemo<Insight[]>(() => {
+  const totalPosts = accounts.reduce((sum, account) => sum + account.posts, 0);
+  const connected = accounts.filter((account) => account.connected);
 
-    if (!totalPosts) {
-      return [
-        {
-          type: "info",
-          text: connected.length
-            ? "Konta są podłączone, ale w bazie nie ma jeszcze pobranych publikacji. Po uruchomieniu synchronizacji analiza zostanie policzona z realnych danych."
-            : "Nie ma jeszcze podłączonych kont. Po połączeniu platform i synchronizacji zobaczysz tutaj realną analizę cross-platform.",
-        },
-      ];
-    }
-
-    const strongest = [...accounts].filter((account) => account.posts > 0).sort((a, b) => b.score - a.score)[0];
-    const weakest = [...accounts].filter((account) => account.posts > 0).sort((a, b) => a.score - b.score)[0];
-
+  if (!totalPosts) {
     return [
       {
-        type: "up",
-        text: `Najmocniejszy kanał z realnych danych: ${strongest.name}. Wynik AI: ${strongest.score}/100, publikacje: ${strongest.posts}.`,
-      },
-      {
-        type: "warn",
-        text: `Do obserwacji: ${weakest.name}. Jeśli wynik jest niski albo zerowy, sprawdź zakresy API i jakość pobranych metryk.`,
-      },
-      {
         type: "info",
-        text: `Łącznie w bazie jest ${totalPosts} pobranych publikacji z podłączonych platform.`,
+        text: connected.length
+          ? t.accountDefaults.connectedNoData
+          : t.accountDefaults.noConnectedAccounts,
       },
     ];
-  }, [accounts]);
+  }
+
+  const strongest = [...accounts]
+    .filter((account) => account.posts > 0)
+    .sort((a, b) => b.score - a.score)[0];
+
+  const weakest = [...accounts]
+    .filter((account) => account.posts > 0)
+    .sort((a, b) => a.score - b.score)[0];
+
+  return [
+    {
+      type: "up",
+      text: `${t.insights.strongest}: ${strongest.name}. ${t.insights.aiScore}: ${strongest.score}/100, ${t.insights.publications}: ${strongest.posts}.`,
+    },
+    {
+      type: "warn",
+      text: `${t.insights.watch}: ${weakest.name}. ${t.insights.apiCheck}`,
+    },
+    {
+      type: "info",
+      text: `${t.insights.totalInDatabase}: ${totalPosts}.`,
+    },
+  ];
+}, [accounts, t]);
 
   const comparisonRows = useMemo(() => {
     const platformMeta: Record<
@@ -1160,25 +1176,21 @@ export default function AppWorkspacePage() {
   }
 
   async function handleSignOut() {
-    setSigningOut(true);
+  setSigningOut(true);
 
-    const { error } = await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
 
-    if (error) {
-      console.error("Sign out error:", error.message);
-      setSigningOut(false);
-      return;
-    }
-
-    router.push("/login");
-    router.refresh();
-  }
-
- function openTab(tab: TabId) {
-  if (tab === "integrations") {
-    router.push(`/app/${workspaceId}/settings`);
+  if (error) {
+    console.error("Sign out error:", error.message);
+    setSigningOut(false);
     return;
   }
+
+  router.push(`/login?lang=${lang}`);
+  router.refresh();
+}
+
+function openTab(tab: TabId) {
   setActiveTab(tab);
   setActiveAccount(null);
 }
@@ -1400,8 +1412,10 @@ const formatProfileNumber = (value: any) => {
           gridTemplateColumns: sidebarCollapsed ? "86px 1fr" : "270px 1fr",
         }}
       >
-        {/* ───────────────── SIDEBAR ───────────────── */}
-       <aside
+       
+{/* ───────────────── SIDEBAR ───────────────── */}
+
+<aside
   className="ciq-sidebar"
   style={{
     ...st.sidebar,
@@ -1411,7 +1425,7 @@ const formatProfileNumber = (value: any) => {
   }}
 >
   <Link
-    href="/app/contentiq"
+    href={`/app/${workspaceId}?lang=${lang}`}
     style={{
       ...st.sidebarLogo,
       minHeight: sidebarCollapsed ? 72 : 86,
@@ -1459,7 +1473,7 @@ const formatProfileNumber = (value: any) => {
             marginTop: 5,
           }}
         >
-          Centrum contentu i AI
+          {lang === "pl" ? "Centrum contentu i AI" : "Content and AI hub"}
         </div>
       </div>
     )}
@@ -1484,7 +1498,7 @@ const formatProfileNumber = (value: any) => {
         fontSize: 12,
         fontWeight: 800,
       }}
-      title={sidebarCollapsed ? "Rozwiń menu" : "Zwiń menu"}
+      title={sidebarCollapsed ? "Expand menu" : "Collapse menu"}
     >
       {sidebarCollapsed ? (
         <ChevronsRight size={15} />
@@ -1498,7 +1512,7 @@ const formatProfileNumber = (value: any) => {
             }}
           >
             <ChevronsLeft size={14} />
-            Zwiń menu
+            {lang === "pl" ? "Zwiń menu" : "Collapse menu"}
           </span>
           <span style={{ fontSize: 9, opacity: 0.55 }}>⌘</span>
         </>
@@ -1521,7 +1535,7 @@ const formatProfileNumber = (value: any) => {
           gap: 8,
         }}
       >
-        {NAV_GROUPS.flatMap((group) => group.tabs).map((tab) => {
+        {navGroups.flatMap((group) => group.tabs).map((tab) => {
           const isActive = activeTab === tab.id;
 
           return (
@@ -1537,7 +1551,9 @@ const formatProfileNumber = (value: any) => {
                 borderRadius: 13,
                 background: isActive ? css.activeBg : "transparent",
                 color: isActive ? css.activeText : css.muted,
-                border: `1px solid ${isActive ? css.accentBorder : "transparent"}`,
+                border: `1px solid ${
+                  isActive ? css.accentBorder : "transparent"
+                }`,
                 boxShadow: isActive ? css.activeShadow : "none",
               }}
             >
@@ -1547,7 +1563,7 @@ const formatProfileNumber = (value: any) => {
         })}
       </div>
     ) : (
-      NAV_GROUPS.map((group) => {
+      navGroups.map((group) => {
         const isOpen = openNavGroups[group.id];
         const groupHasActiveTab = group.tabs.some((tab) => tab.id === activeTab);
 
@@ -1713,7 +1729,7 @@ const formatProfileNumber = (value: any) => {
       ) : (
         <>
           <LogOut size={14} />
-          {signingOut ? "Wylogowywanie..." : "Wyloguj"}
+          {signingOut ? t.common.signingOut : t.common.signOut}
         </>
       )}
     </button>
@@ -1755,7 +1771,7 @@ const formatProfileNumber = (value: any) => {
                     marginBottom: 0,
                   }}
                 >
-                  {NAV_TABS.find((tab) => tab.id === activeTab)?.label}
+                  {navTabs.find((tab) => tab.id === activeTab)?.label}
                 </span>
 
                 <span
@@ -1808,154 +1824,171 @@ const formatProfileNumber = (value: any) => {
             </div>
 
             <div className="ciq-top-actions" style={st.topActions}>
-              <button
-                type="button"
-                onClick={toggleTheme}
-                title={dark ? "Włącz jasny tryb" : "Włącz ciemny tryb"}
-                aria-label={dark ? "Włącz jasny tryb" : "Włącz ciemny tryb"}
-                style={{
-                  ...st.themeTopButton,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                  color: css.muted,
-                  boxShadow: dark ? "0 12px 28px rgba(0,0,0,0.18)" : "none",
-                }}
-              >
-                {dark ? <Sun size={17} /> : <Moon size={17} />}
-              </button>
+  <button
+    type="button"
+    onClick={toggleTheme}
+    title={dark ? "Switch to light mode" : "Switch to dark mode"}
+    aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+    style={{
+      ...st.themeTopButton,
+      background: css.surface,
+      border: `1px solid ${css.border}`,
+      color: css.muted,
+      boxShadow: dark ? "0 12px 28px rgba(0,0,0,0.18)" : "none",
+    }}
+  >
+    {dark ? <Sun size={17} /> : <Moon size={17} />}
+  </button>
 
-              <Link
-                href="/dashboard"
-                style={{
-                  ...st.topBtn,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                  color: css.muted,
-                  textDecoration: "none",
-                }}
-              >
-                Dashboard
-              </Link>
+  <Link
+    href={`?lang=${t.langParam}`}
+    aria-label={t.switchLabel}
+    style={{
+      ...st.themeTopButton,
+      background: css.surface,
+      border: `1px solid ${css.border}`,
+      color: css.text,
+      textDecoration: "none",
+      fontSize: 20,
+      lineHeight: 1,
+      fontWeight: 900,
+    }}
+  >
+    {t.otherFlag}
+  </Link>
 
-              <button
-                type="button"
-                onClick={() => openTab("calendar")}
-                style={{
-                  ...st.topBtn,
-                  background: css.surface,
-                  color: css.text,
-                  border: `1px solid ${css.border}`,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                }}
-              >
-                <CalendarDays size={15} />
-                Harmonogram
-              </button>
+  <Link
+    href={`/dashboard?lang=${lang}`}
+    style={{
+      ...st.topBtn,
+      background: css.surface,
+      border: `1px solid ${css.border}`,
+      color: css.muted,
+      textDecoration: "none",
+    }}
+  >
+    Dashboard
+  </Link>
 
-              <button
-                type="button"
-                onClick={() => openTab("studio")}
-                style={{
-                  ...st.topBtn,
-                  background: dark ? "#FFFFFF" : "#111111",
-                  color: dark ? "#050505" : "#FFFFFF",
-                  border: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  fontWeight: 900,
-                }}
-              >
-                <Sparkles size={15} />
-                Twórz content
-              </button>
+  <button
+    type="button"
+    onClick={() => openTab("calendar")}
+    style={{
+      ...st.topBtn,
+      background: css.surface,
+      color: css.text,
+      border: `1px solid ${css.border}`,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 7,
+    }}
+  >
+    <CalendarDays size={15} />
+    {t.nav.calendar}
+  </button>
 
-              <details style={{ position: "relative" }}>
-                <summary
-                  style={{
-                    ...st.topBtn,
-                    listStyle: "none",
-                    background: css.aiBg,
-                    color: css.aiText,
-                    border: `1px solid ${css.aiBorder}`,
-                    boxShadow: css.aiGlow,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    cursor: "pointer",
-                    userSelect: "none",
-                    fontWeight: 900,
-                  }}
-                >
-                  <SlidersHorizontal size={15} />
-                  Personalizuj
-                  <ChevronDown size={14} />
-                </summary>
+  <button
+    type="button"
+    onClick={() => openTab("studio")}
+    style={{
+      ...st.topBtn,
+      background: dark ? "#FFFFFF" : "#111111",
+      color: dark ? "#050505" : "#FFFFFF",
+      border: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 7,
+      fontWeight: 900,
+    }}
+  >
+    <Sparkles size={15} />
+    {t.nav.studio}
+  </button>
 
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 9px)",
-                    right: 0,
-                    zIndex: 80,
-                    width: 270,
-                    padding: 8,
-                    borderRadius: 18,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                    boxShadow: "0 18px 48px rgba(0,0,0,.32)",
-                    display: "grid",
-                    gap: 4,
-                  }}
-                >
-                  {[
-                    { id: "integrations" as TabId, label: "Integracje", icon: PlugZap },
-                    { id: "offers" as TabId, label: "Oferta i linki", icon: Package },
-                    { id: "brand" as TabId, label: "Brand Voice", icon: WandSparkles },
-                    { id: "blogLibrary" as TabId, label: "Biblioteka bloga", icon: FileText },
-                    { id: "strategist" as TabId, label: "AI Strateg", icon: BrainCircuit },
-                    { id: "settings" as TabId, label: "Ustawienia", icon: Settings },
-                  ].map((item) => {
-                    const MenuIcon = item.icon;
+  <details style={{ position: "relative" }}>
+    <summary
+      style={{
+        ...st.topBtn,
+        listStyle: "none",
+        background: css.aiBg,
+        color: css.aiText,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow: css.aiGlow,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        cursor: "pointer",
+        userSelect: "none",
+        fontWeight: 900,
+      }}
+    >
+      <SlidersHorizontal size={15} />
+      {t.common.settings}
+      <ChevronDown size={14} />
+    </summary>
 
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={(event) => {
-                          openTab(item.id);
-                          event.currentTarget.closest("details")?.removeAttribute("open");
-                        }}
-                        style={{
-                          width: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          padding: "10px 11px",
-                          borderRadius: 12,
-                          border: "none",
-                          background: activeTab === item.id ? css.activeBg : "transparent",
-                          color: activeTab === item.id ? css.activeText : css.text,
-                          fontFamily: "var(--font-body)",
-                          fontSize: 12,
-                          fontWeight: 800,
-                          textAlign: "left",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <MenuIcon
-                          size={15}
-                          color={activeTab === item.id ? css.accent : css.muted}
-                        />
-                        {item.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </details>
-            </div>
+    <div
+      style={{
+        position: "absolute",
+        top: "calc(100% + 9px)",
+        right: 0,
+        zIndex: 80,
+        width: 270,
+        padding: 8,
+        borderRadius: 18,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        boxShadow: "0 18px 48px rgba(0,0,0,.32)",
+        display: "grid",
+        gap: 4,
+      }}
+    >
+      {[
+        { id: "integrations" as TabId, label: t.nav.integrations, icon: PlugZap },
+        { id: "offers" as TabId, label: t.nav.offers, icon: Package },
+        { id: "brand" as TabId, label: t.nav.brand, icon: WandSparkles },
+        { id: "blogLibrary" as TabId, label: t.nav.blogLibrary, icon: FileText },
+        { id: "strategist" as TabId, label: t.nav.strategist, icon: BrainCircuit },
+        { id: "settings" as TabId, label: t.nav.settings, icon: Settings },
+      ].map((item) => {
+        const MenuIcon = item.icon;
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={(event) => {
+              openTab(item.id);
+              event.currentTarget.closest("details")?.removeAttribute("open");
+            }}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 11px",
+              borderRadius: 12,
+              border: "none",
+              background: activeTab === item.id ? css.activeBg : "transparent",
+              color: activeTab === item.id ? css.activeText : css.text,
+              fontFamily: "var(--font-body)",
+              fontSize: 12,
+              fontWeight: 800,
+              textAlign: "left",
+              cursor: "pointer",
+            }}
+          >
+            <MenuIcon
+              size={15}
+              color={activeTab === item.id ? css.accent : css.muted}
+            />
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  </details>
+</div>
           </header>
 
           <div style={st.content}>
@@ -4534,46 +4567,7 @@ const formatProfileNumber = (value: any) => {
 )}
 {/* ================= VIDEO STUDIO ================= */}
 {activeTab === "video" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        marginBottom: 18,
-      }}
-    >
-      <p
-        style={{
-          ...st.smallLabel,
-          color: css.accent,
-          fontFamily: "var(--font-label)",
-          letterSpacing: ".12em",
-          textTransform: "uppercase",
-        }}
-      >
-        Video Studio
-      </p>
-
-      <h2
-        style={{
-          ...st.sectionTitle,
-          color: css.heading,
-          fontFamily: "var(--font-heading)",
-          fontWeight: 500,
-        }}
-      >
-        TikTok, Reels i Shorts od pomysłu do scenariusza
-      </h2>
-
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Ten moduł tworzy pełny brief video: hook, scenariusz, ujęcia,
-        teksty na ekranie, opis posta, miniaturę i wskazówki retencyjne.
-      </p>
-    </div>
-
-    <VideoStudio dark={dark} workspaceId={workspaceId} />
-  </div>
+  <VideoStudio dark={dark} workspaceId={workspaceId} />
 )}
 {/* ================= OFERTA I LINKI ================= */}
 {activeTab === "offers" && (
@@ -4583,47 +4577,7 @@ const formatProfileNumber = (value: any) => {
 )}
 {/* ================= BLOG STUDIO ================= */}
 {activeTab === "blogStudio" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        marginBottom: 18,
-      }}
-    >
-      <p
-        style={{
-          ...st.smallLabel,
-          color: css.accent,
-          fontFamily: "var(--font-label)",
-          letterSpacing: ".12em",
-          textTransform: "uppercase",
-        }}
-      >
-        Blog Studio
-      </p>
-
-      <h2
-        style={{
-          ...st.sectionTitle,
-          color: css.heading,
-          fontFamily: "var(--font-heading)",
-          fontWeight: 500,
-        }}
-      >
-        Notatnik pisarza z AI do tworzenia wpisów blogowych
-      </h2>
-
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Twórz szkice, rozwijaj artykuły, zapisuj tematy i używaj bloga jako
-        źródła contentu na social media. AI pomaga wtedy, kiedy brakuje pomysłu,
-        słów albo kolejnego akapitu.
-      </p>
-    </div>
-
-    <BlogStudio dark={dark} workspaceId={workspaceId} />
-  </div>
+  <BlogStudio dark={dark} workspaceId={workspaceId} />
 )}
 {/* ================= SHORT STUDIO ================= */}
 {activeTab === "shorts" && (
@@ -4713,47 +4667,7 @@ const formatProfileNumber = (value: any) => {
   </div>
 )}
  {/* ================= SZABLONY ================= */}
- {activeTab in TEMPLATE_VIEWS && (
-              <div>
-                <div
-                  style={{
-                    ...st.panel,
-                    background: css.surface,
-                    border: `1px solid ${css.border}`,
-                    marginBottom: 18,
-                  }}
-                >
-                  <p style={{ ...st.smallLabel, color: css.accent }}>
-                    {TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].label}
-                  </p>
-
-                  <h2
-                    style={{
-                      ...st.sectionTitle,
-                      color: css.text,
-                      fontFamily: "var(--font-heading)",
-                    }}
-                  >
-                    {TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].title}
-                  </h2>
-
-                  <p style={{ ...st.sectionText, color: css.muted }}>
-                    Tutaj trzymasz treści zapisane jako szablon. Media dodajesz
-                    dopiero w Content Studio przed zapisem, planowaniem albo
-                    publikacją.
-                  </p>
-                </div>
-
-                <Templates
-                  dark={dark}
-                  workspaceId={workspaceId}
-                  kind={TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].kind}
-                  onOpenStudio={() => setActiveTab(TEMPLATE_VIEWS[activeTab as keyof typeof TEMPLATE_VIEWS].targetTab)}
-                />
-              </div>
-  )}
-{/* ================= INSPIRACJE ================= */}
-{activeTab in INSPIRATION_VIEWS && (
+{activeTab in templateViews && (
   <div>
     <div
       style={{
@@ -4764,7 +4678,7 @@ const formatProfileNumber = (value: any) => {
       }}
     >
       <p style={{ ...st.smallLabel, color: css.accent }}>
-        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].label}
+        {templateViews[activeTab as keyof typeof templateViews].label}
       </p>
 
       <h2
@@ -4774,21 +4688,78 @@ const formatProfileNumber = (value: any) => {
           fontFamily: "var(--font-heading)",
         }}
       >
-        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].title}
+        {templateViews[activeTab as keyof typeof templateViews].title}
       </h2>
 
       <p style={{ ...st.sectionText, color: css.muted }}>
-        {INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].description}
+        {templateViews[activeTab as keyof typeof templateViews].description}
+      </p>
+    </div>
+
+    <Templates
+      dark={dark}
+      workspaceId={workspaceId}
+      kind={templateViews[activeTab as keyof typeof templateViews].kind}
+      onOpenStudio={() =>
+        setActiveTab(
+          templateViews[activeTab as keyof typeof templateViews].targetTab
+        )
+      }
+    />
+  </div>
+)}
+{/* ================= INSPIRACJE ================= */}
+{(
+  [
+    "inspirationsContent",
+    "inspirationsVideo",
+    "inspirationsShort",
+    "inspirationsCreative",
+  ] as TabId[]
+).includes(activeTab) && (
+  <div style={{ display: "grid", gap: 18 }}>
+    <div
+      style={{
+        ...st.panel,
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        marginBottom: 0,
+      }}
+    >
+      <p
+        style={{
+          ...st.smallLabel,
+          color: css.accent,
+          fontFamily: "var(--font-label)",
+          letterSpacing: ".12em",
+          textTransform: "uppercase",
+        }}
+      >
+        {inspirationViews[activeTab as keyof typeof inspirationViews].label}
+      </p>
+
+      <h2
+        style={{
+          ...st.sectionTitle,
+          color: css.text,
+          fontFamily: "var(--font-heading)",
+        }}
+      >
+        {inspirationViews[activeTab as keyof typeof inspirationViews].title}
+      </h2>
+
+      <p style={{ ...st.sectionText, color: css.muted }}>
+        {inspirationViews[activeTab as keyof typeof inspirationViews].description}
       </p>
     </div>
 
     <Inspirations
       dark={dark}
       workspaceId={workspaceId}
-      kind={INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].kind}
+      kind={inspirationViews[activeTab as keyof typeof inspirationViews].kind}
       onOpenStudio={() =>
         setActiveTab(
-          INSPIRATION_VIEWS[activeTab as keyof typeof INSPIRATION_VIEWS].targetTab
+          inspirationViews[activeTab as keyof typeof inspirationViews].targetTab
         )
       }
     />
@@ -5161,50 +5132,50 @@ const formatProfileNumber = (value: any) => {
   </div>
 )}
  {/* ================= INTEGRACJE ================= */}
- {activeTab === "integrations" && (
-              <div className="ciq-integrations-grid" style={st.integrationsGrid}>
-                {INTEGRATIONS.map((integration) => (
-                  <div
-                    key={integration.name}
-                    className="ciq-mini-card"
-                    style={{
-                      ...st.panel,
-                      background: css.surface,
-                      border: `1px solid ${css.border}`,
-                    }}
-                  >
-                    <p style={{ ...st.smallLabel, color: css.accent }}>
-                      {integration.status}
-                    </p>
+{activeTab === "integrations" && (
+  <div className="ciq-integrations-grid" style={st.integrationsGrid}>
+    {integrations.map((integration) => (
+      <div
+        key={integration.name}
+        className="ciq-mini-card"
+        style={{
+          ...st.panel,
+          background: css.surface,
+          border: `1px solid ${css.border}`,
+        }}
+      >
+        <p style={{ ...st.smallLabel, color: css.accent }}>
+          {integration.status}
+        </p>
 
-                    <h2
-                      style={{
-                        ...st.integrationTitle,
-                        color: css.text,
-                        fontFamily: "var(--font-heading)",
-                      }}
-                    >
-                      {integration.name}
-                    </h2>
+        <h2
+          style={{
+            ...st.integrationTitle,
+            color: css.text,
+            fontFamily: "var(--font-heading)",
+          }}
+        >
+          {integration.name}
+        </h2>
 
-                    <p style={{ ...st.sectionText, color: css.muted }}>
-                      {integration.description}
-                    </p>
+        <p style={{ ...st.sectionText, color: css.muted }}>
+          {integration.description}
+        </p>
 
-                    <button
-                      style={{
-                        ...st.secondaryButton,
-                        border: `1px solid ${css.border}`,
-                        color: css.muted,
-                        background: css.liveSoft,
-                      }}
-                    >
-                      Skonfiguruj
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+        <button
+          style={{
+            ...st.secondaryButton,
+            border: `1px solid ${css.border}`,
+            color: css.muted,
+            background: css.liveSoft,
+          }}
+        >
+          {lang === "pl" ? "Skonfiguruj" : "Configure"}
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
  {/* ================= USTAWIENIA ================= */}
    {activeTab === "settings" && (
@@ -5394,7 +5365,13 @@ const lightVars = {
   logoText: "#FFFFFF",
   logoShadow: "0 12px 28px rgba(35,31,32,0.14)",
 };
-
+export default function AppWorkspacePage() {
+  return (
+    <Suspense fallback={null}>
+      <AppWorkspacePageInner />
+    </Suspense>
+  );
+}
 // ─── STATIC STYLES ────────────────────────────────────────────────────────────
 
 const st: Record<string, CSSProperties> = {
