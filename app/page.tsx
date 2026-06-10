@@ -1,4 +1,4 @@
-// app/page.tsx
+
 import Link from "next/link";
 
 type Lang = "pl" | "en";
@@ -20,7 +20,7 @@ const content = {
       terms: "Regulamin",
       dashboard: "Dashboard",
       login: "Zaloguj",
-      langOther: "EN",
+      langOther: "🇬🇧",
       langOtherHref: "/?lang=en",
     },
 
@@ -148,7 +148,7 @@ const content = {
       terms: "Terms",
       dashboard: "Dashboard",
       login: "Log in",
-      langOther: "PL",
+      langOther: "🇵🇱",
       langOtherHref: "/?lang=pl",
     },
 
@@ -238,8 +238,7 @@ const content = {
     ],
 
     integrationsEyebrow: "Channels and integrations",
-    integrationsTitle:
-      "Platform data, blog context and offers in one place.",
+    integrationsTitle: "Platform data, blog context and offers in one place.",
     platforms: [
       "Instagram",
       "Facebook",
@@ -269,7 +268,7 @@ const content = {
 
 export default async function LandingPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const lang: Lang = params?.lang === "en" ? "en" : "pl";
+  const lang: Lang = params?.lang === "pl" ? "pl" : "en";
   const t = content[lang];
 
   const privacyHref = `/privacy?lang=${lang}`;
@@ -342,19 +341,34 @@ export default async function LandingPage({ searchParams }: PageProps) {
         .ciq-body {
           font-family: var(--font-body), "Montserrat", system-ui, sans-serif;
         }
+
+        .ciq-lang-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 46px;
+          min-height: 40px;
+          font-size: 20px;
+          line-height: 1;
+        }
       `}</style>
 
       <div className="ciq-shell min-h-screen ciq-body">
         <header className="sticky top-0 z-50 border-b border-white/10 bg-[#1A2233]/88 backdrop-blur-xl">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4">
-            <Link href={`/?lang=${lang}`} className="flex shrink-0 items-center gap-3 no-underline">
+            <Link
+              href={`/?lang=${lang}`}
+              className="flex shrink-0 items-center gap-3 no-underline"
+            >
               <img
                 src="/ANM_ContentIQ_.JPG"
                 alt="ANM ContentIQ app icon"
                 className="h-11 w-11 rounded-2xl border border-white/10 object-cover"
               />
               <div>
-                <p className="ciq-heading text-[22px] leading-none">ANM ContentIQ</p>
+                <p className="ciq-heading text-[22px] leading-none">
+                  ANM ContentIQ
+                </p>
                 <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">
                   AI Content Intelligence
                 </p>
@@ -371,7 +385,10 @@ export default async function LandingPage({ searchParams }: PageProps) {
               <a href="#business" className="transition hover:text-[#8E443D]">
                 {t.nav.business}
               </a>
-              <a href="#integrations" className="transition hover:text-[#8E443D]">
+              <a
+                href="#integrations"
+                className="transition hover:text-[#8E443D]"
+              >
                 {t.nav.integrations}
               </a>
               <Link href={privacyHref} className="transition hover:text-[#8E443D]">
@@ -385,7 +402,8 @@ export default async function LandingPage({ searchParams }: PageProps) {
             <div className="flex items-center gap-2">
               <Link
                 href={t.nav.langOtherHref}
-                className="rounded-2xl border border-white/10 bg-black px-4 py-2.5 text-xs font-black text-white no-underline transition hover:border-[#8E443D]/60"
+                aria-label={lang === "en" ? "Przełącz na polski" : "Switch to English"}
+                className="ciq-lang-button rounded-2xl border border-white/10 bg-black px-4 py-2.5 font-black text-white no-underline transition hover:border-[#8E443D]/60"
               >
                 {t.nav.langOther}
               </Link>
@@ -453,8 +471,12 @@ export default async function LandingPage({ searchParams }: PageProps) {
             <div className="ciq-card-soft rounded-[1.5rem] p-6">
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
-                  <p className="ciq-label text-xs text-[#D8B4FE]">{t.scoreLabel}</p>
-                  <p className="ciq-heading mt-2 text-5xl leading-none">0/100</p>
+                  <p className="ciq-label text-xs text-[#D8B4FE]">
+                    {t.scoreLabel}
+                  </p>
+                  <p className="ciq-heading mt-2 text-5xl leading-none">
+                    0/100
+                  </p>
                 </div>
 
                 <span className="rounded-full border border-[#22c55e]/30 bg-[#22c55e]/10 px-4 py-2 text-xs font-black text-[#22c55e]">
@@ -464,14 +486,19 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
               <div className="space-y-4">
                 {t.scoreItems.map((item) => (
-                  <div key={item} className="rounded-2xl border border-white/10 bg-black p-4">
+                  <div
+                    key={item}
+                    className="rounded-2xl border border-white/10 bg-black p-4"
+                  >
                     <p className="text-sm leading-6 text-white/75">{item}</p>
                   </div>
                 ))}
               </div>
 
               <div className="mt-5 rounded-2xl border border-purple-300/40 bg-purple-500/10 p-4">
-                <p className="ciq-label mb-2 text-xs text-[#D8B4FE]">{t.aiDataLabel}</p>
+                <p className="ciq-label mb-2 text-xs text-[#D8B4FE]">
+                  {t.aiDataLabel}
+                </p>
                 <p className="text-sm leading-6 text-white/75">{t.aiDataText}</p>
               </div>
             </div>
@@ -480,7 +507,9 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
         <section id="features" className="mx-auto max-w-7xl px-6 py-16">
           <div className="mb-10">
-            <p className="ciq-label text-sm text-[#8E443D]">{t.featuresEyebrow}</p>
+            <p className="ciq-label text-sm text-[#8E443D]">
+              {t.featuresEyebrow}
+            </p>
             <h2 className="ciq-heading mt-3 text-4xl leading-tight md:text-5xl">
               {t.featuresTitle}
             </h2>
@@ -491,9 +520,16 @@ export default async function LandingPage({ searchParams }: PageProps) {
 
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {t.features.map((feature) => (
-              <div key={feature.title} className="ciq-card ciq-hover rounded-3xl p-6">
-                <h3 className="ciq-heading text-2xl leading-tight">{feature.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-white/65">{feature.text}</p>
+              <div
+                key={feature.title}
+                className="ciq-card ciq-hover rounded-3xl p-6"
+              >
+                <h3 className="ciq-heading text-2xl leading-tight">
+                  {feature.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-white/65">
+                  {feature.text}
+                </p>
               </div>
             ))}
           </div>
@@ -530,7 +566,9 @@ export default async function LandingPage({ searchParams }: PageProps) {
         <section className="mx-auto max-w-7xl px-6 py-16">
           <div className="ciq-card grid gap-8 rounded-[2rem] p-8 md:grid-cols-[0.9fr_1.1fr] md:p-10">
             <div>
-              <p className="ciq-label text-sm text-[#8E443D]">{t.blogEyebrow}</p>
+              <p className="ciq-label text-sm text-[#8E443D]">
+                {t.blogEyebrow}
+              </p>
               <h2 className="ciq-heading mt-3 text-4xl leading-tight">
                 {t.blogTitle}
               </h2>
@@ -550,7 +588,9 @@ export default async function LandingPage({ searchParams }: PageProps) {
         </section>
 
         <section id="integrations" className="mx-auto max-w-7xl px-6 py-16">
-          <p className="ciq-label text-sm text-[#8E443D]">{t.integrationsEyebrow}</p>
+          <p className="ciq-label text-sm text-[#8E443D]">
+            {t.integrationsEyebrow}
+          </p>
           <h2 className="ciq-heading mt-3 text-4xl leading-tight">
             {t.integrationsTitle}
           </h2>
