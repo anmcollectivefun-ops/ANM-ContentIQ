@@ -3,7 +3,7 @@
 // app/dashboard/page.tsx
 // ANM ContentIQ — start dashboard / application entry
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -821,7 +821,7 @@ function ScoreRing({
   );
 }
 
-export default function DashboardPage() {
+function DashboardPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const lang: Lang = searchParams.get("lang") === "pl" ? "pl" : "en";
@@ -2147,5 +2147,12 @@ export default function DashboardPage() {
         </footer>
       </main>
     </div>
+  );
+}
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageInner />
+    </Suspense>
   );
 }
