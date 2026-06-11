@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { appCopy, getLang, type Lang } from "@/lib/contentiq-app-copy";
+import { LanguageProvider } from "@/lib/contentiq-language";
 import {
   BarChart3,
   Bot,
@@ -1241,6 +1242,7 @@ const formatProfileNumber = (value: any) => {
 };
 
   return (
+    <LanguageProvider lang={lang}>
     <div
       style={{
         ...st.root,
@@ -5271,6 +5273,7 @@ const formatProfileNumber = (value: any) => {
         </div>
       </div>
     </div>
+    </LanguageProvider>
   );
 }
 

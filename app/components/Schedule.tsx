@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 // ─── TYPY ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ export default function Schedule({
   dark?: boolean;
   workspaceId: string;
 }) {
+  const { lang, locale, text } = useContentIQLanguage();
   const supabase = createClient();
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,8 +135,8 @@ export default function Schedule({
     setCancelling(id);
     const { error } = await supabase.schema("contentiq").from("scheduled_posts")
       .update({ status: "cancelled" }).eq("id", id);
-    if (error) showToast("Błąd anulowania");
-    else { showToast("Post anulowany"); await load(); setSelected(null); }
+    if (error) showToast(text("Błąd anulowania", "Cancellation error"));
+    else { showToast(text("Post anulowany", "Post cancelled")); await load(); setSelected(null); }
     setCancelling(null);
   }
 
@@ -202,8 +204,8 @@ export default function Schedule({
                   {PLATFORM_META[selected.platform]?.icon}
                 </div>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: css.text }}>{selected.draft?.title || "Post bez tytułu"}</div>
-                  <div style={{ fontSize: 12, color: css.muted }}>{PLATFORM_META[selected.platform]?.label} · {formatDate(selected.scheduled_at)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: css.text }}>{selected.draft?.title || text("Post bez tytułu", "Untitled post")}</div>
+                  <div style={{ fontSize: 12, color: css.muted }}>{PLATFORM_META[selected.platform]?.label} · {new Date(selected.scheduled_at).toLocaleString(locale)}</div>
                 </div>
               </div>
               <button className="sch-btn" onClick={() => setSelected(null)}
@@ -212,7 +214,7 @@ export default function Schedule({
 
             {selected.draft?.ai_score && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <div style={{ fontSize: 11, color: css.muted }}>Przewidywany AI Score:</div>
+                <div style={{ fontSize: 11, color: css.muted }}>{text("Przewidywany wynik AI:", "Predicted AI score:")}</div>
                 <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-heading)", color: selected.draft.ai_score >= 80 ? "#22c55e" : selected.draft.ai_score >= 60 ? "#f59e0b" : "#ef4444" }}>
                   {selected.draft.ai_score}
                 </div>
@@ -232,7 +234,7 @@ export default function Schedule({
               {selected.status === "scheduled" && (
                 <button className="sch-btn" onClick={() => cancelPost(selected.id)} disabled={cancelling === selected.id}
                   style={{ padding: "8px 16px", borderRadius: 8, background: "#ef444415", border: "1px solid #ef444430", color: "#ef4444", fontSize: 12, fontWeight: 600, opacity: cancelling === selected.id ? 0.6 : 1 }}>
-                  {cancelling === selected.id ? "Anulowanie..." : "Anuluj post"}
+                  {cancelling === selected.id ? text("Anulowanie...", "Cancelling...") : text("Anuluj post", "Cancel post")}
                 </button>
               )}
             </div>
@@ -243,9 +245,9 @@ export default function Schedule({
       {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "Zaplanowane", value: upcoming.length, color: css.accent },
-          { label: "Dziś", value: today.length, color: "#f59e0b" },
-          { label: "Opublikowane", value: posts.filter(p => p.status === "published").length, color: "#22c55e" },
+          { label: text("Zaplanowane", "Scheduled"), value: upcoming.length, color: css.accent },
+          { label: text("Dziś", "Today"), value: today.length, color: "#f59e0b" },
+          { label: text("Opublikowane", "Published"), value: posts.filter(p => p.status === "published").length, color: "#22c55e" },
         ].map((stat, i) => (
           <div key={i} className="fade" style={{ animationDelay: `${i * 0.05}s`, padding: "16px 18px", borderRadius: 14, background: css.surface, border: `1px solid ${css.border}` }}>
             <div style={{ fontSize: 11, color: css.muted, marginBottom: 6 }}>{stat.label}</div>
@@ -261,7 +263,7 @@ export default function Schedule({
           {(["list", "calendar"] as const).map(v => (
             <button key={v} className="sch-btn" onClick={() => setView(v)}
               style={{ padding: "7px 16px", borderRadius: 7, border: "none", fontSize: 12, fontWeight: view === v ? 700 : 500, background: view === v ? (dark ? "#fff" : "#0f172a") : "transparent", color: view === v ? (dark ? "#0f172a" : "#fff") : css.muted }}>
-              {v === "list" ? "▤ Lista" : "◫ Kalendarz"}
+              {v === "list" ? text("Lista", "List") : text("Kalendarz", "Calendar")}
             </button>
           ))}
         </div>
@@ -271,7 +273,13 @@ export default function Schedule({
           {(["all", "scheduled", "published", "failed"] as const).map(f => (
             <button key={f} className="sch-btn" onClick={() => setFilter(f)}
               style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${filter === f ? css.accent : css.border}`, background: filter === f ? css.accent + "20" : "transparent", color: filter === f ? css.accent : css.muted, fontSize: 11, fontWeight: 600 }}>
-              {f === "all" ? "Wszystkie" : STATUS_META[f as Status].label}
+              {f === "all"
+                ? text("Wszystkie", "All")
+                : f === "scheduled"
+                  ? text("Zaplanowane", "Scheduled")
+                  : f === "published"
+                    ? text("Opublikowane", "Published")
+                    : text("Błąd", "Failed")}
             </button>
           ))}
         </div>
@@ -280,7 +288,7 @@ export default function Schedule({
       {/* Loading */}
       {loading && (
         <div style={{ textAlign: "center", padding: 60, color: css.muted, fontSize: 13 }}>
-          Ładowanie harmonogramu...
+          {text("Ładowanie harmonogramu...", "Loading schedule...")}
         </div>
       )}
 
@@ -289,10 +297,13 @@ export default function Schedule({
         <div style={{ textAlign: "center", padding: 60, border: `1px dashed ${css.border}`, borderRadius: 16, background: css.surface }}>
           <div style={{ fontSize: 36, opacity: 0.2, marginBottom: 12 }}>◷</div>
           <div style={{ fontSize: 18, fontFamily: "var(--font-heading)", color: css.text, marginBottom: 8 }}>
-            Brak zaplanowanych postów
+            {text("Brak zaplanowanych postów", "No scheduled posts")}
           </div>
           <div style={{ fontSize: 13, color: css.muted, lineHeight: 1.7 }}>
-            Wygeneruj treść w Content Studio i kliknij "Zaplanuj" żeby pojawił się tutaj.
+            {text(
+              'Wygeneruj treść w Content Studio i kliknij „Zaplanuj”, aby pojawiła się tutaj.',
+              'Generate content in Content Studio and click “Schedule” to see it here.'
+            )}
           </div>
         </div>
       )}
@@ -316,14 +327,14 @@ export default function Schedule({
                 {/* Content */}
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: css.text, marginBottom: 3 }}>
-                    {post.draft?.title || "Post bez tytułu"}
+                    {post.draft?.title || text("Post bez tytułu", "Untitled post")}
                   </div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 11, color: css.muted }}>{formatDate(post.scheduled_at)}</span>
+                    <span style={{ fontSize: 11, color: css.muted }}>{new Date(post.scheduled_at).toLocaleString(locale)}</span>
                     {post.draft?.content_type && (
                       <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 6, background: css.bg, color: css.muted, border: `1px solid ${css.border}` }}>{post.draft.content_type}</span>
                     )}
-                    {isPast && <span style={{ fontSize: 10, color: "#f59e0b" }}>⚠ Minął termin</span>}
+                    {isPast && <span style={{ fontSize: 10, color: "#f59e0b" }}>{text("Minął termin", "Past due")}</span>}
                   </div>
                 </div>
 
@@ -355,7 +366,7 @@ export default function Schedule({
             <button className="sch-btn" onClick={prevMonth}
               style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, fontSize: 14 }}>←</button>
             <div style={{ fontSize: 16, fontWeight: 700, fontFamily: "var(--font-heading)", color: css.text }}>
-              {MONTHS_PL[calMonth]} {calYear}
+              {new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(calYear, calMonth, 1))}
             </div>
             <button className="sch-btn" onClick={nextMonth}
               style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, fontSize: 14 }}>→</button>
@@ -363,7 +374,7 @@ export default function Schedule({
 
           {/* Day headers */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: `1px solid ${css.border}` }}>
-            {DAYS_PL.map(d => (
+            {(lang === "pl" ? ["Nd", "Pn", "Wt", "Śr", "Cz", "Pt", "Sb"] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]).map(d => (
               <div key={d} style={{ padding: "8px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: css.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>{d}</div>
             ))}
           </div>
@@ -386,7 +397,7 @@ export default function Schedule({
                       </div>
                     );
                   })}
-                  {dayPosts.length > 3 && <div style={{ fontSize: 9, color: css.muted }}>+{dayPosts.length - 3} więcej</div>}
+                  {dayPosts.length > 3 && <div style={{ fontSize: 9, color: css.muted }}>+{dayPosts.length - 3} {text("więcej", "more")}</div>}
                 </div>
               );
             })}

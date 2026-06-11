@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type ShortPlatform =
   | "tiktok"
@@ -261,6 +262,7 @@ ${result.cross_platform_notes.map((item) => `- ${item}`).join("\n")}
 }
 
 function buildPrompt({
+  language,
   topic,
   sourceContent,
   selectedPlatforms,
@@ -269,6 +271,7 @@ function buildPrompt({
   duration,
   brandContext,
 }: {
+  language: "pl" | "en";
   topic: string;
   sourceContent: string;
   selectedPlatforms: ShortPlatform[];
@@ -283,6 +286,8 @@ function buildPrompt({
 
   return `
 Jesteś ekspertem od short video: TikTok, Instagram Reels, Facebook Reels, YouTube Shorts i LinkedIn Video.
+
+Wszystkie treści opisowe twórz w języku ${language === "pl" ? "polskim" : "angielskim"}.
 
 Przygotuj osobne warianty short video na wskazane platformy.
 
@@ -527,6 +532,7 @@ export default function ShortStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [selectedPlatforms, setSelectedPlatforms] = useState<ShortPlatform[]>([
@@ -1160,6 +1166,7 @@ export default function ShortStudio({
 
     try {
       const prompt = buildPrompt({
+        language: lang,
         topic: generationTopic,
         sourceContent: generationSourceContent,
         selectedPlatforms,
@@ -1406,16 +1413,19 @@ export default function ShortStudio({
         <div>
           <SectionLabel color={css.aiText}>
             <Wand2 size={15} color={css.aiIcon} />
-            Stwórz z AI swój short
+            {text("Stwórz z AI swój short", "Create your short with AI")}
           </SectionLabel>
           <div className="short-section-grid">
             <Card css={css}>
-              <SectionLabel color={css.accent}>Dodaj film</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Dodaj film", "Add video")}</SectionLabel>
 
-              <h2 style={panelTitleStyle}>Upload shorta</h2>
+              <h2 style={panelTitleStyle}>{text("Upload shorta", "Upload a short")}</h2>
 
               <p style={{ margin: "0 0 12px", color: css.muted, fontSize: 12, lineHeight: 1.65 }}>
-                Dodaj plik MP4, MOV lub WebM. Film jest tymczasowy i zostanie usunięty po publikacji albo wygaśnięciu.
+                {text(
+                  "Dodaj plik MP4, MOV lub WebM. Film jest tymczasowy i zostanie usunięty po publikacji albo wygaśnięciu.",
+                  "Add an MP4, MOV or WebM file. It is stored temporarily and removed after publishing or expiration."
+                )}
               </p>
 
               <input
@@ -1469,7 +1479,7 @@ export default function ShortStudio({
               )}
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.accent}>Platforma szablonu</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Platforma szablonu", "Template platform")}</SectionLabel>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {SHORT_PLATFORMS.map((item) => (
@@ -1572,7 +1582,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.accent}>Link opcjonalny</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Link opcjonalny", "Optional link")}</SectionLabel>
 
                 <input
                   value={videoReferenceUrl}
@@ -1719,7 +1729,7 @@ export default function ShortStudio({
                 >
                   <div>
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>⊞</div>
-                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>Tutaj pojawi się opis filmu</h3>
+                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Tutaj pojawi się opis filmu", "Your video post copy will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
                       Po analizie AI zobaczysz hook, opis posta, hashtagi i platformy, do których zapiszesz szablon.
                     </p>
@@ -1748,7 +1758,7 @@ export default function ShortStudio({
                         animation: "spin .8s linear infinite",
                       }}
                     />
-                    <p style={{ color: css.muted, fontSize: 13 }}>AI analizuje film...</p>
+                    <p style={{ color: css.muted, fontSize: 13 }}>{text("AI analizuje film...", "AI is analyzing the video...")}</p>
                   </div>
                 </div>
               )}
@@ -1883,15 +1893,18 @@ export default function ShortStudio({
         </div>
 
         <div>
-          <SectionLabel color={css.accent}>Pomysł na short</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Pomysł na short", "Short idea")}</SectionLabel>
           <div className="short-section-grid">
             <Card css={css}>
-              <SectionLabel color={css.accent}>Treść dla AI</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Treść dla AI", "Content for AI")}</SectionLabel>
 
-              <h2 style={panelTitleStyle}>Pomysł lub tekst źródłowy</h2>
+              <h2 style={panelTitleStyle}>{text("Pomysł lub tekst źródłowy", "Idea or source text")}</h2>
 
               <p style={{ margin: "0 0 12px", color: css.muted, fontSize: 12, lineHeight: 1.65 }}>
-                Możesz wpisać pomysł od zera albo użyć danych z analizy filmu powyżej.
+                {text(
+                  "Możesz wpisać pomysł od zera albo użyć danych z analizy filmu powyżej.",
+                  "Start with your own idea or use the video analysis above."
+                )}
               </p>
 
               <div style={{ marginBottom: 14 }}>
@@ -1914,7 +1927,7 @@ export default function ShortStudio({
 
               <div className="short-two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                 <div>
-                  <SectionLabel color={css.muted}>Cel</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Cel", "Goal")}</SectionLabel>
                   <select
                     value={goal}
                     onChange={(event) => setGoal(event.target.value as ShortGoal)}
@@ -1939,7 +1952,7 @@ export default function ShortStudio({
                 </div>
 
                 <div>
-                  <SectionLabel color={css.muted}>Długość</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Długość", "Length")}</SectionLabel>
                   <select
                     value={duration}
                     onChange={(event) => setDuration(Number(event.target.value))}
@@ -1965,7 +1978,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Format bazowy</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Format bazowy", "Base format")}</SectionLabel>
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {FORMATS.map((item) => (
@@ -1983,7 +1996,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Temat / idea</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Temat / idea", "Topic / idea")}</SectionLabel>
 
                 <textarea
                   value={topic}
@@ -2006,7 +2019,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Materiał źródłowy</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Materiał źródłowy", "Source material")}</SectionLabel>
 
                 <textarea
                   value={sourceContent}
@@ -2029,7 +2042,7 @@ export default function ShortStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Kontekst marki</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Kontekst marki", "Brand context")}</SectionLabel>
 
                 <textarea
                   value={brandContext}
@@ -2102,7 +2115,7 @@ export default function ShortStudio({
                 >
                   <div>
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>✦</div>
-                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>Warianty shortów pojawią się tutaj</h3>
+                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Warianty shortów pojawią się tutaj", "Short variants will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
                       Po kliknięciu generowania AI przygotuje osobne scenariusze, opisy i hashtagi dla wybranych platform.
                     </p>
@@ -2131,7 +2144,7 @@ export default function ShortStudio({
                         animation: "spin .8s linear infinite",
                       }}
                     />
-                    <p style={{ color: css.muted, fontSize: 13 }}>AI dopasowuje shorty do platform...</p>
+                    <p style={{ color: css.muted, fontSize: 13 }}>{text("AI dopasowuje shorty do platform...", "AI is adapting shorts for each platform...")}</p>
                   </div>
                 </div>
               )}

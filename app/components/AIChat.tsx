@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 interface Message {
   role: "user" | "assistant";
@@ -13,14 +14,24 @@ interface Message {
   ts: number;
 }
 
-const QUICK_PROMPTS = [
-  "Dlaczego moje ostatnie posty mają niski zasięg?",
-  "Jakie formaty treści działają u mnie najlepiej?",
-  "Zaproponuj 5 tematów na następny tydzień",
-  "Który kanał powinienem teraz rozwijać najbardziej?",
-  "Jak poprawić mój hook żeby zatrzymał uwagę?",
-  "Porównaj moje wyniki z ostatniego miesiąca",
-];
+const QUICK_PROMPTS = {
+  pl: [
+    "Dlaczego moje ostatnie posty mają niski zasięg?",
+    "Jakie formaty treści działają u mnie najlepiej?",
+    "Zaproponuj 5 tematów na następny tydzień",
+    "Który kanał powinienem teraz rozwijać najbardziej?",
+    "Jak poprawić mój hook, żeby zatrzymał uwagę?",
+    "Porównaj moje wyniki z ostatniego miesiąca",
+  ],
+  en: [
+    "Why did my latest posts get low reach?",
+    "Which content formats work best for me?",
+    "Suggest 5 topics for next week",
+    "Which channel should I focus on growing now?",
+    "How can I improve my hook to hold attention?",
+    "Compare my results from the last month",
+  ],
+};
 
 export default function AIChat({
   dark = true,
@@ -29,6 +40,7 @@ export default function AIChat({
   dark?: boolean;
   workspaceId: string;
 }) {
+  const { lang, locale, text } = useContentIQLanguage();
   const supabase = createClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -122,17 +134,20 @@ ${(drafts || []).map(d => `- "${d.title}" [${d.content_type || "?"}] status: ${d
     loadContext();
     setMessages([{
       role: "assistant",
-      content: "Cześć! Jestem Twoim AI asystentem ContentIQ. Znam Twoje posty, wyniki i Brand Voice. Możesz mnie zapytać o analizę wyników, pomysły na content, porównanie platform lub co tylko chcesz wiedzieć o swojej strategii contentowej.",
+      content: text(
+        "Cześć! Jestem Twoim asystentem AI ContentIQ. Znam Twoje posty, wyniki i Brand Voice. Możesz zapytać mnie o analizę wyników, pomysły na content, porównanie platform lub strategię.",
+        "Hi! I am your ContentIQ AI assistant. I know your posts, results and Brand Voice. Ask me about performance, content ideas, platform comparisons or strategy."
+      ),
       ts: Date.now(),
     }]);
-  }, [workspaceId]);
+  }, [workspaceId, lang]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  async function send(text?: string) {
-    const msg = (text || input).trim();
+  async function send(preset?: string) {
+    const msg = (preset || input).trim();
     if (!msg || loading) return;
 
     setInput("");
@@ -152,7 +167,7 @@ ${history || "Brak historii."}
 Pytanie uzytkownika:
 ${msg}
 
-Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych brakuje, powiedz to wprost i zaproponuj nastepny krok.
+Respond in ${lang === "pl" ? "Polish" : "English"}. Base the answer only on real data from the context. If data is missing, say so clearly and suggest the next step.
 `.trim();
 
       const res = await fetch("/api/chat", {
@@ -166,14 +181,14 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || data.details || "Nie udalo sie uzyskac odpowiedzi AI.");
+        throw new Error(data.error || data.details || text("Nie udało się uzyskać odpowiedzi AI.", "Could not get an AI response."));
       }
 
-      const reply = data.answer || "Przepraszam, nie udalo sie uzyskac odpowiedzi.";
+      const reply = data.answer || text("Przepraszam, nie udało się uzyskać odpowiedzi.", "Sorry, no response was returned.");
       setMessages(prev => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      setMessages(prev => [...prev, { role: "assistant", content: `Blad polaczenia: ${message}`, ts: Date.now() }]);
+      setMessages(prev => [...prev, { role: "assistant", content: `${text("Błąd połączenia", "Connection error")}: ${message}`, ts: Date.now() }]);
     }
 
     setLoading(false);
@@ -207,28 +222,30 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: css.accent + "20", border: `1px solid ${css.accent}40`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✦</div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: css.text }}>AI Asystent ContentIQ</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: css.text }}>{text("Asystent AI ContentIQ", "ContentIQ AI Assistant")}</div>
             <div style={{ fontSize: 11, color: contextLoaded ? "#22c55e" : css.muted }}>
-              {contextLoaded ? `✓ Zna Twoje dane (${context.split("\n").length} linii kontekstu)` : "Ładowanie danych..."}
+              {contextLoaded
+                ? text(`Zna Twoje dane (${context.split("\n").length} linii kontekstu)`, `Knows your data (${context.split("\n").length} context lines)`)
+                : text("Ładowanie danych...", "Loading data...")}
             </div>
           </div>
         </div>
         <button className="ai-btn" onClick={() => setMessages([{
           role: "assistant",
-          content: "Nowa rozmowa rozpoczęta. W czym mogę pomóc?",
+          content: text("Nowa rozmowa rozpoczęta. W czym mogę pomóc?", "New conversation started. How can I help?"),
           ts: Date.now(),
         }])}
           style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, fontSize: 11 }}>
-          Nowa rozmowa
+          {text("Nowa rozmowa", "New conversation")}
         </button>
       </div>
 
       {/* Quick prompts */}
       {messages.length <= 1 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: css.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Szybkie pytania</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: css.muted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>{text("Szybkie pytania", "Quick questions")}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {QUICK_PROMPTS.map(p => (
+            {QUICK_PROMPTS[lang].map(p => (
               <button key={p} className="ai-btn" onClick={() => send(p)}
                 style={{ padding: "6px 12px", borderRadius: 20, border: `1px solid ${css.border}`, background: css.surface, color: css.muted, fontSize: 11, textAlign: "left" }}>
                 {p}
@@ -256,7 +273,7 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
             }}>
               {msg.content}
               <div style={{ fontSize: 10, color: css.muted, marginTop: 6, textAlign: msg.role === "user" ? "right" : "left" }}>
-                {new Date(msg.ts).toLocaleTimeString("pl", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(msg.ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
               </div>
             </div>
           </div>
@@ -284,7 +301,10 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Zapytaj o swoje wyniki, poproś o pomysły na content, analizę strategii... (Enter = wyślij, Shift+Enter = nowa linia)"
+            placeholder={text(
+              "Zapytaj o wyniki, pomysły na content lub analizę strategii... (Enter = wyślij, Shift+Enter = nowa linia)",
+              "Ask about results, content ideas or strategy analysis... (Enter = send, Shift+Enter = new line)"
+            )}
             rows={2}
             style={{ flex: 1, padding: "11px 14px", borderRadius: 12, border: `1px solid ${css.border}`, background: css.surface, color: css.text, fontSize: 13, lineHeight: 1.6 }}
             onFocus={e => e.target.style.borderColor = css.accent}
@@ -292,11 +312,14 @@ Odpowiadaj po polsku. Bazuj tylko na realnych danych z kontekstu. Jesli danych b
           />
           <button className="ai-btn" onClick={() => send()} disabled={loading || !input.trim()}
             style={{ padding: "11px 18px", borderRadius: 12, background: dark ? "#fff" : "#0f172a", color: dark ? "#0f172a" : "#fff", border: "none", fontSize: 13, fontWeight: 800, opacity: loading || !input.trim() ? 0.4 : 1, flexShrink: 0 }}>
-            ✦ Wyślij
+            {text("Wyślij", "Send")}
           </button>
         </div>
         <div style={{ fontSize: 10, color: css.muted, marginTop: 6, textAlign: "center" }}>
-          AI ma dostęp do Twoich postów i wyników z Supabase — odpowiedzi bazują na realnych danych
+          {text(
+            "AI ma dostęp do Twoich postów i wyników z Supabase — odpowiedzi bazują na realnych danych.",
+            "AI can access your posts and Supabase results — answers are based on real data."
+          )}
         </div>
       </div>
     </div>

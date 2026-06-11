@@ -20,6 +20,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -576,11 +577,13 @@ function compactContextForPrompt(pack: ContextPack) {
 }
 
 function buildStrategyPrompt({
+  language,
   userBrief,
   periodStart,
   selectedPlatforms,
   contextPack,
 }: {
+  language: "pl" | "en";
   userBrief: string;
   periodStart: string;
   selectedPlatforms: Platform[];
@@ -591,6 +594,8 @@ function buildStrategyPrompt({
 
   return `
 Jesteś AI Strategiem ContentIQ. Tworzysz realną strategię contentu na 4 tygodnie dla konkretnego użytkownika.
+
+Wszystkie treści opisowe w odpowiedzi zapisuj w języku ${language === "pl" ? "polskim" : "angielskim"}.
 
 NIE TWÓRZ PLANU Z OGÓLNYCH PORAD INTERNETOWYCH.
 Twoje centrum wiedzy to dane z aplikacji ContentIQ:
@@ -781,6 +786,7 @@ export default function AIStrategist({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, locale, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const css = dark
@@ -1215,7 +1221,7 @@ export default function AIStrategist({
 
     try {
       const pack = contextLoaded ? contextPack : await loadContext();
-      const prompt = buildStrategyPrompt({ userBrief, periodStart, selectedPlatforms, contextPack: pack });
+      const prompt = buildStrategyPrompt({ language: lang, userBrief, periodStart, selectedPlatforms, contextPack: pack });
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -1510,23 +1516,26 @@ export default function AIStrategist({
                     fontWeight: 500,
                   }}
                 >
-                  {strategy ? strategy.strategy_name : "Strategia oparta na realnych danych"}
+                  {strategy ? strategy.strategy_name : text("Strategia oparta na realnych danych", "A strategy based on real data")}
                 </h2>
                 <p style={{ margin: "8px 0 0", color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 880 }}>
-                  AI nie ma zgadywać godzin publikacji. Najpierw liczymy z Twoich postów najlepsze dni i okna czasowe, a dopiero potem model układa plan.
+                  {text(
+                    "AI nie ma zgadywać godzin publikacji. Najpierw liczymy z Twoich postów najlepsze dni i okna czasowe, a dopiero potem model układa plan.",
+                    "AI should not guess publishing times. ContentIQ first calculates the best days and time windows from your posts, then builds the plan."
+                  )}
                 </p>
               </div>
 
               <div className="ais-topbar-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button style={btnGhost} type="button" onClick={() => setShowBriefPanel((v) => !v)}>
                   <RefreshCw size={14} />
-                  {showBriefPanel ? "Ukryj ustawienia" : strategy ? "Nowa strategia" : "Ustawienia"}
+                  {showBriefPanel ? text("Ukryj ustawienia", "Hide settings") : strategy ? text("Nowa strategia", "New strategy") : text("Ustawienia", "Settings")}
                 </button>
 
                 {strategy && (
                   <>
                     <button style={{ ...btnGhost, color: css.aiText, borderColor: css.aiBorder, background: css.aiBg }} type="button" onClick={saveStrategy} disabled={saving}>
-                      {saving ? "Zapisuję..." : "Zapisz strategię"}
+                      {saving ? text("Zapisuję...", "Saving...") : text("Zapisz strategię", "Save strategy")}
                     </button>
                     <button style={btnPrimary} type="button" onClick={exportStrategy}>
                       <Download size={14} /> Eksportuj
@@ -1553,13 +1562,13 @@ export default function AIStrategist({
                       <input className="ais-input" type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} style={inputSt} />
                     </label>
                     <label style={{ display: "grid", gap: 6 }}>
-                      <span style={{ color: css.muted, fontSize: 11, fontWeight: 850, textTransform: "uppercase", letterSpacing: ".08em" }}>Koniec</span>
+                      <span style={{ color: css.muted, fontSize: 11, fontWeight: 850, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Koniec", "End")}</span>
                       <input className="ais-input" type="date" value={periodEnd} readOnly style={{ ...inputSt, opacity: 0.6 }} />
                     </label>
                   </div>
 
                   <div>
-                    <SectionLabel color={css.accent}>Platformy w strategii</SectionLabel>
+                    <SectionLabel color={css.accent}>{text("Platformy w strategii", "Strategy platforms")}</SectionLabel>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                       {PLATFORMS.map((p) => {
                         const active = selectedPlatforms.includes(p.id);
@@ -1589,7 +1598,7 @@ export default function AIStrategist({
                   </div>
 
                   <div>
-                    <SectionLabel color={css.aiText}>Silnik AI</SectionLabel>
+                    <SectionLabel color={css.aiText}>{text("Silnik AI", "AI engine")}</SectionLabel>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       {[
                         { id: "gemini" as StrategyAiProvider, label: "Gemini", note: "szybko czyta duży kontekst" },
@@ -1668,7 +1677,7 @@ export default function AIStrategist({
         <section style={{ ...cardSt, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
             <div>
-              <SectionLabel color={css.aiText}>Wnioski z danych</SectionLabel>
+              <SectionLabel color={css.aiText}>{text("Wnioski z danych", "Data insights")}</SectionLabel>
               <h3 style={{ margin: 0, color: css.heading, fontFamily: "var(--font-heading)", fontSize: 27, lineHeight: 1.05, fontWeight: 500 }}>
                 Kiedy publikować według Twoich postów?
               </h3>
@@ -1681,7 +1690,7 @@ export default function AIStrategist({
 
           {!contextLoaded && (
             <div style={{ borderRadius: 16, border: `1px dashed ${css.borderMed}`, padding: 22, color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
-              Kliknij <strong style={{ color: css.text }}>Pobierz dane</strong>, żeby aplikacja policzyła najlepsze dni i godziny z realnych postów. Bez tego AI może bazować tylko na briefie i oznaczy godziny jako test.
+              {text("Kliknij", "Click")} <strong style={{ color: css.text }}>{text("Pobierz dane", "Load data")}</strong>{text(", żeby aplikacja policzyła najlepsze dni i godziny z realnych postów. Bez tego AI może bazować tylko na briefie i oznaczy godziny jako test.", " so the app can calculate the best days and times from real posts. Without this data, AI can only use the brief and will mark publishing times as experimental.")}
             </div>
           )}
 
@@ -1725,18 +1734,18 @@ export default function AIStrategist({
 
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
                         <div style={{ background: css.surface, border: `1px solid ${css.border}`, borderRadius: 14, padding: 10 }}>
-                          <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, textTransform: "uppercase", marginBottom: 6 }}>Dni</div>
+                          <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, textTransform: "uppercase", marginBottom: 6 }}>{text("Dni", "Days")}</div>
                           <div style={{ color: css.text, fontSize: 12, lineHeight: 1.55 }}>{insight.best_days.length ? insight.best_days.join(", ") : "za mało danych"}</div>
                         </div>
                         <div style={{ background: css.surface, border: `1px solid ${css.border}`, borderRadius: 14, padding: 10 }}>
-                          <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, textTransform: "uppercase", marginBottom: 6 }}>Godziny</div>
+                          <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, textTransform: "uppercase", marginBottom: 6 }}>{text("Godziny", "Times")}</div>
                           <div style={{ color: css.text, fontSize: 12, lineHeight: 1.55 }}>{insight.best_hours.length ? insight.best_hours.join(", ") : "test"}</div>
                         </div>
                       </div>
 
                       {bestPost ? (
                         <div style={{ marginTop: 10, background: css.surface, border: `1px solid ${css.border}`, borderRadius: 14, padding: 10 }}>
-                          <div style={{ color: css.aiText, fontSize: 10, fontWeight: 950, textTransform: "uppercase", marginBottom: 6 }}>Najlepszy wzorzec</div>
+                          <div style={{ color: css.aiText, fontSize: 10, fontWeight: 950, textTransform: "uppercase", marginBottom: 6 }}>{text("Najlepszy wzorzec", "Best pattern")}</div>
                           <div style={{ color: css.text, fontSize: 12, lineHeight: 1.45 }}>{bestPost.title}</div>
                           <div style={{ color: css.muted, fontSize: 11, marginTop: 6 }}>
                             {bestPost.day}, {bestPost.hour} · zasięg {fmtNum(Math.max(bestPost.reach, bestPost.impressions))} · reakcje {fmtNum(bestPost.engagement)}
@@ -1757,20 +1766,23 @@ export default function AIStrategist({
         {!strategy && !loadingSavedStrategy && (
           <section style={{ ...cardSt, padding: 42, textAlign: "center", border: `1px dashed ${css.aiBorder}`, boxShadow: css.aiGlow }}>
             <Wand2 size={46} color={css.aiText} style={{ opacity: 0.45, marginBottom: 12 }} />
-            <h3 style={{ margin: "0 0 8px", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 25, fontWeight: 500 }}>Brak aktywnej strategii</h3>
+            <h3 style={{ margin: "0 0 8px", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 25, fontWeight: 500 }}>{text("Brak aktywnej strategii", "No active strategy")}</h3>
             <p style={{ margin: "0 auto 18px", color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 560 }}>
-              Najpierw pobierz dane, sprawdź okna publikacji i wygeneruj plan. AI użyje realnych godzin z Twoich postów jako głównego źródła.
+              {text(
+                "Najpierw pobierz dane, sprawdź okna publikacji i wygeneruj plan. AI użyje realnych godzin z Twoich postów jako głównego źródła.",
+                "Load your data, review publishing windows and generate a plan. AI will use the actual timing of your posts as its primary source."
+              )}
             </p>
             <button style={btnPrimary} type="button" onClick={generateStrategy} disabled={generating}>
               <Wand2 size={14} />
-              {generating ? "AI tworzy..." : "Wygeneruj strategię"}
+              {generating ? text("AI tworzy...", "AI is creating...") : text("Wygeneruj strategię", "Generate strategy")}
             </button>
           </section>
         )}
 
         {loadingSavedStrategy && (
           <div style={{ textAlign: "center", padding: 52, color: css.muted, fontSize: 13 }}>
-            <div style={{ animation: "aisPulse 1.4s ease-in-out infinite" }}>Wczytywanie strategii...</div>
+            <div style={{ animation: "aisPulse 1.4s ease-in-out infinite" }}>{text("Wczytywanie strategii...", "Loading strategy...")}</div>
           </div>
         )}
 
@@ -1778,7 +1790,7 @@ export default function AIStrategist({
           <>
             {/* 3. Strategy overview */}
             <section style={{ ...cardSt, padding: 18 }}>
-              <SectionLabel color={css.accent}>Plan publikacji</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Plan publikacji", "Publishing plan")}</SectionLabel>
               <div className="ais-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 14 }}>
                 {[
                   { label: "Postów w planie", value: totalPosts },
@@ -1798,7 +1810,7 @@ export default function AIStrategist({
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                     <Sparkles size={17} color={css.aiIcon} style={{ marginTop: 2, flexShrink: 0 }} />
                     <div>
-                      <div style={{ color: css.aiText, fontWeight: 950, fontSize: 12, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>AI podsumowanie i alert na dziś</div>
+                      <div style={{ color: css.aiText, fontWeight: 950, fontSize: 12, textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>{text("AI podsumowanie i alert na dziś", "AI summary and today's alert")}</div>
                       <p style={{ margin: 0, color: css.text, fontSize: 13, lineHeight: 1.7 }}>
                         {strategy.today_notification || strategy.ai_summary || `Dziś masz ${todaysItems.length} pozycji w strategii.`}
                       </p>
@@ -1845,7 +1857,7 @@ export default function AIStrategist({
                       color: viewMode === mode ? css.accent : css.muted,
                     }}
                   >
-                    {mode === "calendar" ? <><Calendar size={13} />Kalendarz</> : <><LayoutList size={13} />Timeline</>}
+                    {mode === "calendar" ? <><Calendar size={13} />{text("Kalendarz", "Calendar")}</> : <><LayoutList size={13} />Timeline</>}
                   </button>
                 ))}
               </div>
@@ -1974,16 +1986,16 @@ export default function AIStrategist({
 
                           <div className="ais-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                             <label style={{ display: "grid", gap: 5 }}>
-                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Tytuł</span>
+                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Tytuł", "Title")}</span>
                               <input className="ais-input" value={item.title} onChange={(e) => updatePlanItem(gIdx, { title: e.target.value })} style={inputSt} />
                             </label>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                               <label style={{ display: "grid", gap: 5 }}>
-                                <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Data</span>
+                                <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Data", "Date")}</span>
                                 <input className="ais-input" type="date" value={item.date} onChange={(e) => updatePlanItem(gIdx, { date: e.target.value })} style={inputSt} />
                               </label>
                               <label style={{ display: "grid", gap: 5 }}>
-                                <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Godz.</span>
+                                <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Godz.", "Time")}</span>
                                 <input className="ais-input" type="time" value={item.time} onChange={(e) => updatePlanItem(gIdx, { time: e.target.value })} style={inputSt} />
                               </label>
                             </div>
@@ -1991,13 +2003,13 @@ export default function AIStrategist({
 
                           <div className="ais-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                             <label style={{ display: "grid", gap: 5 }}>
-                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Platforma</span>
+                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Platforma", "Platform")}</span>
                               <select className="ais-input" value={item.platform} onChange={(e) => updatePlanItem(gIdx, { platform: e.target.value as Platform })} style={inputSt}>
                                 {PLATFORMS.map((pp) => <option key={pp.id} value={pp.id}>{pp.name}</option>)}
                               </select>
                             </label>
                             <label style={{ display: "grid", gap: 5 }}>
-                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Rodzaj</span>
+                              <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Rodzaj", "Type")}</span>
                               <select className="ais-input" value={item.content_kind} onChange={(e) => updatePlanItem(gIdx, { content_kind: e.target.value as ContentKind })} style={inputSt}>
                                 {CONTENT_KINDS.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
                               </select>
@@ -2005,7 +2017,7 @@ export default function AIStrategist({
                           </div>
 
                           <label style={{ display: "grid", gap: 5 }}>
-                            <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>Opis / notatki</span>
+                            <span style={{ color: css.muted, fontSize: 10, fontWeight: 950, textTransform: "uppercase", letterSpacing: ".08em" }}>{text("Opis / notatki", "Description / notes")}</span>
                             <textarea className="ais-input" value={item.description} onChange={(e) => updatePlanItem(gIdx, { description: e.target.value })} style={{ ...inputSt, minHeight: 94, resize: "vertical", lineHeight: 1.65 }} />
                           </label>
 
@@ -2028,29 +2040,29 @@ export default function AIStrategist({
 
             {/* 4. Quality control */}
             <section style={{ background: css.aiBg, border: `1px solid ${css.aiBorder}`, boxShadow: css.aiGlow, borderRadius: 20, padding: 18 }}>
-              <SectionLabel color={css.aiText}>Kontrola jakości strategii</SectionLabel>
+              <SectionLabel color={css.aiText}>{text("Kontrola jakości strategii", "Strategy quality check")}</SectionLabel>
               <div className="ais-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <h4 style={{ color: css.text, margin: "0 0 10px", fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 500 }}>Brakujące dane</h4>
+                  <h4 style={{ color: css.text, margin: "0 0 10px", fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 500 }}>{text("Brakujące dane", "Missing data")}</h4>
                   <div style={{ display: "grid", gap: 8 }}>
                     {strategy.missing_data.length ? strategy.missing_data.map((item, i) => (
                       <div key={i} style={{ background: css.surface, border: `1px solid ${css.border}`, borderRadius: 13, padding: 11, color: css.muted, fontSize: 12, lineHeight: 1.55 }}>
                         {item}
                       </div>
                     )) : (
-                      <div style={{ color: css.muted, fontSize: 12 }}>AI nie zgłosiło braków. Sprawdź jednak, czy timingInsights ma wystarczającą próbę na każdej platformie.</div>
+                      <div style={{ color: css.muted, fontSize: 12 }}>{text("AI nie zgłosiło braków. Sprawdź jednak, czy timingInsights ma wystarczającą próbę na każdej platformie.", "AI reported no missing data. Still, verify that timingInsights has a sufficient sample for every platform.")}</div>
                     )}
                   </div>
                 </div>
                 <div>
-                  <h4 style={{ color: css.text, margin: "0 0 10px", fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 500 }}>Założenia AI</h4>
+                  <h4 style={{ color: css.text, margin: "0 0 10px", fontFamily: "var(--font-heading)", fontSize: 22, fontWeight: 500 }}>{text("Założenia AI", "AI assumptions")}</h4>
                   <div style={{ display: "grid", gap: 8 }}>
                     {strategy.assumptions.length ? strategy.assumptions.map((item, i) => (
                       <div key={i} style={{ background: css.surface, border: `1px solid ${css.border}`, borderRadius: 13, padding: 11, color: css.muted, fontSize: 12, lineHeight: 1.55 }}>
                         {item}
                       </div>
                     )) : (
-                      <div style={{ color: css.muted, fontSize: 12 }}>Brak zapisanych założeń. To dobry znak, jeśli dane faktycznie są kompletne.</div>
+                      <div style={{ color: css.muted, fontSize: 12 }}>{text("Brak zapisanych założeń. To dobry znak, jeśli dane faktycznie są kompletne.", "No assumptions were recorded. This is a good sign if the source data is truly complete.")}</div>
                     )}
                   </div>
                 </div>

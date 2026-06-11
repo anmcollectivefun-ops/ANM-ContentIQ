@@ -3,6 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type CreativePlatform =
   | "instagram"
@@ -123,6 +124,7 @@ function getPlatformInfo(platform: CreativePlatform) {
 }
 
 function buildPrompt({
+  language,
   platform,
   assetType,
   format,
@@ -130,6 +132,7 @@ function buildPrompt({
   prompt,
   overlayText,
 }: {
+  language: "pl" | "en";
   platform: CreativePlatform;
   assetType: CreativeAssetType;
   format: CreativeFormat;
@@ -148,6 +151,7 @@ Format: ${format}.
 Styl: ${style}.
 Temat i opis grafiki: ${prompt}.
 ${overlayText ? `Tekst na grafice: ${overlayText}.` : ""}
+Język tekstu na grafice: ${language === "pl" ? "polski" : "angielski"}.
 Grafika ma być estetyczna, czytelna, nowoczesna i dopasowana do publikacji contentowej.
   `.trim();
 }
@@ -159,6 +163,7 @@ export default function CreativeStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
   const [providerMode, setProviderMode] = useState<ProviderMode>("huggingface");
   const [userApiKey, setUserApiKey] = useState("");
@@ -233,6 +238,7 @@ export default function CreativeStudio({
         id: `${Date.now()}-${index}`,
         title: `Wariant ${index + 1}`,
         prompt: `${buildPrompt({
+          language: lang,
           platform,
           assetType,
           format,
@@ -517,7 +523,7 @@ export default function CreativeStudio({
               color: css.text,
             }}
           >
-            Generowanie grafik AI
+            {text("Generowanie grafik AI", "AI image generation")}
           </h2>
 
           <p
@@ -528,14 +534,15 @@ export default function CreativeStudio({
               lineHeight: 1.7,
             }}
           >
-            Przygotuj prompt, wybierz platformę, format i styl. Na tym etapie
-            komponent tworzy gotowe warianty promptów, a przycisk generowania
-            wysyła je do Google Gemini Image API.
+            {text(
+              "Przygotuj prompt, wybierz platformę, format i styl. Komponent tworzy gotowe warianty promptów, a przycisk generowania wysyła je do wybranego dostawcy obrazów.",
+              "Prepare a prompt, choose a platform, format and style. The component creates prompt variants and sends them to the selected image provider."
+            )}
           </p>
 
           {/* PROVIDER */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Źródło generowania</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Źródło generowania", "Generation provider")}</SectionLabel>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
@@ -659,7 +666,7 @@ export default function CreativeStudio({
 
           {/* PLATFORM */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Platforma docelowa</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Platforma docelowa", "Target platform")}</SectionLabel>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {PLATFORM_OPTIONS.map((item) => (
@@ -691,7 +698,7 @@ export default function CreativeStudio({
 
           {/* TYPE */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Typ grafiki</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Typ grafiki", "Graphic type")}</SectionLabel>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {ASSET_TYPES.map((item) => (
@@ -752,7 +759,7 @@ export default function CreativeStudio({
 
           {/* STYLE */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Styl grafiki</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Styl grafiki", "Visual style")}</SectionLabel>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {STYLE_OPTIONS.map((item) => (
@@ -781,7 +788,7 @@ export default function CreativeStudio({
 
           {/* VARIATIONS */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Liczba wariantów</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Liczba wariantów", "Number of variants")}</SectionLabel>
 
             <select
               value={variations}
@@ -807,7 +814,7 @@ export default function CreativeStudio({
 
           {/* PROMPT */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Opis grafiki / prompt</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Opis grafiki / prompt", "Image description / prompt")}</SectionLabel>
 
             <textarea
               value={prompt}
@@ -831,7 +838,7 @@ export default function CreativeStudio({
 
           {/* OVERLAY */}
           <div style={{ marginBottom: 16 }}>
-            <SectionLabel color={css.muted}>Tekst na grafice</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Tekst na grafice", "Text on image")}</SectionLabel>
 
             <input
               value={overlayText}

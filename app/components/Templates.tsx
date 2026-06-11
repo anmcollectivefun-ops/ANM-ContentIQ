@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type Platform =
   | "linkedin"
@@ -294,6 +295,7 @@ export default function Templates({
   onOpenStudio: () => void;
   kind?: TemplateKind;
 }) {
+  const { text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [templates, setTemplates] = useState<UnifiedTemplate[]>([]);
@@ -539,7 +541,10 @@ export default function Templates({
 
   async function deleteTemplate(template: UnifiedTemplate) {
     const confirmed = window.confirm(
-      `Usunąć szablon „${template.title}”? Tej operacji nie można cofnąć.`
+      text(
+        `Usunąć szablon „${template.title}”? Tej operacji nie można cofnąć.`,
+        `Delete the “${template.title}” template? This action cannot be undone.`
+      )
     );
     if (!confirmed) return;
 
@@ -576,10 +581,10 @@ export default function Templates({
         delete next[template.id];
         return next;
       });
-      showToast("Szablon został usunięty.");
+      showToast(text("Szablon został usunięty.", "Template deleted."));
     } catch (err) {
       showToast(
-        `Błąd usuwania: ${err instanceof Error ? err.message : String(err)}`,
+        `${text("Błąd usuwania", "Delete error")}: ${err instanceof Error ? err.message : String(err)}`,
         "err"
       );
     } finally {
@@ -607,7 +612,7 @@ export default function Templates({
           <div style={{ color: css.text, fontSize: 12, fontWeight: 900, lineHeight: 1.35 }}>
             {getSummary(template.cover_label, 58)}
           </div>
-          <div style={{ color: css.muted, fontSize: 10 }}>Okładka szablonu</div>
+          <div style={{ color: css.muted, fontSize: 10 }}>{text("Okładka szablonu", "Template cover")}</div>
         </div>
       );
     }
@@ -653,18 +658,18 @@ export default function Templates({
           {!isDetailsOpen && <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>{getSummary(template.description || "Brak opisu.", 170)}</p>}
 
           <button type="button" onClick={() => toggleDetails(template.id)} style={{ border: `1px solid ${css.border}`, borderRadius: 11, background: css.surface, color: css.text, padding: "9px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
-            {isDetailsOpen ? "Ukryj szczegóły" : "Pokaż szczegóły"}
+            {isDetailsOpen ? text("Ukryj szczegóły", "Hide details") : text("Pokaż szczegóły", "Show details")}
           </button>
 
           {isDetailsOpen && (
             <div style={{ background: css.surface, border: `1px solid ${css.border}`, borderRadius: 12, padding: 11, display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>Tytuł</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>{text("Tytuł", "Title")}</div>
                 <div style={{ fontSize: 13, color: css.text, fontWeight: 800, lineHeight: 1.45 }}>{template.title}</div>
               </div>
 
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>Hashtagi</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>{text("Hashtagi", "Hashtags")}</div>
                 {template.hashtags.length ? (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {template.hashtags.map((tag) => (
@@ -674,12 +679,12 @@ export default function Templates({
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: css.muted }}>Brak hashtagów.</div>
+                  <div style={{ fontSize: 12, color: css.muted }}>{text("Brak hashtagów.", "No hashtags.")}</div>
                 )}
               </div>
 
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>Opis</div>
+                <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>{text("Opis", "Description")}</div>
                 <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{template.description || "Brak opisu."}</p>
               </div>
             </div>
@@ -687,11 +692,11 @@ export default function Templates({
 
           <div style={{ marginTop: "auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <button type="button" onClick={() => toggleSchedule(template.id)} style={{ borderRadius: 11, border: `1px solid ${css.aiBorder}`, background: css.aiBg, color: css.aiText, padding: "9px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
-              Dodaj do harmonogramu
+              {text("Dodaj do harmonogramu", "Add to schedule")}
             </button>
 
             <button type="button" onClick={() => publishNow(template, platform)} disabled={isScheduling} style={{ borderRadius: 11, border: "none", background: platformInfo.color, color: "#fff", padding: "9px 10px", fontSize: 11, fontWeight: 900, cursor: isScheduling ? "not-allowed" : "pointer", opacity: isScheduling ? 0.6 : 1, fontFamily: "inherit" }}>
-              Udostępnij teraz
+              {text("Udostępnij teraz", "Publish now")}
             </button>
           </div>
 
@@ -699,32 +704,32 @@ export default function Templates({
             <div style={{ border: `1px solid ${css.border}`, background: css.surface, borderRadius: 12, padding: 10, display: "grid", gap: 8 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>Data</span>
+                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>{text("Data", "Date")}</span>
                   <input type="date" value={scheduleDate[template.id] || getTodayDate()} onChange={(event) => setScheduleDate((prev) => ({ ...prev, [template.id]: event.target.value }))} style={{ borderRadius: 10, border: `1px solid ${css.border}`, background: css.bg, color: css.text, padding: 9, fontSize: 12, fontFamily: "inherit" }} />
                 </label>
 
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>Godzina</span>
+                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>{text("Godzina", "Time")}</span>
                   <input type="time" value={scheduleTime[template.id] || getNextHourTime()} onChange={(event) => setScheduleTime((prev) => ({ ...prev, [template.id]: event.target.value }))} style={{ borderRadius: 10, border: `1px solid ${css.border}`, background: css.bg, color: css.text, padding: 9, fontSize: 12, fontFamily: "inherit" }} />
                 </label>
               </div>
 
               <button type="button" onClick={() => scheduleFromInputs(template, platform)} disabled={isScheduling} style={{ borderRadius: 10, border: "none", background: dark ? "#ffffff" : "#111111", color: dark ? "#050505" : "#ffffff", padding: "10px 12px", fontSize: 11, fontWeight: 900, cursor: isScheduling ? "not-allowed" : "pointer", opacity: isScheduling ? 0.6 : 1, fontFamily: "inherit" }}>
-                {isScheduling ? "Dodaję..." : "Zapisz termin"}
+                {isScheduling ? text("Dodaję...", "Adding...") : text("Zapisz termin", "Save date")}
               </button>
             </div>
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
             <button type="button" onClick={() => openInStudio(template)} disabled={isDeleting} style={{ border: `1px solid ${css.border}`, borderRadius: 11, background: "transparent", color: css.muted, padding: "8px 10px", fontSize: 11, fontWeight: 800, cursor: isDeleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: isDeleting ? 0.55 : 1 }}>
-              Otwórz w studio
+              {text("Otwórz w studio", "Open in studio")}
             </button>
             <button
               type="button"
               onClick={() => void deleteTemplate(template)}
               disabled={isDeleting}
-              title="Usuń szablon"
-              aria-label={`Usuń szablon ${template.title}`}
+              title={text("Usuń szablon", "Delete template")}
+              aria-label={text(`Usuń szablon ${template.title}`, `Delete template ${template.title}`)}
               style={{
                 width: 38,
                 minHeight: 36,
@@ -782,7 +787,7 @@ export default function Templates({
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {loading && <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>Ładowanie szablonów...</div>}
+        {loading && <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>{text("Ładowanie szablonów...", "Loading templates...")}</div>}
 
         {error && <div style={{ padding: 18, borderRadius: 14, background: "#450a0a", border: "1px solid #991b1b", color: "#fca5a5", fontSize: 13 }}>{error}</div>}
 
@@ -804,7 +809,7 @@ export default function Templates({
             </summary>
 
             <div style={{ padding: "0 16px 16px" }}>
-              {items.length === 0 && <div style={{ fontSize: 12, color: css.muted, padding: "4px 0 2px" }}>Brak szablonów dla tej platformy.</div>}
+              {items.length === 0 && <div style={{ fontSize: 12, color: css.muted, padding: "4px 0 2px" }}>{text("Brak szablonów dla tej platformy.", "No templates for this platform.")}</div>}
 
               {items.length > 0 && (
                 <div className="templates-grid">

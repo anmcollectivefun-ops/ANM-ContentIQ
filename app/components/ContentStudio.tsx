@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type StudioFlow = "social" | "hooks" | "blog" | "article";
 type AiProvider = "deepseek" | "gemini";
@@ -288,6 +289,7 @@ function normalizeStudioResult(raw: Partial<StudioResult>): StudioResult {
 }
 
 function buildStudioPrompt({
+  language,
   flow,
   platform,
   selectedPlatforms,
@@ -297,6 +299,7 @@ function buildStudioPrompt({
   blogText,
   brandContext,
 }: {
+  language: "pl" | "en";
   flow: StudioFlow;
   platform: Platform;
   selectedPlatforms: Platform[];
@@ -318,7 +321,7 @@ Najważniejsze:
 - Dopasuj styl do platformy.
 - Nie używaj identycznego CTA na każdej platformie.
 - Jeśli tworzysz z bloga, link do bloga sugeruj jako komentarz albo dopisek, nie wciskaj go agresywnie w środek posta.
-- Pisz po polsku.
+- Pisz w języku ${language === "pl" ? "polskim" : "angielskim"}.
 - Zwróć wyłącznie JSON bez markdown.
 - Nie wymyślaj wyników analitycznych. Jeśli brakuje danych, wpisz to w notes / strategic_note.
 
@@ -613,6 +616,7 @@ function MediaPicker({
   setMedia: React.Dispatch<React.SetStateAction<LocalMediaItem[]>>;
   css: Record<string, string>;
 }) {
+  const { text } = useContentIQLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function addFiles(files: FileList | null) {
@@ -648,7 +652,7 @@ function MediaPicker({
 
   return (
     <div>
-      <SectionLabel color={css.muted}>Media do contentu</SectionLabel>
+      <SectionLabel color={css.muted}>{text("Media do contentu", "Content media")}</SectionLabel>
 
       <div
         onClick={() => inputRef.current?.click()}
@@ -789,6 +793,7 @@ function ScheduleModal({
   platform: Platform;
   css: Record<string, string>;
 }) {
+  const { text } = useContentIQLanguage();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("15:00");
 
@@ -828,7 +833,7 @@ function ScheduleModal({
         </div>
 
         <div style={{ marginBottom: 13 }}>
-          <SectionLabel color={css.muted}>Data</SectionLabel>
+          <SectionLabel color={css.muted}>{text("Data", "Date")}</SectionLabel>
           <input
             type="date"
             value={date}
@@ -848,7 +853,7 @@ function ScheduleModal({
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <SectionLabel color={css.muted}>Godzina</SectionLabel>
+          <SectionLabel color={css.muted}>{text("Godzina", "Time")}</SectionLabel>
           <input
             type="time"
             value={time}
@@ -1291,6 +1296,7 @@ function ResultPanel({
   css: Record<string, string>;
   media: LocalMediaItem[];
 }) {
+  const { text } = useContentIQLanguage();
   const [copied, setCopied] = useState("");
 
   async function copy(text: string, id: string) {
@@ -1313,7 +1319,7 @@ function ResultPanel({
           padding: 16,
         }}
       >
-        <SectionLabel color={css.accent}>Wynik Content Studio</SectionLabel>
+        <SectionLabel color={css.accent}>{text("Wynik Content Studio", "Content Studio result")}</SectionLabel>
         <h3
           style={{
             margin: "0 0 8px",
@@ -1331,7 +1337,7 @@ function ResultPanel({
         </p>
         {result.source_summary && (
           <p style={{ margin: "10px 0 0", color: css.text, fontSize: 12, lineHeight: 1.7 }}>
-            <strong>Źródło:</strong> {result.source_summary}
+            <strong>{text("Źródło:", "Source:")}</strong> {result.source_summary}
           </p>
         )}
       </div>
@@ -1366,7 +1372,7 @@ function ResultPanel({
             padding: 16,
           }}
         >
-          <SectionLabel color={css.accent}>Hooki do testu</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Hooki do testu", "Hooks to test")}</SectionLabel>
           <div style={{ display: "grid", gap: 9 }}>
             {hooks.map((hook, index) => (
               <div
@@ -1438,7 +1444,7 @@ function ResultPanel({
 
       {result.article_outline && result.article_outline.length > 0 && (
         <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>Konspekt artykułu</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Konspekt artykułu", "Article outline")}</SectionLabel>
           <ol style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.75 }}>
             {result.article_outline.map((item, index) => (
               <li key={`${item}-${index}`}>{item}</li>
@@ -1450,7 +1456,7 @@ function ResultPanel({
       {result.article_html && (
         <div style={resultBox(css)}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-            <SectionLabel color={css.accent}>HTML artykułu</SectionLabel>
+            <SectionLabel color={css.accent}>{text("HTML artykułu", "Article HTML")}</SectionLabel>
             <button
               type="button"
               onClick={() => copy(result.article_html || "", "article-html")}
@@ -1485,7 +1491,7 @@ function ResultPanel({
 
       {safeArray(result.blog_cta_blocks).length > 0 && (
         <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>Bloki CTA do bloga</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Bloki CTA do bloga", "Blog CTA blocks")}</SectionLabel>
           <div style={{ display: "grid", gap: 8 }}>
             {safeArray(result.blog_cta_blocks).map((item, index) => (
               <div
@@ -1509,7 +1515,7 @@ function ResultPanel({
 
       {safeArray(result.content_plan).length > 0 && (
         <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>Co zrobić dalej z tym contentem?</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Co zrobić dalej z tym contentem?", "What would you like to do with this content?")}</SectionLabel>
           <div style={{ display: "grid", gap: 8 }}>
             {safeArray(result.content_plan).map((item, index) => {
               const info = getPlatformInfo(item.platform);
@@ -1566,6 +1572,7 @@ function PostCard({
   onCopy: (text: string, id: string) => void;
   actions: React.ReactNode;
 }) {
+  const { text } = useContentIQLanguage();
   const info = getPlatformInfo(platform);
   const score = "estimated_score" in item ? item.estimated_score : item.score;
   const notes = "platform_notes" in item ? item.platform_notes : item.notes;
@@ -1643,7 +1650,7 @@ function PostCard({
             lineHeight: 1.6,
           }}
         >
-          <strong style={{ color: css.text }}>Komentarz / link:</strong> {item.recommended_comment}
+          <strong style={{ color: css.text }}>{text("Komentarz / link:", "Comment / link:")}</strong> {item.recommended_comment}
         </div>
       )}
 
@@ -1705,6 +1712,7 @@ export default function ContentStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const [flow, setFlow] = useState<StudioFlow>("social");
   const [aiProvider, setAiProvider] = useState<AiProvider>("deepseek");
   const [platform, setPlatform] = useState<Platform>("linkedin");
@@ -1841,6 +1849,7 @@ export default function ContentStudio({
 
     try {
       const studioPrompt = buildStudioPrompt({
+        language: lang,
         flow,
         platform,
         selectedPlatforms,
@@ -1941,12 +1950,16 @@ export default function ContentStudio({
               fontWeight: 500,
             }}
           >
-            Twórz content z jasnego procesu, nie z jednego chaotycznego pola
+            {text(
+              "Twórz content z jasnego procesu, nie z jednego chaotycznego pola",
+              "Create content through a clear workflow, not one chaotic field"
+            )}
           </h2>
           <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 980 }}>
-            Wybierz, czy chcesz stworzyć post, przetestować hooki, przerobić blog na social media
-            albo przygotować artykuł jako źródło kampanii. Wynik możesz zapisać jako inspirację,
-            szablon, dodać do harmonogramu albo wysłać do kolejki publikacji.
+            {text(
+              "Wybierz, czy chcesz stworzyć post, przetestować hooki, przerobić blog na social media albo przygotować artykuł jako źródło kampanii. Wynik możesz zapisać jako inspirację, szablon, dodać do harmonogramu albo wysłać do kolejki publikacji.",
+              "Choose whether to create a post, test hooks, repurpose a blog article for social media or prepare a campaign article. Save the result as an inspiration or template, schedule it or send it to the publishing queue."
+            )}
           </p>
         </div>
 
@@ -1979,7 +1992,7 @@ export default function ContentStudio({
                 padding: 15,
               }}
             >
-              <SectionLabel color={css.aiText}>Aktywny tryb</SectionLabel>
+              <SectionLabel color={css.aiText}>{text("Aktywny tryb", "Active mode")}</SectionLabel>
               <h3
                 style={{
                   margin: "0 0 7px",
@@ -1999,7 +2012,7 @@ export default function ContentStudio({
 
             <div className="ciq-two">
               <div>
-                <SectionLabel color={css.muted}>Silnik AI</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Silnik AI", "AI engine")}</SectionLabel>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {(["deepseek", "gemini"] as AiProvider[]).map((provider) => (
                     <button
@@ -2051,7 +2064,7 @@ export default function ContentStudio({
 
             {flow !== "blog" && (
               <div>
-                <SectionLabel color={css.muted}>Platforma główna</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Platforma główna", "Primary platform")}</SectionLabel>
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {PLATFORMS.map((item) => (
                     <button
@@ -2079,7 +2092,7 @@ export default function ContentStudio({
 
             {flow === "blog" && (
               <div>
-                <SectionLabel color={css.muted}>Platformy dystrybucji bloga</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Platformy dystrybucji bloga", "Blog distribution platforms")}</SectionLabel>
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {PLATFORMS.filter((item) => item.id !== "blog" && item.id !== "spotify").map((item) => {
                     const selected = selectedPlatforms.includes(item.id);
@@ -2111,7 +2124,7 @@ export default function ContentStudio({
             {flow === "blog" && (
               <div style={{ display: "grid", gap: 10 }}>
                 <div>
-                  <SectionLabel color={css.muted}>Link do wpisu blogowego</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Link do wpisu blogowego", "Blog post link")}</SectionLabel>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
                     <input
                       value={blogUrl}
@@ -2142,7 +2155,7 @@ export default function ContentStudio({
                 </div>
 
                 <div>
-                  <SectionLabel color={css.muted}>Treść / streszczenie bloga</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Treść / streszczenie bloga", "Blog content / summary")}</SectionLabel>
                   <textarea
                     value={blogText}
                     onChange={(event) => setBlogText(event.target.value)}
@@ -2177,7 +2190,7 @@ export default function ContentStudio({
             </div>
 
             <div>
-              <SectionLabel color={css.muted}>Kontekst marki / oferta / CTA</SectionLabel>
+              <SectionLabel color={css.muted}>{text("Kontekst marki / oferta / CTA", "Brand context / offer / CTA")}</SectionLabel>
               <textarea
                 value={brandContext}
                 onChange={(event) => setBrandContext(event.target.value)}

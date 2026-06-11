@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type Platform =
   | "linkedin"
@@ -170,6 +171,7 @@ export default function Inspirations({
   kind?: InspirationKind;
   onOpenStudio?: () => void;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [workspaceUuid, setWorkspaceUuid] = useState<string | null>(null);
@@ -782,7 +784,7 @@ export default function Inspirations({
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, color: css.muted }}>Brak hashtagów.</div>
+                  <div style={{ fontSize: 12, color: css.muted }}>{text("Brak hashtagów.", "No hashtags.")}</div>
                 )}
               </div>
 
@@ -923,7 +925,7 @@ export default function Inspirations({
             <div style={{ border: `1px solid ${css.border}`, background: css.surface, borderRadius: 12, padding: 10, display: "grid", gap: 8 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>Data</span>
+                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>{text("Data", "Date")}</span>
                   <input
                     type="date"
                     value={scheduleDate[item.id] || getTodayDate()}
@@ -943,7 +945,7 @@ export default function Inspirations({
                 </label>
 
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>Godzina</span>
+                  <span style={{ fontSize: 10, color: css.muted, fontWeight: 800 }}>{text("Godzina", "Time")}</span>
                   <input
                     type="time"
                     value={scheduleTime[item.id] || getNextHourTime()}
@@ -1000,7 +1002,7 @@ export default function Inspirations({
               fontFamily: "inherit",
             }}
           >
-            Otwórz w studio
+            {text("Otwórz w studio", "Open in studio")}
           </button>
         </div>
       </div>
@@ -1060,7 +1062,7 @@ export default function Inspirations({
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {loading && (
           <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>
-            Ładowanie inspiracji...
+            {text("Ładowanie inspiracji...", "Loading inspirations...")}
           </div>
         )}
 
@@ -1072,7 +1074,10 @@ export default function Inspirations({
 
         {!loading && !error && items.length === 0 && (
           <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>
-            Nie ma jeszcze inspiracji w tej sekcji. Propozycje wygenerowane w Content Studio, Short Studio, Video Studio i Creative Studio zapisuj tutaj jako inspiracje.
+            {text(
+              "Nie ma jeszcze inspiracji w tej sekcji. Propozycje wygenerowane w Content Studio, Short Studio, Video Studio i Creative Studio zapisuj tutaj jako inspiracje.",
+              "There are no inspirations in this section yet. Save ideas generated in Content Studio, Short Studio, Video Studio and Creative Studio here."
+            )}
           </div>
         )}
 
@@ -1117,14 +1122,14 @@ export default function Inspirations({
               </div>
 
               <span style={{ fontSize: 11, color: css.muted }}>
-                {platformItems.length} inspiracji
+                {platformItems.length} {text("inspiracji", "inspirations")}
               </span>
             </summary>
 
             <div style={{ padding: "0 16px 16px" }}>
               {platformItems.length === 0 && (
                 <div style={{ fontSize: 12, color: css.muted, padding: "4px 0 2px" }}>
-                  Brak inspiracji dla tej platformy.
+                  {text("Brak inspiracji dla tej platformy.", "No inspirations for this platform.")}
                 </div>
               )}
 
@@ -1171,10 +1176,10 @@ export default function Inspirations({
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, color: css.aiText, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 4 }}>
-                  Edycja inspiracji
+                  {text("Edycja inspiracji", "Edit inspiration")}
                 </div>
                 <h3 style={{ margin: 0, color: css.text, fontSize: 22 }}>
-                  Zmień treść, hashtagi i zdjęcie
+                  {text("Zmień treść, hashtagi i zdjęcie", "Change the content, hashtags and image")}
                 </h3>
               </div>
 
@@ -1198,7 +1203,7 @@ export default function Inspirations({
 
             <div style={{ display: "grid", gap: 12 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Tytuł</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Tytuł", "Title")}</span>
                 <input
                   value={editState.title}
                   onChange={(event) =>
@@ -1216,7 +1221,7 @@ export default function Inspirations({
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Krótki opis</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Krótki opis", "Short description")}</span>
                 <textarea
                   value={editState.description}
                   onChange={(event) =>
@@ -1236,7 +1241,7 @@ export default function Inspirations({
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Pełna treść / scenariusz</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Pełna treść / scenariusz", "Full content / script")}</span>
                 <textarea
                   value={editState.body}
                   onChange={(event) =>
@@ -1256,7 +1261,7 @@ export default function Inspirations({
               </label>
 
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Hashtagi</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Hashtagi", "Hashtags")}</span>
                 <input
                   value={editState.hashtagsText}
                   onChange={(event) =>
@@ -1275,7 +1280,7 @@ export default function Inspirations({
               </label>
 
               <div style={{ display: "grid", gap: 8 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Platformy</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Platformy", "Platforms")}</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {PLATFORMS.map((platform) => {
                     const active = editState.platforms.includes(platform.id);
@@ -1316,7 +1321,7 @@ export default function Inspirations({
               </div>
 
               <div style={{ display: "grid", gap: 8 }}>
-                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>Zdjęcie / miniatura</span>
+                <span style={{ fontSize: 11, color: css.muted, fontWeight: 900 }}>{text("Zdjęcie / miniatura", "Image / thumbnail")}</span>
 
                 {editState.image_url && (
                   <img
@@ -1366,7 +1371,7 @@ export default function Inspirations({
                 />
 
                 {uploadingImage && (
-                  <div style={{ color: css.muted, fontSize: 12 }}>Uploaduję zdjęcie...</div>
+                  <div style={{ color: css.muted, fontSize: 12 }}>{text("Uploaduję zdjęcie...", "Uploading image...")}</div>
                 )}
               </div>
 

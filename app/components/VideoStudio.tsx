@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type VideoPlatform = "youtube" | "tiktok" | "facebook" | "instagram" | "linkedin";
 
@@ -265,6 +266,7 @@ function explainSupabaseVideoError(message: string) {
 }
 
 function buildVideoPrompt({
+  language,
   platform,
   goal,
   format,
@@ -273,6 +275,7 @@ function buildVideoPrompt({
   sourceContent,
   brandContext,
 }: {
+  language: "pl" | "en";
   platform: VideoPlatform;
   goal: VideoGoal;
   format: VideoFormat;
@@ -285,6 +288,8 @@ function buildVideoPrompt({
 
   return `
 Jesteś ekspertem od video marketingu i krótkich/średnich formatów video.
+
+Wszystkie treści opisowe twórz w języku ${language === "pl" ? "polskim" : "angielskim"}.
 
 Przygotuj pełny brief video dla platformy: ${platformName}.
 Cel video: ${goal}
@@ -579,6 +584,7 @@ export default function VideoStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [platform, setPlatform] = useState<VideoPlatform>("youtube");
@@ -1183,6 +1189,7 @@ export default function VideoStudio({
 
     try {
       const videoPrompt = buildVideoPrompt({
+        language: lang,
         platform,
         goal,
         format,
@@ -1411,17 +1418,20 @@ export default function VideoStudio({
         <div>
           <SectionLabel color={css.aiText}>
             <Wand2 size={15} color={css.aiIcon} />
-            Stwórz z AI swoje video
+            {text("Stwórz z AI swoje video", "Create your video with AI")}
           </SectionLabel>
 
           <div className="video-section-grid">
             <Card css={css}>
-              <SectionLabel color={css.accent}>Dodaj video</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Dodaj video", "Add video")}</SectionLabel>
 
-              <h2 style={panelTitleStyle}>Upload video</h2>
+              <h2 style={panelTitleStyle}>{text("Upload video", "Upload video")}</h2>
 
               <p style={{ margin: "0 0 12px", color: css.muted, fontSize: 12, lineHeight: 1.65 }}>
-                Dodaj MP4, MOV lub WebM. Plik jest tymczasowy i zostanie usunięty po publikacji albo wygaśnięciu.
+                {text(
+                  "Dodaj MP4, MOV lub WebM. Plik jest tymczasowy i zostanie usunięty po publikacji albo wygaśnięciu.",
+                  "Add an MP4, MOV or WebM file. It is stored temporarily and removed after publishing or expiration."
+                )}
               </p>
 
               <input
@@ -1475,7 +1485,7 @@ export default function VideoStudio({
               )}
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.accent}>Platforma video</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Platforma video", "Video platform")}</SectionLabel>
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {PLATFORMS.map((item) => (
@@ -1578,7 +1588,7 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginTop: 13 }}>
-                <SectionLabel color={css.accent}>Link opcjonalny</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Link opcjonalny", "Optional link")}</SectionLabel>
 
                 <input
                   value={videoReferenceUrl}
@@ -1725,7 +1735,7 @@ export default function VideoStudio({
                 >
                   <div>
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>▶</div>
-                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>Tutaj pojawi się analiza video</h3>
+                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Tutaj pojawi się analiza video", "Your video analysis will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
                       Po analizie AI zobaczysz temat, hook, opis, hashtagi i treść gotową do zapisania jako szablon.
                     </p>
@@ -1754,7 +1764,7 @@ export default function VideoStudio({
                         animation: "spin .8s linear infinite",
                       }}
                     />
-                    <p style={{ color: css.muted, fontSize: 13 }}>AI analizuje video...</p>
+                    <p style={{ color: css.muted, fontSize: 13 }}>{text("AI analizuje video...", "AI is analyzing the video...")}</p>
                   </div>
                 </div>
               )}
@@ -1896,20 +1906,23 @@ export default function VideoStudio({
         </div>
 
         <div>
-          <SectionLabel color={css.accent}>Pomysł na video</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Pomysł na video", "Video idea")}</SectionLabel>
 
           <div className="video-section-grid">
             <Card css={css}>
-              <SectionLabel color={css.accent}>Brief dla AI</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Brief dla AI", "AI brief")}</SectionLabel>
 
-              <h2 style={panelTitleStyle}>Pomysł lub tekst źródłowy</h2>
+              <h2 style={panelTitleStyle}>{text("Pomysł lub tekst źródłowy", "Idea or source text")}</h2>
 
               <p style={{ margin: "0 0 12px", color: css.muted, fontSize: 12, lineHeight: 1.65 }}>
-                Wpisz pomysł od zera albo wykorzystaj analizę video z górnego kafelka.
+                {text(
+                  "Wpisz pomysł od zera albo wykorzystaj analizę video z górnego kafelka.",
+                  "Start with an idea or use the video analysis from the panel above."
+                )}
               </p>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Platforma</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Platforma", "Platform")}</SectionLabel>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {PLATFORMS.map((item) => (
                     <PillButton
@@ -1927,7 +1940,7 @@ export default function VideoStudio({
 
               <div className="video-two-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
                 <div>
-                  <SectionLabel color={css.muted}>Cel</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Cel", "Goal")}</SectionLabel>
                   <select
                     value={goal}
                     onChange={(event) => setGoal(event.target.value as VideoGoal)}
@@ -1952,7 +1965,7 @@ export default function VideoStudio({
                 </div>
 
                 <div>
-                  <SectionLabel color={css.muted}>Długość</SectionLabel>
+                  <SectionLabel color={css.muted}>{text("Długość", "Length")}</SectionLabel>
                   <select
                     value={duration}
                     onChange={(event) => setDuration(Number(event.target.value))}
@@ -1995,7 +2008,7 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Temat / pomysł</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Temat / pomysł", "Topic / idea")}</SectionLabel>
                 <textarea
                   ref={topicRef}
                   value={topic}
@@ -2018,7 +2031,7 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Materiał źródłowy</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Materiał źródłowy", "Source material")}</SectionLabel>
                 <textarea
                   ref={sourceRef}
                   value={sourceContent}
@@ -2041,7 +2054,7 @@ export default function VideoStudio({
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <SectionLabel color={css.muted}>Kontekst marki</SectionLabel>
+                <SectionLabel color={css.muted}>{text("Kontekst marki", "Brand context")}</SectionLabel>
                 <textarea
                   ref={contextRef}
                   value={brandContext}
@@ -2114,7 +2127,7 @@ export default function VideoStudio({
                 >
                   <div>
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>✦</div>
-                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>Brief video pojawi się tutaj</h3>
+                    <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Brief video pojawi się tutaj", "Your video brief will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
                       AI przygotuje hook, scenariusz, ujęcia, teksty na ekranie, opis, miniaturę i checklistę nagrania.
                     </p>

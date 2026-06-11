@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type Platform =
   | "instagram"
@@ -139,6 +140,7 @@ export default function AIPartner({
   dark?: boolean;
   workspaceId: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
   const [workspaceUuid, setWorkspaceUuid] = useState("");
   const [brandVoice, setBrandVoice] = useState<BrandVoiceRow | null>(null);
@@ -411,7 +413,7 @@ Zasady:
 - Daj praktyczne wskazówki: co poprawić, co przetestować, co rozwinąć.
 - Jeżeli użytkownik prosi o treść posta, napisz ją w stylu Brand Voice.
 - Jeżeli pytanie dotyczy wyników, odnieś się do pobranych postów, platform, szablonów i learningów.
-- Odpowiadaj po polsku, konkretnie i praktycznie.
+- Odpowiadaj w języku ${lang === "pl" ? "polskim" : "angielskim"}, konkretnie i praktycznie.
 `.trim();
 
     const response = await fetch("/api/chat", {
@@ -573,7 +575,7 @@ Zasady:
   if (loading) {
     return (
       <div style={{ padding: 24, borderRadius: 16, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>
-        Ładuję dane — Brand Voice, szablony, posty, wyniki...
+        {text("Ładuję dane — Brand Voice, szablony, posty, wyniki...", "Loading Brand Voice, templates, posts and performance data...")}
       </div>
     );
   }
@@ -596,7 +598,7 @@ Zasady:
             AI Partner
           </h2>
           <p style={{ margin: "2px 0 0", fontSize: 12, color: css.muted }}>
-            uczy się z Twoich danych · pewność modelu {confidenceScore}%
+            {text("uczy się z Twoich danych", "learns from your data")} · {text("pewność modelu", "model confidence")} {confidenceScore}%
           </p>
         </div>
   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -883,7 +885,10 @@ Zasady:
                   sendChat();
                 }
               }}
-              placeholder="Zapytaj o strategię, poproś o napisanie posta, analizę platformy..."
+              placeholder={text(
+                "Zapytaj o strategię, poproś o napisanie posta lub analizę platformy...",
+                "Ask about strategy, request a post or platform analysis..."
+              )}
               rows={2}
               style={{
                 flex: 1,

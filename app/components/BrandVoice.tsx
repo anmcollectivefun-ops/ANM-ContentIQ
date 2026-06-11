@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Pencil, Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type Platform =
   | "instagram"
@@ -267,6 +268,7 @@ export default function BrandVoice({
   dark?: boolean;
   workspaceId: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [workspaceUuid, setWorkspaceUuid] = useState("");
@@ -934,13 +936,16 @@ Zwróć wyłącznie JSON:
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div>
           <div style={{ fontFamily: "var(--font-label)", fontSize: 11, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 8 }}>
-            Brand Voice / profile marek
+            {text("Brand Voice / profile marek", "Brand Voice / brand profiles")}
           </div>
           <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 32, lineHeight: 1.05, fontWeight: 500, color: css.heading, margin: 0 }}>
-            Osobny styl dla każdej platformy
+            {text("Osobny styl dla każdej platformy", "A distinct voice for every platform")}
           </h2>
           <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 820, margin: "10px 0 0" }}>
-            Marka ma jedno DNA, ale LinkedIn, TikTok, Instagram i Facebook nie powinny mówić identycznie. Tutaj zapisujesz profil marki oraz osobne zasady, ton i CTA dla każdej platformy.
+            {text(
+              "Marka ma jedno DNA, ale LinkedIn, TikTok, Instagram i Facebook nie powinny mówić identycznie. Tutaj zapisujesz profil marki oraz osobne zasady, ton i CTA dla każdej platformy.",
+              "Your brand has one identity, but LinkedIn, TikTok, Instagram and Facebook should not sound identical. Save the core profile and platform-specific tone, rules and CTAs here."
+            )}
           </p>
         </div>
 
@@ -953,7 +958,7 @@ Zwróć wyłącznie JSON:
             }}
             style={{ ...inputStyle, width: 210 }}
           >
-            {brand.id ? null : <option value="new">Nowy brand</option>}
+            {brand.id ? null : <option value="new">{text("Nowy brand", "New brand")}</option>}
             {brands.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
@@ -962,16 +967,19 @@ Zwróć wyłącznie JSON:
           </select>
 
           <button className="bv-btn" type="button" onClick={createNewBrand} style={secondaryButton(css)}>
-            + Dodaj brand
+            {text("+ Dodaj markę", "+ Add brand")}
           </button>
         </div>
       </div>
 
       {brands.length > 0 ? (
         <section style={cardStyle}>
-          <SectionLabel color={css.accent}>Zapisane profile firm</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Zapisane profile firm", "Saved brand profiles")}</SectionLabel>
           <p style={{ color: css.muted, fontSize: 12, lineHeight: 1.6, margin: "0 0 14px" }}>
-            Te profile są zapisane w bazie i stanowią stały kontekst marki dla funkcji AI.
+            {text(
+              "Te profile są zapisane w bazie i stanowią stały kontekst marki dla funkcji AI.",
+              "These profiles are stored in the database and provide persistent brand context for AI features."
+            )}
           </p>
           <div className="bv-saved-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
             {brands.map((item) => {
@@ -1027,7 +1035,7 @@ Zwróć wyłącznie JSON:
 
       <div className="bv-grid" style={{ display: "grid", gridTemplateColumns: "1fr .9fr", gap: 14 }}>
         <div style={cardStyle}>
-          <SectionLabel color={css.accent}>Profil marki</SectionLabel>
+          <SectionLabel color={css.accent}>{text("Profil marki", "Brand profile")}</SectionLabel>
 
           <div style={{ display: "grid", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1124,7 +1132,7 @@ Zwróć wyłącznie JSON:
               disabled={saving}
               style={{ ...primaryButton(dark), width: "100%" }}
             >
-              {saving ? "Zapisuję profil firmy..." : "Zapisz profil firmy"}
+              {saving ? text("Zapisuję profil firmy...", "Saving brand profile...") : text("Zapisz profil firmy", "Save brand profile")}
             </button>
           </div>
         </div>
@@ -1133,10 +1141,10 @@ Zwróć wyłącznie JSON:
           <Glow />
           <div style={{ position: "relative", zIndex: 1 }}>
             <SectionLabel color={css.aiText} icon>
-              AI pomocnik marki
+              {text("AI pomocnik marki", "AI brand assistant")}
             </SectionLabel>
             <h3 style={{ margin: "0 0 10px", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 26, lineHeight: 1.08, fontWeight: 500 }}>
-              Nie wpisuj wszystkiego od zera
+              {text("Nie wpisuj wszystkiego od zera", "Do not start from scratch")}
             </h3>
             <p style={{ margin: "0 0 14px", color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
               AI może pobrać opis ze strony, przejrzeć najlepsze posty z aplikacji i zaproponować DNA marki oraz osobny styl dla każdej platformy. Ty tylko poprawiasz i zapisujesz.
@@ -1149,7 +1157,7 @@ Zwróć wyłącznie JSON:
               </button>
 
               <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ color: css.muted, fontSize: 12 }}>Silnik:</span>
+                <span style={{ color: css.muted, fontSize: 12 }}>{text("Silnik:", "Engine:")}</span>
                 {(["deepseek", "gemini"] as const).map((provider) => (
                   <button
                     key={provider}
@@ -1175,7 +1183,7 @@ Zwróć wyłącznie JSON:
 
             {brand.source_notes ? (
               <details style={{ marginTop: 14, background: css.surfaceSoft, border: `1px solid ${css.border}`, borderRadius: 14, padding: 12 }}>
-                <summary style={{ cursor: "pointer", color: css.aiText, fontSize: 12, fontWeight: 800 }}>Dane pobrane ze strony</summary>
+                <summary style={{ cursor: "pointer", color: css.aiText, fontSize: 12, fontWeight: 800 }}>{text("Dane pobrane ze strony", "Data collected from the website")}</summary>
                 <pre style={{ whiteSpace: "pre-wrap", color: css.muted, fontSize: 11, lineHeight: 1.65, marginTop: 10 }}>{brand.source_notes}</pre>
               </details>
             ) : null}
@@ -1184,7 +1192,7 @@ Zwróć wyłącznie JSON:
       </div>
 
       <div style={cardStyle}>
-        <SectionLabel color={css.accent}>Profile per platforma</SectionLabel>
+        <SectionLabel color={css.accent}>{text("Profile per platforma", "Platform profiles")}</SectionLabel>
 
         {PLATFORMS.some((item) => Boolean(platformProfiles[item.id].id)) ? (
           <div style={{ marginBottom: 18 }}>
@@ -1319,10 +1327,10 @@ Zwróć wyłącznie JSON:
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button className="bv-btn" type="button" onClick={() => savePlatform(activePlatform)} disabled={saving} style={secondaryButton(css)}>
-                {saving ? "Zapisuję..." : `Zapisz ${activeMeta.name}`}
+                {saving ? text("Zapisuję...", "Saving...") : text(`Zapisz ${activeMeta.name}`, `Save ${activeMeta.name}`)}
               </button>
               <button className="bv-btn" type="button" onClick={saveAll} disabled={saving} style={primaryButton(dark)}>
-                {saving ? "Zapisuję..." : "Zapisz cały Brand Voice"}
+                {saving ? text("Zapisuję...", "Saving...") : text("Zapisz cały Brand Voice", "Save complete Brand Voice")}
               </button>
             </div>
           </div>
@@ -1342,7 +1350,7 @@ Zwróć wyłącznie JSON:
 
             {safeArray(activeProfile.selected_examples).length > 0 ? (
               <div style={cardStyle}>
-                <SectionLabel color={css.accent}>Posty, na których warto się wzorować</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Posty, na których warto się wzorować", "Posts worth learning from")}</SectionLabel>
                 <div style={{ display: "grid", gap: 8 }}>
                   {activeProfile.selected_examples.slice(0, 4).map((example, index) => (
                     <div key={index} style={{ padding: 12, borderRadius: 14, background: css.surfaceSoft, border: `1px solid ${css.border}` }}>
@@ -1359,7 +1367,7 @@ Zwróć wyłącznie JSON:
               </div>
             ) : (
               <div style={cardStyle}>
-                <SectionLabel color={css.accent}>Najlepsze posty z danych</SectionLabel>
+                <SectionLabel color={css.accent}>{text("Najlepsze posty z danych", "Best posts from your data")}</SectionLabel>
                 {bestPostsForActivePlatform.length ? (
                   <div style={{ display: "grid", gap: 8 }}>
                     {bestPostsForActivePlatform.slice(0, 3).map((post, index) => (

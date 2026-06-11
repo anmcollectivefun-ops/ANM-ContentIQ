@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type Platform =
   | "instagram"
@@ -228,6 +229,7 @@ export default function ContentSummaryImproved({
   workspaceId?: string;
   platform?: Platform;
 }) {
+  const { lang, locale, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [groups, setGroups] = useState<PlatformGroup[]>([]);
@@ -481,7 +483,7 @@ export default function ContentSummaryImproved({
                 fontFamily: "var(--font-label)",
               }}
             >
-              Treści z platform
+              {text("Treści z platform", "Platform content")}
             </div>
 
             <h2
@@ -494,7 +496,7 @@ export default function ContentSummaryImproved({
                 lineHeight: 1.05,
               }}
             >
-              Posty pobrane z social mediów
+              {text("Posty pobrane z social mediów", "Posts imported from social media")}
             </h2>
 
             <p
@@ -506,9 +508,10 @@ export default function ContentSummaryImproved({
                 maxWidth: 740,
               }}
             >
-              Tu analizujesz konkretne publikacje, a nie całe konta. Rozwijaj platformy,
-              sprawdzaj miniatury, wyniki pojedynczych postów i treści, które warto
-              przerobić na kolejny format.
+              {text(
+                "Tu analizujesz konkretne publikacje, a nie całe konta. Rozwijaj platformy, sprawdzaj miniatury, wyniki pojedynczych postów i treści, które warto przerobić na kolejny format.",
+                "Analyze individual publications rather than whole accounts. Explore platforms, thumbnails, post-level results and content worth repurposing."
+              )}
             </p>
           </div>
 
@@ -525,16 +528,16 @@ export default function ContentSummaryImproved({
               fontFamily: "var(--font-body)",
             }}
           >
-            <option value={7}>Ostatnich 7 dni</option>
-            <option value={14}>Ostatnich 14 dni</option>
-            <option value={30}>Ostatnich 30 dni</option>
-            <option value={90}>Ostatnich 90 dni</option>
+            <option value={7}>{text("Ostatnich 7 dni", "Last 7 days")}</option>
+            <option value={14}>{text("Ostatnich 14 dni", "Last 14 days")}</option>
+            <option value={30}>{text("Ostatnich 30 dni", "Last 30 days")}</option>
+            <option value={90}>{text("Ostatnich 90 dni", "Last 90 days")}</option>
           </select>
         </div>
 
         {loading && (
           <div style={{ padding: 18, color: css.muted, fontSize: 13 }}>
-            Ładowanie postów z platform...
+            {text("Ładowanie postów z platform...", "Loading platform posts...")}
           </div>
         )}
 
@@ -783,12 +786,12 @@ export default function ContentSummaryImproved({
                               fontFamily: "var(--font-label)",
                             }}
                           >
-                            <span>Post</span>
-                            <span>Wyświetlenia</span>
-                            <span>Polubienia</span>
-                            <span>Komentarze</span>
-                            <span>Udost.</span>
-                            <span>Akcje</span>
+                            <span>{text("Post", "Post")}</span>
+                            <span>{text("Wyświetlenia", "Views")}</span>
+                            <span>{text("Polubienia", "Likes")}</span>
+                            <span>{text("Komentarze", "Comments")}</span>
+                            <span>{text("Udost.", "Shares")}</span>
+                            <span>{text("Akcje", "Actions")}</span>
                           </div>
 
                           {group.posts.map((post) => (

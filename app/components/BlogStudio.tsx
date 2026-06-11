@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 import {
   BookOpen,
   FileText,
@@ -185,6 +186,7 @@ function getPlatformNames(platforms: Platform[]) {
 }
 
 function buildPrompt({
+  language,
   action,
   draft,
   selectedText,
@@ -192,6 +194,7 @@ function buildPrompt({
   sourceNotes,
   brandOffers,
 }: {
+  language: "pl" | "en";
   action: BlogAiAction;
   draft: BlogDraft;
   selectedText: string;
@@ -217,7 +220,7 @@ Jesteś AI pisarzem i redaktorem.
 Nie pisz ogólników. Pracuj na notatkach użytkownika, aktualnym szkicu, kontekście marki i zapisanych ofertach.
 Jeżeli zadanie dotyczy pomysłów, planu, SEO albo social media, połącz temat z konkretną ofertą, produktem, aplikacją, usługą, kursem lub landing page z listy.
 Nie kończ całego artykułu na siłę, jeśli użytkownik prosi tylko o dalszy fragment.
-Pisz naturalnie, konkretnie i po polsku.
+Pisz naturalnie i konkretnie w języku ${language === "pl" ? "polskim" : "angielskim"}.
 
 DANE WPISU:
 Tytuł: ${draft.title || "brak"}
@@ -442,6 +445,7 @@ export default function BlogStudio({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
@@ -703,6 +707,7 @@ async function loadBrandOffers() {
 
     try {
       const prompt = buildPrompt({
+        language: lang,
         action,
         draft,
         selectedText,
@@ -918,7 +923,7 @@ async function loadBrandOffers() {
         </div>
 
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={labelStyle}>Blog Studio / AI pisarz</div>
+          <div style={labelStyle}>{text("Blog Studio / AI pisarz", "Blog Studio / AI writer")}</div>
           <h2
             style={{
               margin: 0,
@@ -929,12 +934,13 @@ async function loadBrandOffers() {
               fontWeight: 500,
             }}
           >
-            Notatnik do pisania, rozwijania i zapisywania szkiców blogowych
+            {text("Notatnik do pisania, rozwijania i zapisywania szkiców blogowych", "A workspace for writing, developing and saving blog drafts")}
           </h2>
           <p style={{ margin: "10px 0 0", color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 980 }}>
-            To nie publikuje wpisu na blogu. Ten moduł pomaga pisać artykuł jak w edytorze pisarza:
-            zaczynasz szkic, a kiedy brakuje weny, AI podpowiada pomysł, kolejny akapit, lepsze słowa,
-            strukturę SEO albo posty social media wokół gotowego wpisu.
+            {text(
+              "Ten moduł nie publikuje bezpośrednio na blogu. Pomaga pisać artykuł jak w edytorze: zaczynasz szkic, a AI podpowiada pomysł, kolejny akapit, lepsze słowa, strukturę SEO albo posty social media.",
+              "This module does not publish directly to your blog. It works as a writing editor where AI can suggest ideas, the next paragraph, better wording, SEO structure or social posts."
+            )}
           </p>
         </div>
       </div>
@@ -951,7 +957,7 @@ async function loadBrandOffers() {
           }}
         >
           <div>
-            <div style={labelStyle}>Silnik AI</div>
+            <div style={labelStyle}>{text("Silnik AI", "AI engine")}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
               {(["deepseek", "gemini"] as AiProvider[]).map((provider) => {
                 const active = aiProvider === provider;
@@ -1029,7 +1035,7 @@ async function loadBrandOffers() {
           </div>
 
           <div>
-            <div style={labelStyle}>Narzędzia AI</div>
+            <div style={labelStyle}>{text("Narzędzia AI", "AI tools")}</div>
             <div className="blog-tool-grid">
               {ACTIONS.map((action) => {
                 const loading = loadingAction === action.id;
@@ -1068,7 +1074,7 @@ async function loadBrandOffers() {
           </div>
 
           <div>
-            <div style={labelStyle}>Platformy do rozwinięcia</div>
+            <div style={labelStyle}>{text("Platformy do rozwinięcia", "Platforms to expand to")}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {PLATFORM_TARGETS.filter((item) => item.id !== "blog").map((platform) => {
                 const active = selectedPlatforms.includes(platform.id);
@@ -1097,9 +1103,9 @@ async function loadBrandOffers() {
           </div>
 
           <div>
-            <div style={labelStyle}>Szkice</div>
+            <div style={labelStyle}>{text("Szkice", "Drafts")}</div>
             <div style={{ display: "grid", gap: 8 }}>
-              {loadingDrafts && <div style={{ color: css.muted, fontSize: 12 }}>Ładowanie szkiców...</div>}
+              {loadingDrafts && <div style={{ color: css.muted, fontSize: 12 }}>{text("Ładowanie szkiców...", "Loading drafts...")}</div>}
               {!loadingDrafts && savedDrafts.length === 0 && (
                 <div style={{ color: css.muted, fontSize: 12, lineHeight: 1.5 }}>
                   Nie masz jeszcze zapisanych szkiców z Blog Studio.
@@ -1145,7 +1151,7 @@ async function loadBrandOffers() {
         >
           <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 10 }}>
             <div>
-              <div style={labelStyle}>Tytuł roboczy</div>
+              <div style={labelStyle}>{text("Tytuł roboczy", "Working title")}</div>
               <input
                 value={draft.title}
                 onChange={(event) => updateDraft("title", event.target.value)}
@@ -1154,7 +1160,7 @@ async function loadBrandOffers() {
               />
             </div>
             <div>
-              <div style={labelStyle}>Temat / główna myśl</div>
+              <div style={labelStyle}>{text("Temat / główna myśl", "Topic / main idea")}</div>
               <input
                 value={draft.topic}
                 onChange={(event) => updateDraft("topic", event.target.value)}
@@ -1166,7 +1172,7 @@ async function loadBrandOffers() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div style={labelStyle}>Kąt komunikacji</div>
+              <div style={labelStyle}>{text("Kąt komunikacji", "Communication angle")}</div>
               <input
                 value={draft.angle}
                 onChange={(event) => updateDraft("angle", event.target.value)}
@@ -1175,7 +1181,7 @@ async function loadBrandOffers() {
               />
             </div>
             <div>
-              <div style={labelStyle}>Odbiorca</div>
+              <div style={labelStyle}>{text("Odbiorca", "Audience")}</div>
               <input
                 value={draft.audience}
                 onChange={(event) => updateDraft("audience", event.target.value)}
@@ -1187,7 +1193,7 @@ async function loadBrandOffers() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "end" }}>
             <div>
-              <div style={labelStyle}>Link źródłowy / strona / blog</div>
+              <div style={labelStyle}>{text("Link źródłowy / strona / blog", "Source link / website / blog")}</div>
               <input
                 value={draft.source_url}
                 onChange={(event) => updateDraft("source_url", event.target.value)}
@@ -1219,7 +1225,7 @@ async function loadBrandOffers() {
 
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 8 }}>
-              <div style={labelStyle}>Notatnik pisarza</div>
+              <div style={labelStyle}>{text("Notatnik pisarza", "Writer's notebook")}</div>
               <div style={{ display: "flex", gap: 8, color: css.muted, fontSize: 10, fontWeight: 800 }}>
                 <span>{stats.words} słów</span>
                 <span>{stats.read} min czytania</span>
@@ -1248,7 +1254,7 @@ async function loadBrandOffers() {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <div style={labelStyle}>CTA / cel wpisu</div>
+              <div style={labelStyle}>{text("CTA / cel wpisu", "CTA / post goal")}</div>
               <input
                 value={draft.cta}
                 onChange={(event) => updateDraft("cta", event.target.value)}
@@ -1257,7 +1263,7 @@ async function loadBrandOffers() {
               />
             </div>
             <div>
-              <div style={labelStyle}>Notatki dla siebie</div>
+              <div style={labelStyle}>{text("Notatki dla siebie", "Private notes")}</div>
               <input
                 value={draft.notes}
                 onChange={(event) => updateDraft("notes", event.target.value)}
@@ -1375,7 +1381,7 @@ async function loadBrandOffers() {
             {loadingAction && (
               <div style={{ borderRadius: 18, border: `1px solid ${css.aiBorder}`, background: css.aiBg, padding: 20, minHeight: 220, display: "grid", placeItems: "center", textAlign: "center" }}>
                 <div>
-                  <div style={{ color: css.aiText, fontSize: 13, fontWeight: 900 }}>AI pisze...</div>
+                  <div style={{ color: css.aiText, fontSize: 13, fontWeight: 900 }}>{text("AI pisze...", "AI is writing...")}</div>
                   <p style={{ color: css.muted, fontSize: 12, lineHeight: 1.6 }}>
                     Pracuję na Twoim szkicu, notatkach i wybranym zadaniu.
                   </p>
@@ -1421,7 +1427,7 @@ async function loadBrandOffers() {
 
           {sourceNotes && (
             <details style={{ position: "relative", zIndex: 1, borderRadius: 14, border: `1px solid ${css.border}`, background: css.surfaceSoft, padding: 10 }}>
-              <summary style={{ color: css.muted, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>Kontekst pobrany ze strony</summary>
+              <summary style={{ color: css.muted, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{text("Kontekst pobrany ze strony", "Context collected from the website")}</summary>
               <div style={{ marginTop: 10, color: css.muted, fontSize: 11, lineHeight: 1.6, whiteSpace: "pre-wrap", maxHeight: 220, overflow: "auto" }}>
                 {sourceNotes}
               </div>

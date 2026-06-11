@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useContentIQLanguage } from "@/lib/contentiq-language";
 
 type OfferStatus = "active" | "draft" | "archived";
 type AiProvider = "deepseek" | "gemini";
@@ -374,6 +375,7 @@ export default function BrandOffers({
   dark?: boolean;
   workspaceId?: string;
 }) {
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const css: Record<string, string> = dark
@@ -860,7 +862,7 @@ Zwróć wyłącznie JSON bez markdown:
               textTransform: "uppercase",
             }}
           >
-            Oferta i linki marki
+            {text("Oferta i linki marki", "Brand offers and links")}
           </p>
 
           <h2
@@ -873,7 +875,7 @@ Zwróć wyłącznie JSON bez markdown:
               fontWeight: 500,
             }}
           >
-            Powiedz AI, co firma sprzedaje, promuje i rozwija
+            {text("Powiedz AI, co firma sprzedaje, promuje i rozwija", "Tell AI what your company sells, promotes and builds")}
           </h2>
 
           <p
@@ -885,10 +887,10 @@ Zwróć wyłącznie JSON bez markdown:
               maxWidth: 900,
             }}
           >
-            Content nie powstaje w próżni. Dodaj aplikacje, kursy, usługi,
-            landing page, webinary, ebooki albo konsultacje. AI będzie mogło
-            dobierać CTA, linki, argumenty sprzedażowe i tematy blogowe pod
-            realną ofertę marki.
+            {text(
+              "Content nie powstaje w próżni. Dodaj aplikacje, kursy, usługi, landing page, webinary, ebooki albo konsultacje. AI będzie mogło dobierać CTA, linki, argumenty sprzedażowe i tematy blogowe pod realną ofertę marki.",
+              "Content does not exist in a vacuum. Add apps, courses, services, landing pages, webinars, ebooks or consulting offers so AI can select relevant CTAs, links, sales arguments and blog topics."
+            )}
           </p>
         </div>
       </div>
@@ -1202,7 +1204,7 @@ Zwróć wyłącznie JSON bez markdown:
             />
 
             <label style={{ display: "grid", gap: 7 }}>
-              <SectionLabel color={css.muted}>Typ</SectionLabel>
+              <SectionLabel color={css.muted}>{text("Typ", "Type")}</SectionLabel>
               <select
                 value={draft.offer_type}
                 onChange={(event) => updateDraft({ offer_type: event.target.value })}
@@ -1227,7 +1229,7 @@ Zwróć wyłącznie JSON bez markdown:
             </label>
 
             <label style={{ display: "grid", gap: 7 }}>
-              <SectionLabel color={css.muted}>Status</SectionLabel>
+              <SectionLabel color={css.muted}>{text("Status", "Status")}</SectionLabel>
               <select
                 value={draft.status}
                 onChange={(event) =>
@@ -1374,7 +1376,7 @@ Zwróć wyłącznie JSON bez markdown:
           />
 
           <div>
-            <SectionLabel color={css.muted}>Platformy, na których promujemy</SectionLabel>
+            <SectionLabel color={css.muted}>{text("Platformy, na których promujemy", "Promotion platforms")}</SectionLabel>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {PLATFORMS.map((platform) => {
                 const active = draft.platforms.includes(platform.id);
