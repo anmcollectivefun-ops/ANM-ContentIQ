@@ -307,8 +307,12 @@ export default function EngagementStudio({
         setPosts(data.posts ?? []);
         setPostsState("success");
 
-        if (data.posts?.[0]) {
-          setSelectedPostId(data.posts[0].id);
+        const firstPostWithComments =
+          data.posts?.find((post) => Number(post.metrics?.comments || 0) > 0) ||
+          data.posts?.[0];
+
+        if (firstPostWithComments) {
+          setSelectedPostId(firstPostWithComments.id);
         }
       } catch (err) {
         if (cancelled) return;
@@ -336,6 +340,13 @@ export default function EngagementStudio({
     if (!selectedAccount.capabilities.canReadComments) {
       setComments([]);
       setSelectedCommentId("");
+      setCommentsState("error");
+      setError(
+        text(
+          "Ta platforma nie udostępnia jeszcze komentarzy przez podłączony adapter API.",
+          "This platform does not expose comments through the connected API adapter yet."
+        )
+      );
       return;
     }
 
@@ -400,8 +411,12 @@ export default function EngagementStudio({
       setPosts(data.posts ?? []);
       setPostsState("success");
 
-      if (data.posts?.[0]) {
-        setSelectedPostId(data.posts[0].id);
+      const firstPostWithComments =
+        data.posts?.find((post) => Number(post.metrics?.comments || 0) > 0) ||
+        data.posts?.[0];
+
+      if (firstPostWithComments) {
+        setSelectedPostId(firstPostWithComments.id);
       }
     } catch (err) {
       setPostsState("error");

@@ -84,6 +84,14 @@ type ContentPlanItem = {
   cta: string;
 };
 
+type ContentOpportunity = {
+  title: string;
+  reason: string;
+  platform: Platform;
+  format: string;
+  evidence: string[];
+};
+
 type StudioResult = {
   title: string;
   strategic_note: string;
@@ -128,6 +136,7 @@ type AiContext = {
   recommendedActions: string[];
   brandVoice?: string;
   offerSummary?: string;
+  contentOpportunities?: ContentOpportunity[];
 };
 
 type ApiResponse = {

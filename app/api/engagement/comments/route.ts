@@ -9,10 +9,14 @@ import {
 type MetaComment = {
   id: string;
   message?: string;
+  text?: string;
   created_time?: string;
+  timestamp?: string;
   username?: string;
   from?: { id?: string; name?: string };
   parent?: { id?: string };
+  like_count?: number;
+  hidden?: boolean;
 };
 
 type YouTubeCommentThread = {
@@ -46,18 +50,56 @@ export async function GET(request: NextRequest) {
 
     const { connection, post } = await requirePost(workspaceId, accountId, postId);
     if (!post.platform_post_id) {
-      return NextResponse.json({ comments: [] });
+      return NextResponse.json(
+        {
+          error:
+            "Post nie ma platform_post_id. Uruchom ponownie synchronizację konta.",
+        },
+        { status: 422 }
+      );
     }
 
     const token = await getAccessToken(connection);
 
-    if (connection.platform === "facebook" || connection.platform === "instagram") {
+    if (connection.platform === "facebook") {
+      const endpoint = new URL(
+        `https://graph.facebook.com/v19.0/${post.platform_post_id}/comments`
+      );
+      endpoint.searchParams.set("fields", "id,message,created_time,from,parent");
+      endpoint.searchParams.set("order", "reverse_chronological");
+      endpoint.searchParams.set("limit", "100");
+      endpoint.searchParams.set("access_token", token);
+
+      const response = await fetch(endpoint, { cache: "no-store" });
+      if (!response.ok) throw new Error(await readPlatformError(response));
+      const payload = (await response.json()) as { data?: MetaComment[] };
+
+      const comments = (payload.data || []).map((comment) => ({
+        id: `facebook:${comment.id}`,
+        platform: "facebook",
+        accountId: connection.id,
+        postId: post.id,
+        externalCommentId: comment.id,
+        authorName: comment.from?.name || "Facebook user",
+        authorUsername: null,
+        authorAvatarUrl: null,
+        text: comment.message || "",
+        createdAt: comment.created_time || null,
+        parentCommentId: comment.parent?.id || null,
+        status: "new",
+        sentiment: classifySentiment(comment.message || ""),
+      }));
+
+      return NextResponse.json({ comments });
+    }
+
+    if (connection.platform === "instagram") {
       const endpoint = new URL(
         `https://graph.facebook.com/v19.0/${post.platform_post_id}/comments`
       );
       endpoint.searchParams.set(
         "fields",
-        "id,message,created_time,username,from,parent"
+        "id,text,timestamp,username,like_count,hidden"
       );
       endpoint.searchParams.set("order", "reverse_chronological");
       endpoint.searchParams.set("limit", "100");
@@ -68,20 +110,20 @@ export async function GET(request: NextRequest) {
       const payload = (await response.json()) as { data?: MetaComment[] };
 
       const comments = (payload.data || []).map((comment) => ({
-        id: `${connection.platform}:${comment.id}`,
-        platform: connection.platform,
+        id: `instagram:${comment.id}`,
+        platform: "instagram",
         accountId: connection.id,
         postId: post.id,
         externalCommentId: comment.id,
-        authorName:
-          comment.from?.name || comment.username || "Social media user",
+        authorName: comment.username || "Instagram user",
         authorUsername: comment.username || null,
         authorAvatarUrl: null,
-        text: comment.message || "",
-        createdAt: comment.created_time || null,
-        parentCommentId: comment.parent?.id || null,
-        status: "new",
-        sentiment: classifySentiment(comment.message || ""),
+        text: comment.text || "",
+        createdAt: comment.timestamp || null,
+        parentCommentId: null,
+        status: comment.hidden ? "hidden" : "new",
+        sentiment: classifySentiment(comment.text || ""),
+        likes: Number(comment.like_count || 0),
       }));
 
       return NextResponse.json({ comments });
@@ -144,4 +186,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
