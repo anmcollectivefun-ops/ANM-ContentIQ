@@ -234,7 +234,7 @@ export default function ContentSummaryImproved({
 
   const [groups, setGroups] = useState<PlatformGroup[]>([]);
   const [openPlatforms, setOpenPlatforms] = useState<Record<string, boolean>>({});
-  const [rangeDays, setRangeDays] = useState(7);
+  const [rangeDays, setRangeDays] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -305,16 +305,20 @@ export default function ContentSummaryImproved({
         let posts: DbPost[] = [];
 
         if (connectionIds.length) {
-          const fromDate = new Date();
-          fromDate.setDate(fromDate.getDate() - rangeDays);
-
-          const { data: postsData, error: postsError } = await supabase
+          let postsQuery = supabase
             .schema("contentiq")
             .from("posts")
             .select("*")
             .in("connection_id", connectionIds)
-            .gte("published_at", fromDate.toISOString())
             .order("published_at", { ascending: false });
+
+          if (rangeDays > 0) {
+            const fromDate = new Date();
+            fromDate.setDate(fromDate.getDate() - rangeDays);
+            postsQuery = postsQuery.gte("published_at", fromDate.toISOString());
+          }
+
+          const { data: postsData, error: postsError } = await postsQuery;
 
           if (postsError) throw new Error(postsError.message);
 
@@ -526,6 +530,7 @@ export default function ContentSummaryImproved({
               fontFamily: "var(--font-body)",
             }}
           >
+            <option value={0}>{text("Cały okres", "All time")}</option>
             <option value={7}>{text("Ostatnich 7 dni", "Last 7 days")}</option>
             <option value={14}>{text("Ostatnich 14 dni", "Last 14 days")}</option>
             <option value={30}>{text("Ostatnich 30 dni", "Last 30 days")}</option>

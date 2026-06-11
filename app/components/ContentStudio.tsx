@@ -1,12 +1,11 @@
 "use client";
 
-
-
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
 
-type StudioFlow = "social" | "hooks" | "blog" | "article";
+type Lang = "pl" | "en";
+type StudioFlow = "smart" | "social" | "hooks" | "blog" | "article";
 type AiProvider = "deepseek" | "gemini";
 
 type Platform =
@@ -18,9 +17,29 @@ type Platform =
   | "blog"
   | "spotify";
 
-type MediaStatus = "local" | "uploaded";
+type LocalMediaItem = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  assetType: "image" | "video" | "audio" | "document";
+};
 
-interface GeneratedPost {
+type UploadedMediaItem = {
+  kind: "cover" | "attachment";
+  storage_bucket: string;
+  storage_path: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  asset_type: LocalMediaItem["assetType"];
+  status: "temporary" | "scheduled";
+  expires_at: string;
+};
+
+type GeneratedPost = {
   title: string;
   hook: string;
   body: string;
@@ -30,17 +49,19 @@ interface GeneratedPost {
   platform_notes: string;
   recommended_comment?: string;
   format?: string;
-}
+  why_this_should_work?: string;
+  based_on_data?: string[];
+};
 
-interface HookIdea {
+type HookIdea = {
   text: string;
   type: string;
   score: number;
   best_for: string;
   note: string;
-}
+};
 
-interface ContentVariant {
+type ContentVariant = {
   platform: Platform;
   title: string;
   hook: string;
@@ -51,118 +72,124 @@ interface ContentVariant {
   score: number;
   notes: string;
   recommended_comment?: string;
-}
+  why_this_should_work?: string;
+  based_on_data?: string[];
+};
 
-interface StudioResult {
+type ContentPlanItem = {
+  platform: Platform;
+  idea: string;
+  format: string;
+  angle: string;
+  cta: string;
+};
+
+type StudioResult = {
   title: string;
   strategic_note: string;
   source_summary?: string;
+  ai_observations?: string[];
   primary?: GeneratedPost;
   hooks?: HookIdea[];
   variants?: ContentVariant[];
   article_html?: string;
   article_outline?: string[];
   blog_cta_blocks?: string[];
-  content_plan?: {
+  content_plan?: ContentPlanItem[];
+};
+
+type AiContext = {
+  hasData: boolean;
+  postsAnalyzed: number;
+  commentsAnalyzed: number;
+  bestPostByViews?: {
+    title: string;
+    views: number;
     platform: Platform;
-    idea: string;
-    format: string;
-    angle: string;
-    cta: string;
-  }[];
-}
-
-interface LocalMediaItem {
-  id: string;
-  file: File;
-  previewUrl: string;
-  name: string;
-  mimeType: string;
-  size: number;
-  assetType: "image" | "video" | "audio" | "document";
-  status: MediaStatus;
-}
-
-interface UploadedMediaItem {
-  kind: "cover" | "attachment";
-  storage_bucket: string;
-  storage_path: string;
-  file_name: string;
-  mime_type: string;
-  file_size: number;
-  asset_type: "image" | "video" | "audio" | "document";
-  status: "temporary" | "scheduled";
-  expires_at: string;
-}
+    format?: string;
+  };
+  bestPostByEngagement?: {
+    title: string;
+    engagementRate: number;
+    platform: Platform;
+    format?: string;
+  };
+  mostCommentedPost?: {
+    title: string;
+    comments: number;
+    platform: Platform;
+    format?: string;
+  };
+  winningFormats: string[];
+  winningTopics: string[];
+  commonCommentTopics: string[];
+  audienceQuestions: string[];
+  recommendedTone: string;
+  recommendedActions: string[];
+  brandVoice?: string;
+  offerSummary?: string;
+};
 
 type ApiResponse = {
   answer?: string;
   data?: unknown;
   error?: string;
   details?: string;
-  parseError?: string;
 };
 
 const STORAGE_BUCKET = "content-temp-media";
 
-const PLATFORMS: { id: Platform; name: string; color: string; icon: string }[] = [
-  { id: "linkedin", name: "LinkedIn", color: "#0A66C2", icon: "LI" },
-  { id: "instagram", name: "Instagram", color: "#E1306C", icon: "IG" },
-  { id: "tiktok", name: "TikTok", color: "#FFFFFF", icon: "TT" },
-  { id: "youtube", name: "YouTube", color: "#FF0033", icon: "YT" },
-  { id: "facebook", name: "Facebook", color: "#1877F2", icon: "FB" },
-  { id: "blog", name: "Blog", color: "#22C55E", icon: "BL" },
-  { id: "spotify", name: "Spotify", color: "#1DB954", icon: "SP" },
-];
-
-const FLOW_CARDS: {
-  id: StudioFlow;
-  title: string;
-  label: string;
-  description: string;
-  hint: string;
-}[] = [
-  {
-    id: "social",
-    title: "Post social media",
-    label: "Tworzenie postów",
-    description: "Stwórz gotowy post pod wybraną platformę: hook, treść, CTA, hashtagi i notatkę publikacyjną.",
-    hint: "Najlepsze do codziennych publikacji, kampanii, promocji aplikacji i edukacyjnych postów.",
-  },
-  {
-    id: "hooks",
-    title: "Hooki i otwarcia",
-    label: "Testowanie uwagi",
-    description: "Wygeneruj zestaw mocnych hooków do posta, rolki, shorta, karuzeli lub artykułu.",
-    hint: "Dobre, gdy masz temat, ale nie masz pierwszego zdania, które zatrzyma odbiorcę.",
-  },
-  {
-    id: "blog",
-    title: "Content z bloga",
-    label: "Blog → social",
-    description: "Pobierz lub wklej artykuł blogowy i zrób z niego posty na LinkedIn, Facebook, Instagram, TikTok i YouTube.",
-    hint: "Idealne do Twojego procesu: najpierw blog z CTA, potem dystrybucja na social media z linkiem w komentarzu.",
-  },
-  {
-    id: "article",
-    title: "Artykuł / wpis blogowy",
-    label: "Dłuższa treść",
-    description: "Przygotuj strukturę artykułu, lead, śródtytuły, CTA i HTML do dalszej obróbki poza aplikacją.",
-    hint: "Aplikacja nie musi publikować bloga — może przygotować treść i bloki CTA do ręcznego użycia.",
-  },
+const PLATFORMS: { id: Platform; pl: string; en: string; color: string }[] = [
+  { id: "linkedin", pl: "LinkedIn", en: "LinkedIn", color: "#0A66C2" },
+  { id: "instagram", pl: "Instagram", en: "Instagram", color: "#E1306C" },
+  { id: "tiktok", pl: "TikTok", en: "TikTok", color: "#FFFFFF" },
+  { id: "youtube", pl: "YouTube", en: "YouTube", color: "#FF0033" },
+  { id: "facebook", pl: "Facebook", en: "Facebook", color: "#1877F2" },
+  { id: "blog", pl: "Blog", en: "Blog", color: "#22C55E" },
+  { id: "spotify", pl: "Spotify", en: "Spotify", color: "#1DB954" },
 ];
 
 const CONTENT_FORMATS = [
-  "Post ekspercki",
-  "Post sprzedażowy miękki",
-  "Case study",
-  "Lista / poradnik",
-  "Storytelling",
-  "Karuzela",
-  "Reels / Shorts script",
-  "Komentarz do trendu",
-  "Artykuł blogowy",
-  "Newsletter",
+  {
+    pl: "Post ekspercki",
+    en: "Expert post",
+  },
+  {
+    pl: "Post sprzedażowy miękki",
+    en: "Soft sales post",
+  },
+  {
+    pl: "Case study",
+    en: "Case study",
+  },
+  {
+    pl: "Lista / poradnik",
+    en: "List / guide",
+  },
+  {
+    pl: "Storytelling",
+    en: "Storytelling",
+  },
+  {
+    pl: "Karuzela",
+    en: "Carousel",
+  },
+  {
+    pl: "Reels / Shorts script",
+    en: "Reels / Shorts script",
+  },
+  {
+    pl: "Komentarz do trendu",
+    en: "Trend commentary",
+  },
+  {
+    pl: "Artykuł blogowy",
+    en: "Blog article",
+  },
+  {
+    pl: "Newsletter",
+    en: "Newsletter",
+  },
 ];
 
 const BLOG_REPURPOSE_PLATFORMS: Platform[] = [
@@ -173,18 +200,24 @@ const BLOG_REPURPOSE_PLATFORMS: Platform[] = [
   "youtube",
 ];
 
-function getPlatformInfo(platform: string) {
-  return PLATFORMS.find((item) => item.id === platform);
+const EMPTY_CONTEXT: AiContext = {
+  hasData: false,
+  postsAnalyzed: 0,
+  commentsAnalyzed: 0,
+  winningFormats: [],
+  winningTopics: [],
+  commonCommentTopics: [],
+  audienceQuestions: [],
+  recommendedTone: "",
+  recommendedActions: [],
+};
+
+function getPlatformInfo(platform: Platform) {
+  return PLATFORMS.find((item) => item.id === platform) || PLATFORMS[0];
 }
 
 function safeArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
-}
-
-function getScoreColor(score: number) {
-  if (score >= 80) return "#22c55e";
-  if (score >= 60) return "#f59e0b";
-  return "#ef4444";
 }
 
 function cleanJsonAnswer(answer: string) {
@@ -195,9 +228,15 @@ function cleanJsonAnswer(answer: string) {
     .trim();
 }
 
-function formatFileSize(size: number) {
-  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
-  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+function formatNumber(value?: number) {
+  if (typeof value !== "number") return "—";
+  return new Intl.NumberFormat("pl-PL").format(value);
+}
+
+function getScoreColor(score: number) {
+  if (score >= 80) return "#22c55e";
+  if (score >= 60) return "#f59e0b";
+  return "#ef4444";
 }
 
 function getAssetType(file: File): LocalMediaItem["assetType"] {
@@ -205,6 +244,11 @@ function getAssetType(file: File): LocalMediaItem["assetType"] {
   if (file.type.startsWith("video/")) return "video";
   if (file.type.startsWith("audio/")) return "audio";
   return "document";
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function safeFileName(name: string) {
@@ -221,48 +265,15 @@ function getExpiryDate(scheduledAt?: string) {
   return base.toISOString();
 }
 
-function fullPostText(post: GeneratedPost | ContentVariant) {
-  return [
-    post.title ? `${post.title}` : "",
-    post.hook,
-    post.body,
-    post.cta,
-    safeArray(post.hashtags).join(" "),
-    post.recommended_comment ? `\nKomentarz / link:\n${post.recommended_comment}` : "",
-  ]
-    .filter((part) => String(part || "").trim().length > 0)
-    .join("\n\n");
-}
-
 function normalizeStudioResult(raw: Partial<StudioResult>): StudioResult {
-  const variants = safeArray(raw.variants).map((item) => ({
-    platform: item.platform,
-    title: item.title || "",
-    hook: item.hook || "",
-    body: item.body || "",
-    cta: item.cta || "",
-    hashtags: safeArray(item.hashtags),
-    format: item.format || "post",
-    score: Number(item.score || 0),
-    notes: item.notes || "",
-    recommended_comment: item.recommended_comment || "",
-  }));
-
-  const hooks = safeArray(raw.hooks).map((item) => ({
-    text: item.text || "",
-    type: item.type || "hook",
-    score: Number(item.score || 0),
-    best_for: item.best_for || "",
-    note: item.note || "",
-  }));
-
   return {
     title: raw.title || "Content Studio",
     strategic_note: raw.strategic_note || "",
     source_summary: raw.source_summary || "",
+    ai_observations: safeArray(raw.ai_observations),
     primary: raw.primary
       ? {
-          title: raw.primary.title || raw.title || "",
+          title: raw.primary.title || "",
           hook: raw.primary.hook || "",
           body: raw.primary.body || "",
           cta: raw.primary.cta || "",
@@ -271,10 +282,31 @@ function normalizeStudioResult(raw: Partial<StudioResult>): StudioResult {
           platform_notes: raw.primary.platform_notes || "",
           recommended_comment: raw.primary.recommended_comment || "",
           format: raw.primary.format || "",
+          why_this_should_work: raw.primary.why_this_should_work || "",
+          based_on_data: safeArray(raw.primary.based_on_data),
         }
       : undefined,
-    hooks,
-    variants,
+    hooks: safeArray(raw.hooks).map((item) => ({
+      text: item.text || "",
+      type: item.type || "",
+      score: Number(item.score || 0),
+      best_for: item.best_for || "",
+      note: item.note || "",
+    })),
+    variants: safeArray(raw.variants).map((item) => ({
+      platform: item.platform,
+      title: item.title || "",
+      hook: item.hook || "",
+      body: item.body || "",
+      cta: item.cta || "",
+      hashtags: safeArray(item.hashtags),
+      format: item.format || "",
+      score: Number(item.score || 0),
+      notes: item.notes || "",
+      recommended_comment: item.recommended_comment || "",
+      why_this_should_work: item.why_this_should_work || "",
+      based_on_data: safeArray(item.based_on_data),
+    })),
     article_html: raw.article_html || "",
     article_outline: safeArray(raw.article_outline),
     blog_cta_blocks: safeArray(raw.blog_cta_blocks),
@@ -288,6 +320,21 @@ function normalizeStudioResult(raw: Partial<StudioResult>): StudioResult {
   };
 }
 
+function fullPostText(post: GeneratedPost | ContentVariant) {
+  return [
+    post.title,
+    post.hook,
+    post.body,
+    post.cta,
+    safeArray(post.hashtags).join(" "),
+    post.recommended_comment
+      ? `\nKomentarz / link:\n${post.recommended_comment}`
+      : "",
+  ]
+    .filter((part) => String(part || "").trim().length > 0)
+    .join("\n\n");
+}
+
 function buildStudioPrompt({
   language,
   flow,
@@ -298,8 +345,9 @@ function buildStudioPrompt({
   blogUrl,
   blogText,
   brandContext,
+  aiContext,
 }: {
-  language: "pl" | "en";
+  language: Lang;
   flow: StudioFlow;
   platform: Platform;
   selectedPlatforms: Platform[];
@@ -308,36 +356,130 @@ function buildStudioPrompt({
   blogUrl: string;
   blogText: string;
   brandContext: string;
+  aiContext: AiContext;
 }) {
-  const platformName = getPlatformInfo(platform)?.name || platform;
-  const selectedNames = selectedPlatforms.map((id) => getPlatformInfo(id)?.name || id).join(", ");
+  const platformInfo = getPlatformInfo(platform);
+  const platformName = language === "pl" ? platformInfo.pl : platformInfo.en;
+
+  const selectedNames = selectedPlatforms
+    .map((id) => {
+      const info = getPlatformInfo(id);
+      return language === "pl" ? info.pl : info.en;
+    })
+    .join(", ");
+
+  const contextBlock = `
+DANE Z PLATFORMY, KTÓRE MASZ WYKORZYSTAĆ:
+- Czy są dane: ${aiContext.hasData ? "tak" : "nie"}
+- Liczba przeanalizowanych postów: ${aiContext.postsAnalyzed}
+- Liczba przeanalizowanych komentarzy: ${aiContext.commentsAnalyzed}
+- Najlepszy post po wyświetleniach/zasięgu: ${
+    aiContext.bestPostByViews
+      ? `${aiContext.bestPostByViews.title} (${aiContext.bestPostByViews.views})`
+      : "brak danych"
+  }
+- Najlepszy post po engagement rate: ${
+    aiContext.bestPostByEngagement
+      ? `${aiContext.bestPostByEngagement.title} (${aiContext.bestPostByEngagement.engagementRate}%)`
+      : "brak danych"
+  }
+- Najbardziej komentowany post: ${
+    aiContext.mostCommentedPost
+      ? `${aiContext.mostCommentedPost.title} (${aiContext.mostCommentedPost.comments})`
+      : "brak danych"
+  }
+- Wygrywające formaty: ${safeArray(aiContext.winningFormats).join(", ") || "brak danych"}
+- Wygrywające tematy: ${safeArray(aiContext.winningTopics).join(", ") || "brak danych"}
+- Najczęstsze tematy komentarzy: ${safeArray(aiContext.commonCommentTopics).join(", ") || "brak danych"}
+- Pytania odbiorców: ${safeArray(aiContext.audienceQuestions).join(" | ") || "brak danych"}
+- Rekomendowany ton: ${aiContext.recommendedTone || "brak danych"}
+- Rekomendowane działania: ${safeArray(aiContext.recommendedActions).join(" | ") || "brak danych"}
+- Brand voice z workspace: ${aiContext.brandVoice || "brak danych"}
+- Oferta / CTA z workspace: ${aiContext.offerSummary || "brak danych"}
+`.trim();
 
   const commonRules = `
 Jesteś AI Content Strategiem w ANM ContentIQ.
 
-Najważniejsze:
-- Tworzysz treści do social mediów i bloga.
-- Nie pisz ogólników.
-- Dopasuj styl do platformy.
-- Nie używaj identycznego CTA na każdej platformie.
-- Jeśli tworzysz z bloga, link do bloga sugeruj jako komentarz albo dopisek, nie wciskaj go agresywnie w środek posta.
+To NIE jest zwykły chat. Nie czekasz biernie na prompt użytkownika.
+Najpierw wykorzystujesz dane z platformy: wyniki postów, komentarze, formaty, tematy, zasięg, engagement i pytania odbiorców.
+Jeśli użytkownik dopisał dodatkową sugestię, traktuj ją tylko jako doprecyzowanie, a nie główne źródło wiedzy.
+
+Zasady:
 - Pisz w języku ${language === "pl" ? "polskim" : "angielskim"}.
+- Nie wymyślaj wyników analitycznych.
+- Jeśli brakuje danych, napisz to w strategic_note i oprzyj się na dostępnych danych.
+- Każda sugestia ma mieć uzasadnienie: dlaczego powinna zadziałać.
+- Uwzględniaj różnice platform.
+- AI może sugerować, ale użytkownik zatwierdza publikację ręcznie.
 - Zwróć wyłącznie JSON bez markdown.
-- Nie wymyślaj wyników analitycznych. Jeśli brakuje danych, wpisz to w notes / strategic_note.
 
-Kontekst marki / użytkownika:
-${brandContext || "Brak dodatkowego kontekstu marki."}
+${contextBlock}
 
-Sugestia użytkownika:
-${userPrompt || "Brak."}
+KONTEKST MARKI / OFERTA / CTA OD UŻYTKOWNIKA:
+${brandContext || "Brak dodatkowego kontekstu."}
+
+OPCJONALNE DOPRECYZOWANIE UŻYTKOWNIKA:
+${userPrompt || "Brak. Działaj na podstawie danych z platformy."}
 `.trim();
+
+  if (flow === "smart") {
+    return `
+${commonRules}
+
+Zadanie:
+Wygeneruj najlepszy następny ruch contentowy na podstawie danych z platformy.
+
+Platforma główna:
+${platformName}
+
+Format preferowany:
+${contentFormat}
+
+Wymagania:
+- wskaż, co AI zauważyło w danych,
+- przygotuj gotowy post,
+- zaproponuj komentarz uzupełniający pod postem,
+- zaproponuj 3-5 kolejnych tematów,
+- uzasadnij, dlaczego ten kierunek wynika z wyników platformy.
+
+JSON:
+{
+  "title": "tytuł rekomendacji",
+  "strategic_note": "krótka rekomendacja strategiczna na podstawie danych",
+  "ai_observations": ["obserwacja 1", "obserwacja 2", "obserwacja 3"],
+  "primary": {
+    "title": "tytuł roboczy",
+    "hook": "hook",
+    "body": "treść posta",
+    "cta": "CTA",
+    "hashtags": ["#..."],
+    "estimated_score": 0,
+    "platform_notes": "dlaczego pasuje do platformy",
+    "recommended_comment": "komentarz uzupełniający pod postem",
+    "format": "${contentFormat}",
+    "why_this_should_work": "uzasadnienie na podstawie danych",
+    "based_on_data": ["dana 1", "dana 2", "dana 3"]
+  },
+  "content_plan": [
+    {
+      "platform": "${platform}",
+      "idea": "pomysł",
+      "format": "format",
+      "angle": "kąt",
+      "cta": "CTA"
+    }
+  ]
+}
+`.trim();
+  }
 
   if (flow === "social") {
     return `
 ${commonRules}
 
 Zadanie:
-Stwórz gotowy post social media.
+Stwórz gotowy post social media na podstawie danych z platformy.
 
 Platforma:
 ${platformName}
@@ -345,20 +487,11 @@ ${platformName}
 Format:
 ${contentFormat}
 
-Wymagania:
-- mocny hook,
-- główna treść posta,
-- CTA dopasowane do platformy,
-- hashtagi,
-- krótka notatka, dlaczego ta wersja pasuje do platformy,
-- jeżeli platforma to TikTok/YouTube, przygotuj tekst jako opis/scenariusz shorta,
-- jeżeli LinkedIn, użyj bardziej eksperckiego tonu,
-- jeżeli Instagram, zadbaj o zapis/udostępnienie i wizualny kontekst.
-
 JSON:
 {
   "title": "tytuł roboczy",
-  "strategic_note": "krótka rekomendacja strategiczna",
+  "strategic_note": "co wynika z danych i dlaczego ta treść ma sens",
+  "ai_observations": ["obserwacja 1", "obserwacja 2"],
   "primary": {
     "title": "tytuł",
     "hook": "hook",
@@ -368,7 +501,9 @@ JSON:
     "estimated_score": 0,
     "platform_notes": "dlaczego działa na tej platformie",
     "recommended_comment": "opcjonalny komentarz z linkiem lub dopowiedzeniem",
-    "format": "${contentFormat}"
+    "format": "${contentFormat}",
+    "why_this_should_work": "uzasadnienie na podstawie danych",
+    "based_on_data": ["konkret z danych"]
   },
   "content_plan": []
 }
@@ -380,7 +515,7 @@ JSON:
 ${commonRules}
 
 Zadanie:
-Wygeneruj zestaw hooków i otwarć do contentu.
+Wygeneruj hooki na podstawie treści, które do tej pory miały najlepsze wyniki.
 
 Platforma główna:
 ${platformName}
@@ -388,23 +523,18 @@ ${platformName}
 Format:
 ${contentFormat}
 
-Wymagania:
-- wygeneruj minimum 12 hooków,
-- różne typy: problemowy, liczbowy, pytanie, błąd, kontrast, storytelling, case, kontrowersyjny, obietnica,
-- oceń każdy hook 0-100,
-- wyjaśnij, do jakiej platformy i formatu pasuje.
-
 JSON:
 {
-  "title": "zestaw hooków",
-  "strategic_note": "jaki kierunek hooków wybrać",
+  "title": "zestaw hooków oparty na danych",
+  "strategic_note": "jaki kierunek hooków wynika z wyników platformy",
+  "ai_observations": ["obserwacja 1", "obserwacja 2"],
   "hooks": [
     {
       "text": "hook",
-      "type": "problemowy",
+      "type": "problemowy / pytanie / lista / kontrast / storytelling",
       "score": 0,
-      "best_for": "LinkedIn / TikTok / Instagram / ...",
-      "note": "dlaczego może zadziałać"
+      "best_for": "platforma / format",
+      "note": "dlaczego może zadziałać na podstawie danych"
     }
   ]
 }
@@ -416,34 +546,23 @@ JSON:
 ${commonRules}
 
 Zadanie:
-Zrób dystrybucję treści blogowej na social media.
+Zrób dystrybucję bloga na social media, ale dopasuj ją do tego, co już najlepiej działa na platformach.
 
 Link do bloga:
 ${blogUrl || "brak linku"}
 
-Treść / notatki z bloga:
-${blogText || "Brak treści bloga. Jeśli link był podany, korzystaj z opisu użytkownika i wpisz w strategic_note, że nie pobrano pełnej treści."}
+Treść / streszczenie bloga:
+${blogText || "Brak treści bloga."}
 
 Platformy docelowe:
 ${selectedNames}
-
-Wymagania:
-- potraktuj blog jako źródło główne,
-- przygotuj osobne wersje na wybrane platformy,
-- nie kopiuj 1:1 tego samego tekstu,
-- LinkedIn: ekspercki wniosek + link w komentarzu,
-- Facebook: prościej, rozmownie, zachęta do kliknięcia,
-- Instagram: krótko, wizualnie, zapis/udostępnienie,
-- TikTok: pomysł na krótkie video, hook i opis,
-- YouTube: Shorts albo opis filmu z kierowaniem do pełnej wersji,
-- w recommended_comment zaproponuj komentarz z linkiem do bloga,
-- dodaj 3-6 pomysłów na dalsze treści wokół tego artykułu.
 
 JSON:
 {
   "title": "kampania wokół artykułu blogowego",
   "source_summary": "krótkie streszczenie bloga",
-  "strategic_note": "jak dystrybuować ten blog i dlaczego",
+  "strategic_note": "jak dystrybuować ten blog na podstawie wyników platform",
+  "ai_observations": ["obserwacja 1", "obserwacja 2"],
   "variants": [
     {
       "platform": "linkedin",
@@ -455,7 +574,9 @@ JSON:
       "format": "post / rolka / short / karuzela",
       "score": 0,
       "notes": "dlaczego ta wersja pasuje",
-      "recommended_comment": "np. Link do artykułu w komentarzu: ${blogUrl || "[tu wstaw link]"}"
+      "recommended_comment": "komentarz z linkiem do bloga",
+      "why_this_should_work": "uzasadnienie na podstawie danych",
+      "based_on_data": ["konkret z danych"]
     }
   ],
   "content_plan": [
@@ -475,24 +596,17 @@ JSON:
 ${commonRules}
 
 Zadanie:
-Przygotuj artykuł / wpis blogowy jako materiał źródłowy do dalszej dystrybucji.
+Przygotuj artykuł / wpis blogowy jako treść źródłową do kampanii.
+Temat artykułu powinien wynikać z danych: najlepszych tematów, komentarzy i pytań odbiorców.
 
 Format:
 ${contentFormat}
 
-Wymagania:
-- przygotuj outline,
-- przygotuj tytuł, lead i treść artykułu,
-- dodaj miejsca na CTA do aplikacji/produktu,
-- przygotuj przykładowe bloki CTA jako HTML,
-- artykuł ma być możliwy do ręcznego wklejenia do bloga,
-- nie publikuj automatycznie,
-- dodaj plan, jak później przerobić artykuł na social media.
-
 JSON:
 {
   "title": "tytuł artykułu",
-  "strategic_note": "po co ten artykuł i jak użyć go w dystrybucji",
+  "strategic_note": "dlaczego ten artykuł jest dobrym kierunkiem na podstawie danych",
+  "ai_observations": ["obserwacja 1", "obserwacja 2"],
   "article_outline": ["H2 / punkt", "H2 / punkt"],
   "article_html": "<article>...</article>",
   "blog_cta_blocks": ["<a ...>CTA</a>"],
@@ -507,6 +621,34 @@ JSON:
   ]
 }
 `.trim();
+}
+
+function inputStyle(css: Record<string, string>): CSSProperties {
+  return {
+    width: "100%",
+    borderRadius: 14,
+    border: `1px solid ${css.border}`,
+    background: css.surface,
+    color: css.text,
+    padding: "12px 14px",
+    fontFamily: "inherit",
+    fontSize: 13,
+    outline: "none",
+  };
+}
+
+function actionButton(css: Record<string, string>, strong = false): CSSProperties {
+  return {
+    padding: "10px 8px",
+    borderRadius: 12,
+    border: `1px solid ${css.border}`,
+    background: strong ? css.accentSoft : css.surface,
+    color: strong ? css.accent : css.muted,
+    fontSize: 11,
+    fontWeight: 900,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  };
 }
 
 function SectionLabel({
@@ -532,103 +674,27 @@ function SectionLabel({
   );
 }
 
-function FlowCard({
-  active,
-  title,
-  label,
-  description,
-  hint,
-  onClick,
-  css,
-}: {
-  active: boolean;
-  title: string;
-  label: string;
-  description: string;
-  hint: string;
-  onClick: () => void;
-  css: Record<string, string>;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        textAlign: "left",
-        padding: 15,
-        borderRadius: 18,
-        background: css.surface,
-        border: `1px solid ${active ? css.accentBorder : css.border}`,
-        boxShadow: active ? `0 0 0 1px ${css.accentBorder}, 0 16px 34px rgba(0,0,0,0.22)` : "none",
-        color: css.text,
-        cursor: "pointer",
-        fontFamily: "inherit",
-        minHeight: 162,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {active && (
-        <div
-          style={{
-            position: "absolute",
-            left: 16,
-            right: 16,
-            bottom: -18,
-            height: 34,
-            background: css.accentSoft,
-            filter: "blur(20px)",
-          }}
-        />
-      )}
-
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <SectionLabel color={css.accent}>{label}</SectionLabel>
-        <div
-          style={{
-            fontFamily: "var(--font-heading)",
-            color: css.heading,
-            fontSize: 24,
-            lineHeight: 1.05,
-            fontWeight: 500,
-            marginBottom: 9,
-          }}
-        >
-          {title}
-        </div>
-        <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.55 }}>
-          {description}
-        </p>
-        <p style={{ margin: "9px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
-          {hint}
-        </p>
-      </div>
-    </button>
-  );
-}
-
 function MediaPicker({
   media,
   setMedia,
   css,
+  lang,
 }: {
   media: LocalMediaItem[];
   setMedia: React.Dispatch<React.SetStateAction<LocalMediaItem[]>>;
   css: Record<string, string>;
+  lang: Lang;
 }) {
-  const { text } = useContentIQLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
 
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
 
-    const allowed = Array.from(files).filter((file) => {
-      const type = getAssetType(file);
-      const maxSize = type === "video" ? 250 * 1024 * 1024 : 25 * 1024 * 1024;
-      return file.size <= maxSize;
-    });
-
-    const nextItems: LocalMediaItem[] = allowed.map((file) => ({
+    const nextItems: LocalMediaItem[] = Array.from(files).map((file) => ({
       id: `${Date.now()}-${crypto.randomUUID()}`,
       file,
       previewUrl: URL.createObjectURL(file),
@@ -636,7 +702,6 @@ function MediaPicker({
       mimeType: file.type || "application/octet-stream",
       size: file.size,
       assetType: getAssetType(file),
-      status: "local",
     }));
 
     setMedia((prev) => [...prev, ...nextItems]);
@@ -652,7 +717,9 @@ function MediaPicker({
 
   return (
     <div>
-      <SectionLabel color={css.muted}>{text("Media do contentu", "Content media")}</SectionLabel>
+      <SectionLabel color={css.muted}>
+        {t("Media do contentu", "Content media")}
+      </SectionLabel>
 
       <div
         onClick={() => inputRef.current?.click()}
@@ -679,11 +746,14 @@ function MediaPicker({
         />
 
         <div style={{ fontSize: 13, fontWeight: 900, color: css.text }}>
-          Dodaj zdjęcie, grafikę albo video
+          {t("Dodaj zdjęcie, grafikę albo video", "Add a photo, graphic or video")}
         </div>
 
         <div style={{ fontSize: 11, color: css.muted, marginTop: 5, lineHeight: 1.6 }}>
-          Media zapiszą się razem z szablonem, inspiracją albo harmonogramem.
+          {t(
+            "AI uwzględni media przy tworzeniu posta, hooka albo planu dystrybucji.",
+            "AI will use your media when creating posts, hooks or distribution plans."
+          )}
         </div>
       </div>
 
@@ -732,7 +802,9 @@ function MediaPicker({
                 )}
 
                 {!["image", "video"].includes(item.assetType) && (
-                  <span style={{ color: css.muted, fontSize: 12 }}>{item.assetType}</span>
+                  <span style={{ color: css.muted, fontSize: 12 }}>
+                    {item.assetType}
+                  </span>
                 )}
               </div>
 
@@ -771,7 +843,7 @@ function MediaPicker({
                     fontFamily: "inherit",
                   }}
                 >
-                  Usuń
+                  {t("Usuń", "Remove")}
                 </button>
               </div>
             </div>
@@ -782,20 +854,870 @@ function MediaPicker({
   );
 }
 
+function AiContextPanel({
+  css,
+  lang,
+  context,
+  loading,
+  onRefresh,
+}: {
+  css: Record<string, string>;
+  lang: Lang;
+  context: AiContext;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  return (
+    <div
+      style={{
+        background: css.aiBg,
+        border: `1px solid ${css.aiBorder}`,
+        boxShadow: css.aiGlow,
+        borderRadius: 22,
+        padding: 16,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <SectionLabel color={css.aiText}>
+            {t("AI widzi teraz", "AI sees now")}
+          </SectionLabel>
+
+          <h3
+            style={{
+              margin: "0 0 8px",
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 27,
+              lineHeight: 1.05,
+              fontWeight: 500,
+            }}
+          >
+            {t("Kontekst z platformy przed generowaniem", "Platform context before generation")}
+          </h3>
+        </div>
+
+        <button
+          type="button"
+          onClick={onRefresh}
+          style={{
+            ...actionButton(css, true),
+            minWidth: 112,
+          }}
+        >
+          {loading ? t("Analizuję...", "Analyzing...") : t("Odśwież dane", "Refresh data")}
+        </button>
+      </div>
+
+      {!context.hasData && (
+        <p style={{ margin: "8px 0 0", color: css.muted, fontSize: 12, lineHeight: 1.7 }}>
+          {t(
+            "Brak pełnego kontekstu z platformy. AI nadal może pomóc, ale najlepsze rekomendacje pojawią się po synchronizacji konta i pobraniu wyników.",
+            "No full platform context yet. AI can still help, but the best recommendations will appear after account sync and performance data import."
+          )}
+        </p>
+      )}
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 9,
+          marginTop: 13,
+        }}
+      >
+        <MetricBox
+          css={css}
+          label={t("Posty", "Posts")}
+          value={formatNumber(context.postsAnalyzed)}
+        />
+        <MetricBox
+          css={css}
+          label={t("Komentarze", "Comments")}
+          value={formatNumber(context.commentsAnalyzed)}
+        />
+        <MetricBox
+          css={css}
+          label={t("Ton", "Tone")}
+          value={context.recommendedTone || "—"}
+        />
+      </div>
+
+      <div style={{ display: "grid", gap: 9, marginTop: 12 }}>
+        <InsightLine
+          css={css}
+          label={t("Największy zasięg", "Top reach")}
+          value={
+            context.bestPostByViews
+              ? `${context.bestPostByViews.title} · ${formatNumber(context.bestPostByViews.views)}`
+              : t("brak danych", "no data")
+          }
+        />
+
+        <InsightLine
+          css={css}
+          label={t("Najlepszy engagement", "Top engagement")}
+          value={
+            context.bestPostByEngagement
+              ? `${context.bestPostByEngagement.title} · ${context.bestPostByEngagement.engagementRate}%`
+              : t("brak danych", "no data")
+          }
+        />
+
+        <InsightLine
+          css={css}
+          label={t("Najwięcej komentarzy", "Most comments")}
+          value={
+            context.mostCommentedPost
+              ? `${context.mostCommentedPost.title} · ${context.mostCommentedPost.comments}`
+              : t("brak danych", "no data")
+          }
+        />
+      </div>
+
+      <ChipGroup
+        css={css}
+        title={t("Wygrywające formaty", "Winning formats")}
+        items={context.winningFormats}
+        empty={t("Po synchronizacji AI pokaże formaty, które działają najlepiej.", "After sync AI will show the formats that work best.")}
+      />
+
+      <ChipGroup
+        css={css}
+        title={t("Tematy z komentarzy", "Comment topics")}
+        items={context.commonCommentTopics}
+        empty={t("Po pobraniu komentarzy AI pokaże najczęstsze tematy rozmów.", "After importing comments AI will show the most common conversation topics.")}
+      />
+
+      <ChipGroup
+        css={css}
+        title={t("Rekomendowane działania", "Recommended actions")}
+        items={context.recommendedActions}
+        empty={t("AI podpowie kolejne kroki po analizie danych.", "AI will suggest next steps after analyzing data.")}
+      />
+    </div>
+  );
+}
+
+function MetricBox({
+  css,
+  label,
+  value,
+}: {
+  css: Record<string, string>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      style={{
+        background: css.liveSoft,
+        border: `1px solid ${css.border}`,
+        borderRadius: 15,
+        padding: 11,
+      }}
+    >
+      <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div
+        style={{
+          color: css.text,
+          fontSize: 17,
+          fontWeight: 900,
+          marginTop: 4,
+          lineHeight: 1.1,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InsightLine({
+  css,
+  label,
+  value,
+}: {
+  css: Record<string, string>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div
+      style={{
+        background: css.liveSoft,
+        border: `1px solid ${css.border}`,
+        borderRadius: 14,
+        padding: 10,
+      }}
+    >
+      <div style={{ color: css.muted, fontSize: 10, fontWeight: 900, marginBottom: 4 }}>
+        {label}
+      </div>
+      <div style={{ color: css.text, fontSize: 12, lineHeight: 1.5 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ChipGroup({
+  css,
+  title,
+  items,
+  empty,
+}: {
+  css: Record<string, string>;
+  title: string;
+  items: string[];
+  empty: string;
+}) {
+  return (
+    <div style={{ marginTop: 13 }}>
+      <SectionLabel color={css.aiText}>{title}</SectionLabel>
+      {items.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {items.map((item) => (
+            <span
+              key={item}
+              style={{
+                background: css.aiBgSoft,
+                border: `1px solid ${css.aiBorder}`,
+                color: css.text,
+                borderRadius: 999,
+                padding: "5px 9px",
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: css.muted, fontSize: 11, lineHeight: 1.6 }}>
+          {empty}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FlowCard({
+  active,
+  title,
+  label,
+  description,
+  hint,
+  onClick,
+  css,
+}: {
+  active: boolean;
+  title: string;
+  label: string;
+  description: string;
+  hint: string;
+  onClick: () => void;
+  css: Record<string, string>;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: "left",
+        padding: 15,
+        borderRadius: 18,
+        background: css.surface,
+        border: `1px solid ${active ? css.accentBorder : css.border}`,
+        boxShadow: active
+          ? `0 0 0 1px ${css.accentBorder}, 0 16px 34px rgba(0,0,0,0.22)`
+          : "none",
+        color: css.text,
+        cursor: "pointer",
+        fontFamily: "inherit",
+        minHeight: 170,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {active && (
+        <div
+          style={{
+            position: "absolute",
+            left: 16,
+            right: 16,
+            bottom: -18,
+            height: 34,
+            background: css.accentSoft,
+            filter: "blur(20px)",
+          }}
+        />
+      )}
+
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <SectionLabel color={css.accent}>{label}</SectionLabel>
+        <div
+          style={{
+            fontFamily: "var(--font-heading)",
+            color: css.heading,
+            fontSize: 24,
+            lineHeight: 1.05,
+            fontWeight: 500,
+            marginBottom: 9,
+          }}
+        >
+          {title}
+        </div>
+        <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.55 }}>
+          {description}
+        </p>
+        <p style={{ margin: "9px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
+          {hint}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function PostCard({
+  item,
+  platform,
+  css,
+  lang,
+  onCopy,
+  actions,
+}: {
+  item: GeneratedPost | ContentVariant;
+  platform: Platform;
+  css: Record<string, string>;
+  lang: Lang;
+  onCopy: (text: string) => void;
+  actions: React.ReactNode;
+}) {
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  const info = getPlatformInfo(platform);
+  const score = "estimated_score" in item ? item.estimated_score : item.score;
+  const notes = "platform_notes" in item ? item.platform_notes : item.notes;
+
+  return (
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        borderTop: `4px solid ${info.color}`,
+        borderRadius: 20,
+        padding: 16,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <SectionLabel color={info.color}>
+            {lang === "pl" ? info.pl : info.en}
+          </SectionLabel>
+          <h3
+            style={{
+              margin: 0,
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 25,
+              lineHeight: 1.08,
+              fontWeight: 500,
+            }}
+          >
+            {item.title || t("Wariant contentu", "Content variant")}
+          </h3>
+        </div>
+
+        <div
+          style={{
+            color: getScoreColor(score),
+            fontSize: 28,
+            fontWeight: 900,
+            fontFamily: "var(--font-heading)",
+          }}
+        >
+          {score || 0}
+        </div>
+      </div>
+
+      {safeArray(item.based_on_data).length > 0 && (
+        <div
+          style={{
+            marginTop: 13,
+            background: css.aiBg,
+            border: `1px solid ${css.aiBorder}`,
+            boxShadow: css.aiGlow,
+            borderRadius: 16,
+            padding: 13,
+          }}
+        >
+          <SectionLabel color={css.aiText}>
+            {t("Dlaczego AI to proponuje", "Why AI suggests this")}
+          </SectionLabel>
+          <ul style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.7 }}>
+            {safeArray(item.based_on_data).map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {item.hook && (
+        <div
+          style={{
+            marginTop: 13,
+            background: css.aiBgSoft,
+            border: `1px solid ${css.aiBorder}`,
+            borderRadius: 16,
+            padding: 13,
+          }}
+        >
+          <SectionLabel color={css.aiText}>Hook</SectionLabel>
+          <p style={{ margin: 0, color: css.text, fontSize: 15, fontWeight: 900, lineHeight: 1.45 }}>
+            “{item.hook}”
+          </p>
+        </div>
+      )}
+
+      <div style={{ marginTop: 11, color: css.text, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
+        {item.body}
+      </div>
+
+      {item.cta && (
+        <div style={{ marginTop: 11, color: css.accent, fontSize: 13, fontWeight: 900 }}>
+          CTA: {item.cta}
+        </div>
+      )}
+
+      {item.recommended_comment && (
+        <div
+          style={{
+            marginTop: 11,
+            border: `1px dashed ${css.border}`,
+            background: css.liveSoft,
+            borderRadius: 14,
+            padding: 11,
+            color: css.muted,
+            fontSize: 12,
+            lineHeight: 1.6,
+          }}
+        >
+          <strong style={{ color: css.text }}>
+            {t("Komentarz uzupełniający:", "Follow-up comment:")}
+          </strong>{" "}
+          {item.recommended_comment}
+        </div>
+      )}
+
+      {item.why_this_should_work && (
+        <p style={{ margin: "12px 0 0", color: css.text, fontSize: 12, lineHeight: 1.65 }}>
+          <strong>{t("Uzasadnienie:", "Reasoning:")}</strong> {item.why_this_should_work}
+        </p>
+      )}
+
+      {safeArray(item.hashtags).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
+          {safeArray(item.hashtags).map((tag) => (
+            <span
+              key={tag}
+              style={{
+                background: `${info.color}18`,
+                color: info.color,
+                borderRadius: 999,
+                padding: "4px 8px",
+                fontSize: 10,
+                fontWeight: 900,
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {notes && (
+        <p style={{ margin: "12px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.65 }}>
+          {notes}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onCopy(fullPostText(item))}
+        style={{
+          width: "100%",
+          marginTop: 12,
+          border: `1px solid ${css.border}`,
+          background: "transparent",
+          color: css.muted,
+          borderRadius: 12,
+          padding: "10px 12px",
+          fontSize: 11,
+          fontWeight: 900,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        {t("Kopiuj treść", "Copy content")}
+      </button>
+
+      <div style={{ marginTop: 10 }}>{actions}</div>
+    </div>
+  );
+}
+
+function ResultPanel({
+  result,
+  flow,
+  platform,
+  selectedPlatforms,
+  prompt,
+  contentType,
+  workspaceId,
+  css,
+  lang,
+  media,
+}: {
+  result: StudioResult;
+  flow: StudioFlow;
+  platform: Platform;
+  selectedPlatforms: Platform[];
+  prompt: string;
+  contentType: string;
+  workspaceId: string;
+  css: Record<string, string>;
+  lang: Lang;
+  media: LocalMediaItem[];
+}) {
+  const [copied, setCopied] = useState(false);
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  async function copy(text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  const primary = result.primary;
+  const variants = safeArray(result.variants);
+  const hooks = safeArray(result.hooks);
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div
+        style={{
+          background: css.surface,
+          border: `1px solid ${css.border}`,
+          borderRadius: 20,
+          padding: 16,
+        }}
+      >
+        <SectionLabel color={css.accent}>
+          {t("Wynik Content Studio", "Content Studio result")}
+        </SectionLabel>
+
+        <h3
+          style={{
+            margin: "0 0 8px",
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 28,
+            lineHeight: 1.05,
+            fontWeight: 500,
+          }}
+        >
+          {result.title}
+        </h3>
+
+        <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
+          {result.strategic_note}
+        </p>
+
+        {safeArray(result.ai_observations).length > 0 && (
+          <div
+            style={{
+              marginTop: 13,
+              background: css.aiBg,
+              border: `1px solid ${css.aiBorder}`,
+              borderRadius: 16,
+              padding: 13,
+            }}
+          >
+            <SectionLabel color={css.aiText}>
+              {t("Co AI zauważyło w danych", "What AI noticed in the data")}
+            </SectionLabel>
+
+            <ul style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.7 }}>
+              {safeArray(result.ai_observations).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {copied && (
+          <div style={{ marginTop: 10, color: "#22c55e", fontSize: 12, fontWeight: 900 }}>
+            {t("Skopiowano", "Copied")}
+          </div>
+        )}
+      </div>
+
+      {primary && (
+        <PostCard
+          item={primary}
+          platform={platform}
+          css={css}
+          lang={lang}
+          onCopy={copy}
+          actions={
+            <ContentActions
+              item={primary}
+              platform={platform}
+              prompt={prompt}
+              contentType={contentType}
+              workspaceId={workspaceId}
+              css={css}
+              lang={lang}
+              media={media}
+            />
+          }
+        />
+      )}
+
+      {hooks.length > 0 && (
+        <div
+          style={{
+            background: css.surface,
+            border: `1px solid ${css.border}`,
+            borderRadius: 20,
+            padding: 16,
+          }}
+        >
+          <SectionLabel color={css.accent}>
+            {t("Hooki oparte na danych", "Data-based hooks")}
+          </SectionLabel>
+
+          <div style={{ display: "grid", gap: 9 }}>
+            {hooks.map((hook, index) => (
+              <div
+                key={`${hook.text}-${index}`}
+                style={{
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  borderRadius: 15,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ color: css.text, fontSize: 14, fontWeight: 900, lineHeight: 1.45 }}>
+                    “{hook.text}”
+                  </div>
+                  <div style={{ color: getScoreColor(hook.score), fontWeight: 900 }}>
+                    {hook.score}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 7, color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
+                  {hook.type} · {hook.best_for} · {hook.note}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => copy(hook.text)}
+                  style={{
+                    marginTop: 8,
+                    border: "none",
+                    background: "transparent",
+                    color: css.accent,
+                    fontSize: 11,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    padding: 0,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {t("Kopiuj hook", "Copy hook")}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {variants.length > 0 && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {variants.map((variant, index) => (
+            <PostCard
+              key={`${variant.platform}-${index}`}
+              item={variant}
+              platform={variant.platform}
+              css={css}
+              lang={lang}
+              onCopy={copy}
+              actions={
+                <ContentActions
+                  item={variant}
+                  platform={variant.platform}
+                  prompt={prompt}
+                  contentType={variant.format || contentType}
+                  workspaceId={workspaceId}
+                  css={css}
+                  lang={lang}
+                  media={media}
+                />
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {safeArray(result.article_outline).length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>
+            {t("Konspekt artykułu", "Article outline")}
+          </SectionLabel>
+
+          <ol style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.75 }}>
+            {safeArray(result.article_outline).map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {result.article_html && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>
+            {t("HTML artykułu", "Article HTML")}
+          </SectionLabel>
+
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              color: css.muted,
+              fontSize: 11,
+              lineHeight: 1.65,
+              margin: 0,
+              maxHeight: 420,
+              overflow: "auto",
+            }}
+          >
+            {result.article_html}
+          </pre>
+        </div>
+      )}
+
+      {safeArray(result.blog_cta_blocks).length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>
+            {t("Bloki CTA do bloga", "Blog CTA blocks")}
+          </SectionLabel>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {safeArray(result.blog_cta_blocks).map((item) => (
+              <div
+                key={item}
+                style={{
+                  border: `1px solid ${css.border}`,
+                  background: css.liveSoft,
+                  borderRadius: 14,
+                  padding: 11,
+                  color: css.text,
+                  fontSize: 12,
+                  lineHeight: 1.6,
+                }}
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {safeArray(result.content_plan).length > 0 && (
+        <div style={resultBox(css)}>
+          <SectionLabel color={css.accent}>
+            {t("Kolejne ruchy contentowe", "Next content moves")}
+          </SectionLabel>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {safeArray(result.content_plan).map((item, index) => {
+              const info = getPlatformInfo(item.platform);
+
+              return (
+                <div
+                  key={`${item.platform}-${index}`}
+                  style={{
+                    border: `1px solid ${css.border}`,
+                    background: css.liveSoft,
+                    borderRadius: 14,
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ color: info.color, fontWeight: 900, fontSize: 12 }}>
+                    {lang === "pl" ? info.pl : info.en} · {item.format}
+                  </div>
+
+                  <div style={{ color: css.text, fontSize: 13, fontWeight: 900, marginTop: 5 }}>
+                    {item.idea}
+                  </div>
+
+                  <div style={{ color: css.muted, fontSize: 11, lineHeight: 1.6, marginTop: 5 }}>
+                    {t("Kąt:", "Angle:")} {item.angle} · CTA: {item.cta}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function resultBox(css: Record<string, string>): CSSProperties {
+  return {
+    background: css.surface,
+    border: `1px solid ${css.border}`,
+    borderRadius: 20,
+    padding: 16,
+  };
+}
+
 function ScheduleModal({
   onClose,
   onSchedule,
   platform,
   css,
+  lang,
 }: {
   onClose: () => void;
   onSchedule: (date: string) => void;
   platform: Platform;
   css: Record<string, string>;
+  lang: Lang;
 }) {
-  const { text } = useContentIQLanguage();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("15:00");
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  const info = getPlatformInfo(platform);
 
   return (
     <div
@@ -821,74 +1743,48 @@ function ScheduleModal({
           fontFamily: "var(--font-body)",
         }}
       >
-        <h3 style={{ margin: "0 0 6px", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 26, fontWeight: 500 }}>
-          Zaplanuj publikację
+        <h3
+          style={{
+            margin: "0 0 6px",
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 26,
+            fontWeight: 500,
+          }}
+        >
+          {t("Zaplanuj publikację", "Schedule publication")}
         </h3>
 
         <div style={{ fontSize: 12, color: css.muted, marginBottom: 18 }}>
-          Platforma:{" "}
-          <span style={{ color: getPlatformInfo(platform)?.color }}>
-            {getPlatformInfo(platform)?.name}
+          {t("Platforma:", "Platform:")}{" "}
+          <span style={{ color: info.color }}>
+            {lang === "pl" ? info.pl : info.en}
           </span>
         </div>
 
         <div style={{ marginBottom: 13 }}>
-          <SectionLabel color={css.muted}>{text("Data", "Date")}</SectionLabel>
+          <SectionLabel color={css.muted}>{t("Data", "Date")}</SectionLabel>
           <input
             type="date"
             value={date}
             onChange={(event) => setDate(event.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: `1px solid ${css.border}`,
-              background: css.bg,
-              color: css.text,
-              fontSize: 13,
-              fontFamily: "inherit",
-              outline: "none",
-            }}
+            style={inputStyle(css)}
           />
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <SectionLabel color={css.muted}>{text("Godzina", "Time")}</SectionLabel>
+          <SectionLabel color={css.muted}>{t("Godzina", "Time")}</SectionLabel>
           <input
             type="time"
             value={time}
             onChange={(event) => setTime(event.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: `1px solid ${css.border}`,
-              background: css.bg,
-              color: css.text,
-              fontSize: 13,
-              fontFamily: "inherit",
-              outline: "none",
-            }}
+            style={inputStyle(css)}
           />
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: "11px",
-              borderRadius: 12,
-              border: `1px solid ${css.border}`,
-              background: "transparent",
-              color: css.muted,
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Anuluj
+          <button type="button" onClick={onClose} style={actionButton(css, false)}>
+            {t("Anuluj", "Cancel")}
           </button>
 
           <button
@@ -898,20 +1794,13 @@ function ScheduleModal({
             }}
             disabled={!date}
             style={{
-              flex: 1,
-              padding: "11px",
-              borderRadius: 12,
-              border: "none",
-              background: getPlatformInfo(platform)?.color || css.accent,
+              ...actionButton(css, true),
+              background: info.color,
               color: "#fff",
-              fontSize: 12,
-              fontWeight: 900,
-              cursor: "pointer",
-              fontFamily: "inherit",
               opacity: !date ? 0.5 : 1,
             }}
           >
-            Zaplanuj
+            {t("Zaplanuj", "Schedule")}
           </button>
         </div>
       </div>
@@ -926,6 +1815,7 @@ function ContentActions({
   contentType,
   workspaceId,
   css,
+  lang,
   media,
 }: {
   item: GeneratedPost | ContentVariant;
@@ -934,6 +1824,7 @@ function ContentActions({
   contentType: string;
   workspaceId: string;
   css: Record<string, string>;
+  lang: Lang;
   media: LocalMediaItem[];
 }) {
   const supabase = createClient();
@@ -948,7 +1839,11 @@ function ContentActions({
   const score = "estimated_score" in item ? item.estimated_score : item.score;
   const notes = "platform_notes" in item ? item.platform_notes : item.notes;
   const fullContent = fullPostText(item);
-  const pColor = getPlatformInfo(platform)?.color || css.accent;
+  const pColor = getPlatformInfo(platform).color;
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
 
   function showToast(msg: string, type: "ok" | "err") {
     setToast({ msg, type });
@@ -981,7 +1876,7 @@ function ContentActions({
     if (media.length === 0) return [];
 
     const expiresAt = getExpiryDate(scheduledAt);
-    const uploaded: UploadedMediaItem[] = [];
+    const uploaded = [];
 
     for (const mediaItem of media) {
       const fileName = safeFileName(mediaItem.name || "media");
@@ -1045,7 +1940,7 @@ function ContentActions({
 
     try {
       const wsId = await getOrCreateWorkspaceUuid();
-      if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
+      if (!wsId) throw new Error(t("Brak przestrzeni aplikacji.", "Missing workspace."));
 
       const { error } = await supabase
         .schema("contentiq")
@@ -1065,9 +1960,9 @@ function ContentActions({
         });
 
       if (error) throw new Error(error.message);
-      showToast("✓ Zapisano jako inspirację", "ok");
+      showToast(t("✓ Zapisano jako inspirację", "✓ Saved as inspiration"), "ok");
     } catch (err) {
-      showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
       setSaving(false);
     }
@@ -1075,7 +1970,7 @@ function ContentActions({
 
   async function saveTemplate(status: "template" | "scheduled" = "template", scheduledAt?: string) {
     const wsId = await getOrCreateWorkspaceUuid();
-    if (!wsId) throw new Error("Brak przestrzeni aplikacji.");
+    if (!wsId) throw new Error(t("Brak przestrzeni aplikacji.", "Missing workspace."));
 
     const { data: draft, error } = await supabase
       .schema("contentiq")
@@ -1112,9 +2007,9 @@ function ContentActions({
 
     try {
       await saveTemplate("template");
-      showToast("✓ Zapisano jako szablon", "ok");
+      showToast(t("✓ Zapisano jako szablon", "✓ Saved as template"), "ok");
     } catch (err) {
-      showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
       setSavingTemplate(false);
     }
@@ -1137,7 +2032,9 @@ function ContentActions({
         .limit(1)
         .single();
 
-      if (!conn) throw new Error(`Brak podłączonego konta: ${platform}`);
+      if (!conn) {
+        throw new Error(t(`Brak podłączonego konta: ${platform}`, `No connected account: ${platform}`));
+      }
 
       const { data: scheduled, error: schedErr } = await supabase
         .schema("contentiq")
@@ -1160,9 +2057,12 @@ function ContentActions({
         .update({ scheduled_post_id: scheduled.id })
         .eq("draft_id", draftId);
 
-      showToast(`✓ Zaplanowano na ${new Date(scheduledAt).toLocaleString("pl-PL")}`, "ok");
+      showToast(
+        `${t("✓ Zaplanowano na", "✓ Scheduled for")} ${new Date(scheduledAt).toLocaleString("pl-PL")}`,
+        "ok"
+      );
     } catch (err) {
-      showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
       setScheduling(false);
     }
@@ -1173,9 +2073,9 @@ function ContentActions({
 
     try {
       await schedulePost(new Date().toISOString());
-      showToast("✓ Wysłano do kolejki publikacji", "ok");
+      showToast(t("✓ Wysłano do kolejki publikacji", "✓ Sent to publishing queue"), "ok");
     } catch (err) {
-      showToast(`Błąd: ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {
       setPublishing(false);
     }
@@ -1208,6 +2108,7 @@ function ContentActions({
         <ScheduleModal
           platform={platform}
           css={css}
+          lang={lang}
           onClose={() => setShowModal(false)}
           onSchedule={schedulePost}
         />
@@ -1222,11 +2123,11 @@ function ContentActions({
         }}
       >
         <button type="button" onClick={saveAsTemplate} disabled={savingTemplate} style={actionButton(css, false)}>
-          {savingTemplate ? "Zapisuję..." : "Szablon"}
+          {savingTemplate ? t("Zapisuję...", "Saving...") : t("Szablon", "Template")}
         </button>
 
         <button type="button" onClick={saveInspiration} disabled={saving} style={actionButton(css, false)}>
-          {saving ? "Zapisuję..." : "Inspiracja"}
+          {saving ? t("Zapisuję...", "Saving...") : t("Inspiracja", "Inspiration")}
         </button>
 
         <button
@@ -1240,7 +2141,7 @@ function ContentActions({
             color: pColor,
           }}
         >
-          {scheduling ? "Planowanie..." : "Zaplanuj"}
+          {scheduling ? t("Planowanie...", "Scheduling...") : t("Zaplanuj", "Schedule")}
         </button>
 
         <button
@@ -1254,454 +2155,10 @@ function ContentActions({
             color: "#fff",
           }}
         >
-          {publishing ? "Wysyłam..." : "Publikuj"}
+          {publishing ? t("Wysyłam...", "Sending...") : t("Publikuj", "Publish")}
         </button>
       </div>
     </>
-  );
-}
-
-function actionButton(css: Record<string, string>, strong: boolean): CSSProperties {
-  return {
-    padding: "10px 8px",
-    borderRadius: 12,
-    border: `1px solid ${css.border}`,
-    background: strong ? css.accentSoft : css.surface,
-    color: strong ? css.accent : css.muted,
-    fontSize: 11,
-    fontWeight: 900,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  };
-}
-
-function ResultPanel({
-  result,
-  flow,
-  platform,
-  selectedPlatforms,
-  prompt,
-  contentType,
-  workspaceId,
-  css,
-  media,
-}: {
-  result: StudioResult;
-  flow: StudioFlow;
-  platform: Platform;
-  selectedPlatforms: Platform[];
-  prompt: string;
-  contentType: string;
-  workspaceId: string;
-  css: Record<string, string>;
-  media: LocalMediaItem[];
-}) {
-  const { text } = useContentIQLanguage();
-  const [copied, setCopied] = useState("");
-
-  async function copy(text: string, id: string) {
-    await navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(""), 1600);
-  }
-
-  const primary = result.primary;
-  const variants = safeArray(result.variants);
-  const hooks = safeArray(result.hooks);
-
-  return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div
-        style={{
-          background: css.surface,
-          border: `1px solid ${css.border}`,
-          borderRadius: 20,
-          padding: 16,
-        }}
-      >
-        <SectionLabel color={css.accent}>{text("Wynik Content Studio", "Content Studio result")}</SectionLabel>
-        <h3
-          style={{
-            margin: "0 0 8px",
-            color: css.heading,
-            fontFamily: "var(--font-heading)",
-            fontSize: 28,
-            lineHeight: 1.05,
-            fontWeight: 500,
-          }}
-        >
-          {result.title}
-        </h3>
-        <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
-          {result.strategic_note || "AI przygotowało propozycję contentu."}
-        </p>
-        {result.source_summary && (
-          <p style={{ margin: "10px 0 0", color: css.text, fontSize: 12, lineHeight: 1.7 }}>
-            <strong>{text("Źródło:", "Source:")}</strong> {result.source_summary}
-          </p>
-        )}
-      </div>
-
-      {primary && (
-        <PostCard
-          item={primary}
-          platform={platform}
-          css={css}
-          copied={copied}
-          onCopy={copy}
-          actions={
-            <ContentActions
-              item={primary}
-              platform={platform}
-              prompt={prompt}
-              contentType={contentType}
-              workspaceId={workspaceId}
-              css={css}
-              media={media}
-            />
-          }
-        />
-      )}
-
-      {hooks.length > 0 && (
-        <div
-          style={{
-            background: css.surface,
-            border: `1px solid ${css.border}`,
-            borderRadius: 20,
-            padding: 16,
-          }}
-        >
-          <SectionLabel color={css.accent}>{text("Hooki do testu", "Hooks to test")}</SectionLabel>
-          <div style={{ display: "grid", gap: 9 }}>
-            {hooks.map((hook, index) => (
-              <div
-                key={`${hook.text}-${index}`}
-                style={{
-                  border: `1px solid ${css.border}`,
-                  background: css.liveSoft,
-                  borderRadius: 15,
-                  padding: 12,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ color: css.text, fontSize: 14, fontWeight: 900, lineHeight: 1.45 }}>
-                    “{hook.text}”
-                  </div>
-                  <div style={{ color: getScoreColor(hook.score), fontWeight: 900 }}>{hook.score}</div>
-                </div>
-                <div style={{ marginTop: 7, color: css.muted, fontSize: 11, lineHeight: 1.55 }}>
-                  {hook.type} · {hook.best_for} · {hook.note}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => copy(hook.text, `hook-${index}`)}
-                  style={{
-                    marginTop: 8,
-                    border: "none",
-                    background: "transparent",
-                    color: css.accent,
-                    fontSize: 11,
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    padding: 0,
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {copied === `hook-${index}` ? "Skopiowano" : "Kopiuj hook"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {variants.length > 0 && (
-        <div style={{ display: "grid", gap: 12 }}>
-          {variants.map((variant, index) => (
-            <PostCard
-              key={`${variant.platform}-${index}`}
-              item={variant}
-              platform={variant.platform}
-              css={css}
-              copied={copied}
-              onCopy={copy}
-              actions={
-                <ContentActions
-                  item={variant}
-                  platform={variant.platform}
-                  prompt={prompt}
-                  contentType={variant.format || contentType}
-                  workspaceId={workspaceId}
-                  css={css}
-                  media={media}
-                />
-              }
-            />
-          ))}
-        </div>
-      )}
-
-      {result.article_outline && result.article_outline.length > 0 && (
-        <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>{text("Konspekt artykułu", "Article outline")}</SectionLabel>
-          <ol style={{ margin: 0, paddingLeft: 18, color: css.text, fontSize: 12, lineHeight: 1.75 }}>
-            {result.article_outline.map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      {result.article_html && (
-        <div style={resultBox(css)}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-            <SectionLabel color={css.accent}>{text("HTML artykułu", "Article HTML")}</SectionLabel>
-            <button
-              type="button"
-              onClick={() => copy(result.article_html || "", "article-html")}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: css.accent,
-                fontSize: 11,
-                fontWeight: 900,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {copied === "article-html" ? "Skopiowano" : "Kopiuj HTML"}
-            </button>
-          </div>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              color: css.muted,
-              fontSize: 11,
-              lineHeight: 1.65,
-              margin: 0,
-              maxHeight: 420,
-              overflow: "auto",
-            }}
-          >
-            {result.article_html}
-          </pre>
-        </div>
-      )}
-
-      {safeArray(result.blog_cta_blocks).length > 0 && (
-        <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>{text("Bloki CTA do bloga", "Blog CTA blocks")}</SectionLabel>
-          <div style={{ display: "grid", gap: 8 }}>
-            {safeArray(result.blog_cta_blocks).map((item, index) => (
-              <div
-                key={`${item}-${index}`}
-                style={{
-                  border: `1px solid ${css.border}`,
-                  background: css.liveSoft,
-                  borderRadius: 14,
-                  padding: 11,
-                  color: css.text,
-                  fontSize: 12,
-                  lineHeight: 1.6,
-                }}
-              >
-                {item}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {safeArray(result.content_plan).length > 0 && (
-        <div style={resultBox(css)}>
-          <SectionLabel color={css.accent}>{text("Co zrobić dalej z tym contentem?", "What would you like to do with this content?")}</SectionLabel>
-          <div style={{ display: "grid", gap: 8 }}>
-            {safeArray(result.content_plan).map((item, index) => {
-              const info = getPlatformInfo(item.platform);
-              return (
-                <div
-                  key={`${item.platform}-${index}`}
-                  style={{
-                    border: `1px solid ${css.border}`,
-                    background: css.liveSoft,
-                    borderRadius: 14,
-                    padding: 12,
-                  }}
-                >
-                  <div style={{ color: info?.color || css.accent, fontWeight: 900, fontSize: 12 }}>
-                    {info?.name || item.platform} · {item.format}
-                  </div>
-                  <div style={{ color: css.text, fontSize: 13, fontWeight: 900, marginTop: 5 }}>
-                    {item.idea}
-                  </div>
-                  <div style={{ color: css.muted, fontSize: 11, lineHeight: 1.6, marginTop: 5 }}>
-                    Kąt: {item.angle} · CTA: {item.cta}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function resultBox(css: Record<string, string>): CSSProperties {
-  return {
-    background: css.surface,
-    border: `1px solid ${css.border}`,
-    borderRadius: 20,
-    padding: 16,
-  };
-}
-
-function PostCard({
-  item,
-  platform,
-  css,
-  copied,
-  onCopy,
-  actions,
-}: {
-  item: GeneratedPost | ContentVariant;
-  platform: Platform;
-  css: Record<string, string>;
-  copied: string;
-  onCopy: (text: string, id: string) => void;
-  actions: React.ReactNode;
-}) {
-  const { text } = useContentIQLanguage();
-  const info = getPlatformInfo(platform);
-  const score = "estimated_score" in item ? item.estimated_score : item.score;
-  const notes = "platform_notes" in item ? item.platform_notes : item.notes;
-
-  return (
-    <div
-      style={{
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        borderTop: `4px solid ${info?.color || css.accent}`,
-        borderRadius: 20,
-        padding: 16,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-        <div>
-          <SectionLabel color={info?.color || css.accent}>{info?.name || platform}</SectionLabel>
-          <h3
-            style={{
-              margin: 0,
-              color: css.heading,
-              fontFamily: "var(--font-heading)",
-              fontSize: 25,
-              lineHeight: 1.08,
-              fontWeight: 500,
-            }}
-          >
-            {item.title || "Wariant contentu"}
-          </h3>
-        </div>
-
-        <div style={{ color: getScoreColor(score), fontSize: 28, fontWeight: 900, fontFamily: "var(--font-heading)" }}>
-          {score || 0}
-        </div>
-      </div>
-
-      {item.hook && (
-        <div
-          style={{
-            marginTop: 13,
-            background: css.aiBg,
-            border: `1px solid ${css.aiBorder}`,
-            boxShadow: css.aiGlow,
-            borderRadius: 16,
-            padding: 13,
-          }}
-        >
-          <SectionLabel color={css.aiText}>Hook</SectionLabel>
-          <p style={{ margin: 0, color: css.text, fontSize: 15, fontWeight: 900, lineHeight: 1.45 }}>
-            “{item.hook}”
-          </p>
-        </div>
-      )}
-
-      <div style={{ marginTop: 11, color: css.text, fontSize: 13, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
-        {item.body}
-      </div>
-
-      {item.cta && (
-        <div style={{ marginTop: 11, color: css.accent, fontSize: 13, fontWeight: 900 }}>
-          CTA: {item.cta}
-        </div>
-      )}
-
-      {item.recommended_comment && (
-        <div
-          style={{
-            marginTop: 11,
-            border: `1px dashed ${css.border}`,
-            background: css.liveSoft,
-            borderRadius: 14,
-            padding: 11,
-            color: css.muted,
-            fontSize: 12,
-            lineHeight: 1.6,
-          }}
-        >
-          <strong style={{ color: css.text }}>{text("Komentarz / link:", "Comment / link:")}</strong> {item.recommended_comment}
-        </div>
-      )}
-
-      {safeArray(item.hashtags).length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
-          {safeArray(item.hashtags).map((tag, index) => (
-            <span
-              key={`${tag}-${index}`}
-              style={{
-                background: `${info?.color || css.accent}18`,
-                color: info?.color || css.accent,
-                borderRadius: 999,
-                padding: "4px 8px",
-                fontSize: 10,
-                fontWeight: 900,
-              }}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {notes && (
-        <p style={{ margin: "12px 0 0", color: css.muted, fontSize: 11, lineHeight: 1.65 }}>
-          {notes}
-        </p>
-      )}
-
-      <button
-        type="button"
-        onClick={() => onCopy(fullPostText(item), `copy-${platform}-${item.title}`)}
-        style={{
-          width: "100%",
-          marginTop: 12,
-          border: `1px solid ${css.border}`,
-          background: "transparent",
-          color: css.muted,
-          borderRadius: 12,
-          padding: "10px 12px",
-          fontSize: 11,
-          fontWeight: 900,
-          cursor: "pointer",
-          fontFamily: "inherit",
-        }}
-      >
-        {copied === `copy-${platform}-${item.title}` ? "Skopiowano" : "Kopiuj treść"}
-      </button>
-
-      <div style={{ marginTop: 10 }}>{actions}</div>
-    </div>
   );
 }
 
@@ -1713,17 +2170,25 @@ export default function ContentStudio({
   workspaceId?: string;
 }) {
   const { lang, text } = useContentIQLanguage();
-  const [flow, setFlow] = useState<StudioFlow>("social");
+  const language = (lang === "en" ? "en" : "pl") as Lang;
+
+  function t(pl: string, en: string) {
+    return language === "pl" ? pl : en;
+  }
+
+  const [flow, setFlow] = useState<StudioFlow>("smart");
   const [aiProvider, setAiProvider] = useState<AiProvider>("deepseek");
-  const [platform, setPlatform] = useState<Platform>("linkedin");
+  const [platform, setPlatform] = useState<Platform>("facebook");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(BLOG_REPURPOSE_PLATFORMS);
-  const [contentFormat, setContentFormat] = useState(CONTENT_FORMATS[0]);
+  const [contentFormat, setContentFormat] = useState(CONTENT_FORMATS[0].pl);
   const [prompt, setPrompt] = useState("");
   const [brandContext, setBrandContext] = useState("");
   const [blogUrl, setBlogUrl] = useState("");
   const [blogText, setBlogText] = useState("");
   const [media, setMedia] = useState<LocalMediaItem[]>([]);
+  const [aiContext, setAiContext] = useState<AiContext>(EMPTY_CONTEXT);
 
+  const [contextLoading, setContextLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [result, setResult] = useState<StudioResult | null>(null);
@@ -1770,10 +2235,79 @@ export default function ContentStudio({
         liveSoft: "rgba(255,255,255,0.55)",
       };
 
-  const rootStyle = {
-    fontFamily: "var(--font-body)",
-    color: css.text,
-  } as CSSProperties;
+  const FLOW_CARDS: {
+    id: StudioFlow;
+    title: string;
+    label: string;
+    description: string;
+    hint: string;
+  }[] = [
+    {
+      id: "smart",
+      title: t("AI wybiera kierunek", "AI chooses the direction"),
+      label: t("Rekomendacja z danych", "Data recommendation"),
+      description: t(
+        "AI analizuje wyniki platformy, najlepsze posty, komentarze i pytania odbiorców, a potem proponuje następny ruch.",
+        "AI analyzes platform performance, top posts, comments and audience questions, then suggests the next move."
+      ),
+      hint: t(
+        "Najlepszy tryb, gdy chcesz, żeby aplikacja sama podpowiedziała temat i format.",
+        "Best when you want the app to suggest the topic and format by itself."
+      ),
+    },
+    {
+      id: "social",
+      title: t("Post social media", "Social media post"),
+      label: t("Tworzenie postów", "Post creation"),
+      description: t(
+        "Stwórz gotowy post pod wybraną platformę, ale na podstawie danych, a nie pustego prompta.",
+        "Create a post for a selected platform based on data, not an empty prompt."
+      ),
+      hint: t(
+        "Dobre do codziennych publikacji, kampanii i edukacyjnych postów.",
+        "Good for daily posts, campaigns and educational content."
+      ),
+    },
+    {
+      id: "hooks",
+      title: t("Hooki i otwarcia", "Hooks and openings"),
+      label: t("Testowanie uwagi", "Attention testing"),
+      description: t(
+        "AI tworzy hooki na podstawie treści, które wcześniej miały najlepsze wyniki.",
+        "AI creates hooks based on content that previously performed best."
+      ),
+      hint: t(
+        "Dobre, gdy chcesz poprawić pierwszy wers posta, rolki albo artykułu.",
+        "Good when you want to improve the first line of a post, reel or article."
+      ),
+    },
+    {
+      id: "blog",
+      title: t("Content z bloga", "Blog to social"),
+      label: t("Blog → social", "Blog → social"),
+      description: t(
+        "Przerób wpis blogowy na treści social media dopasowane do wyników platform.",
+        "Turn a blog post into social content adapted to platform performance."
+      ),
+      hint: t(
+        "Idealne do procesu: blog jako źródło, social media jako dystrybucja.",
+        "Ideal for the process: blog as the source, social media as distribution."
+      ),
+    },
+    {
+      id: "article",
+      title: t("Artykuł / wpis blogowy", "Article / blog post"),
+      label: t("Dłuższa treść", "Long-form content"),
+      description: t(
+        "AI proponuje artykuł na podstawie pytań odbiorców, komentarzy i tematów, które już działają.",
+        "AI suggests an article based on audience questions, comments and topics that already work."
+      ),
+      hint: t(
+        "Dobre do budowania kampanii wokół jednego mocnego tematu.",
+        "Good for building a campaign around one strong topic."
+      ),
+    },
+  ];
 
   const activeFlow = FLOW_CARDS.find((item) => item.id === flow) || FLOW_CARDS[0];
 
@@ -1789,10 +2323,42 @@ export default function ContentStudio({
     };
   }, [media]);
 
+  useEffect(() => {
+    loadAiContext();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, platform]);
+
   const canGenerate = useMemo(() => {
-    if (flow === "blog") return Boolean(blogText.trim() || blogUrl.trim() || prompt.trim());
-    return Boolean(prompt.trim());
-  }, [flow, prompt, blogText, blogUrl]);
+    if (flow === "blog") return Boolean(blogText.trim() || blogUrl.trim() || prompt.trim() || aiContext.hasData);
+    return Boolean(prompt.trim() || brandContext.trim() || aiContext.hasData);
+  }, [flow, prompt, brandContext, blogText, blogUrl, aiContext.hasData]);
+
+  async function loadAiContext() {
+    setContextLoading(true);
+
+    try {
+      const res = await fetch(
+        `/api/content-studio/context?workspaceId=${encodeURIComponent(workspaceId)}&platform=${encodeURIComponent(platform)}`,
+        { cache: "no-store" }
+      );
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.error) {
+        setAiContext(EMPTY_CONTEXT);
+        return;
+      }
+
+      setAiContext({
+        ...EMPTY_CONTEXT,
+        ...(data?.context || data || {}),
+      });
+    } catch {
+      setAiContext(EMPTY_CONTEXT);
+    } finally {
+      setContextLoading(false);
+    }
+  }
 
   function resetResult() {
     setResult(null);
@@ -1806,13 +2372,14 @@ export default function ContentStudio({
         if (prev.length === 1) return prev;
         return prev.filter((item) => item !== platformId);
       }
+
       return [...prev, platformId];
     });
   }
 
   async function scrapeBlogUrl() {
     if (!blogUrl.trim()) {
-      setError("Wklej link do wpisu blogowego.");
+      setError(t("Wklej link do wpisu blogowego.", "Paste the blog post link."));
       return;
     }
 
@@ -1829,11 +2396,10 @@ export default function ContentStudio({
       const data = await res.json().catch(() => null);
 
       if (!res.ok || data?.error) {
-        throw new Error(data?.error || "Nie udało się pobrać treści bloga.");
+        throw new Error(data?.error || t("Nie udało się pobrać treści bloga.", "Could not fetch the blog content."));
       }
 
-      const sourceNotes = data.source_notes || data.text || data.summary || "";
-      setBlogText(sourceNotes);
+      setBlogText(data.source_notes || data.text || data.summary || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1849,7 +2415,7 @@ export default function ContentStudio({
 
     try {
       const studioPrompt = buildStudioPrompt({
-        language: lang,
+        language,
         flow,
         platform,
         selectedPlatforms,
@@ -1858,6 +2424,7 @@ export default function ContentStudio({
         blogUrl,
         blogText,
         brandContext,
+        aiContext,
       });
 
       const res = await fetch("/api/chat", {
@@ -1875,6 +2442,7 @@ export default function ContentStudio({
             contentFormat,
             blogUrl,
             hasMedia: media.length > 0,
+            aiContext,
             media: media.map((item) => ({
               name: item.name,
               type: item.assetType,
@@ -1888,19 +2456,15 @@ export default function ContentStudio({
       const json = (await res.json().catch(() => null)) as ApiResponse | null;
 
       if (!res.ok || json?.error) {
-        throw new Error(json?.details || json?.error || "Błąd API.");
+        throw new Error(json?.details || json?.error || t("Błąd API.", "API error."));
       }
 
       const answer = json?.answer || "";
       setRawAnswer(answer);
 
-      let parsed: StudioResult | null = null;
-
-      try {
-        parsed = normalizeStudioResult(JSON.parse(cleanJsonAnswer(answer)) as Partial<StudioResult>);
-      } catch {
-        throw new Error("AI nie zwróciło poprawnego JSON. Spróbuj ponownie albo skróć brief.");
-      }
+      const parsed = normalizeStudioResult(
+        JSON.parse(cleanJsonAnswer(answer)) as Partial<StudioResult>
+      );
 
       setResult(parsed);
     } catch (err) {
@@ -1910,20 +2474,24 @@ export default function ContentStudio({
     }
   }
 
+  const rootStyle = {
+    fontFamily: "var(--font-body)",
+    color: css.text,
+  } as CSSProperties;
+
   return (
     <div style={rootStyle}>
       <style>{`
         * { box-sizing: border-box; }
         textarea { resize: none; overflow: hidden; }
-        .ciq-studio-grid { display:grid; grid-template-columns: 0.95fr 1.05fr; gap:18px; align-items:start; }
-        .ciq-flow-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px; }
+        .ciq-studio-grid { display:grid; grid-template-columns: 0.92fr 1.08fr; gap:18px; align-items:start; }
+        .ciq-flow-grid { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:10px; }
         .ciq-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         button { transition: all .15s ease; }
         button:hover:not(:disabled) { opacity:.86; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media(max-width:1100px) {
-          .ciq-studio-grid { grid-template-columns:1fr; }
+        @media(max-width:1220px) {
           .ciq-flow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ciq-studio-grid { grid-template-columns:1fr; }
         }
         @media(max-width:680px) {
           .ciq-flow-grid, .ciq-two { grid-template-columns: 1fr; }
@@ -1940,6 +2508,7 @@ export default function ContentStudio({
           }}
         >
           <SectionLabel color={css.accent}>Content Studio</SectionLabel>
+
           <h2
             style={{
               margin: "0 0 8px",
@@ -1950,18 +2519,27 @@ export default function ContentStudio({
               fontWeight: 500,
             }}
           >
-            {text(
-              "Twórz content z jasnego procesu, nie z jednego chaotycznego pola",
-              "Create content through a clear workflow, not one chaotic field"
+            {t(
+              "AI najpierw analizuje wyniki, potem tworzy content",
+              "AI analyzes performance first, then creates content"
             )}
           </h2>
+
           <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.7, maxWidth: 980 }}>
-            {text(
-              "Wybierz, czy chcesz stworzyć post, przetestować hooki, przerobić blog na social media albo przygotować artykuł jako źródło kampanii. Wynik możesz zapisać jako inspirację, szablon, dodać do harmonogramu albo wysłać do kolejki publikacji.",
-              "Choose whether to create a post, test hooks, repurpose a blog article for social media or prepare a campaign article. Save the result as an inspiration or template, schedule it or send it to the publishing queue."
+            {t(
+              "ContentIQ nie działa jak zwykły chat. Aplikacja sprawdza najlepsze posty, komentarze, formaty i pytania odbiorców, a dopiero potem proponuje temat, hook, treść, CTA i kolejny ruch.",
+              "ContentIQ does not work like a regular chat. The app checks top posts, comments, formats and audience questions first, then suggests the topic, hook, copy, CTA and next move."
             )}
           </p>
         </div>
+
+        <AiContextPanel
+          css={css}
+          lang={language}
+          context={aiContext}
+          loading={contextLoading}
+          onRefresh={loadAiContext}
+        />
 
         <div className="ciq-flow-grid">
           {FLOW_CARDS.map((card) => (
@@ -1992,7 +2570,10 @@ export default function ContentStudio({
                 padding: 15,
               }}
             >
-              <SectionLabel color={css.aiText}>{text("Aktywny tryb", "Active mode")}</SectionLabel>
+              <SectionLabel color={css.aiText}>
+                {t("Aktywny tryb AI", "Active AI mode")}
+              </SectionLabel>
+
               <h3
                 style={{
                   margin: "0 0 7px",
@@ -2005,6 +2586,7 @@ export default function ContentStudio({
               >
                 {activeFlow.title}
               </h3>
+
               <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.65 }}>
                 {activeFlow.description}
               </p>
@@ -2012,7 +2594,8 @@ export default function ContentStudio({
 
             <div className="ciq-two">
               <div>
-                <SectionLabel color={css.muted}>{text("Silnik AI", "AI engine")}</SectionLabel>
+                <SectionLabel color={css.muted}>{t("Silnik AI", "AI engine")}</SectionLabel>
+
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   {(["deepseek", "gemini"] as AiProvider[]).map((provider) => (
                     <button
@@ -2039,24 +2622,20 @@ export default function ContentStudio({
               </div>
 
               <div>
-                <SectionLabel color={css.muted}>Format</SectionLabel>
+                <SectionLabel color={css.muted}>{t("Format", "Format")}</SectionLabel>
+
                 <select
                   value={contentFormat}
                   onChange={(event) => setContentFormat(event.target.value)}
                   style={{
-                    width: "100%",
-                    borderRadius: 13,
-                    border: `1px solid ${css.border}`,
-                    background: css.surface,
-                    color: css.text,
+                    ...inputStyle(css),
                     padding: "11px 12px",
-                    fontFamily: "inherit",
-                    fontSize: 12,
-                    outline: "none",
                   }}
                 >
                   {CONTENT_FORMATS.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item.pl} value={language === "pl" ? item.pl : item.en}>
+                      {language === "pl" ? item.pl : item.en}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -2064,13 +2643,19 @@ export default function ContentStudio({
 
             {flow !== "blog" && (
               <div>
-                <SectionLabel color={css.muted}>{text("Platforma główna", "Primary platform")}</SectionLabel>
+                <SectionLabel color={css.muted}>
+                  {t("Platforma główna", "Primary platform")}
+                </SectionLabel>
+
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {PLATFORMS.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setPlatform(item.id)}
+                      onClick={() => {
+                        setPlatform(item.id);
+                        resetResult();
+                      }}
                       style={{
                         padding: "7px 12px",
                         borderRadius: 11,
@@ -2083,7 +2668,7 @@ export default function ContentStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {item.name}
+                      {language === "pl" ? item.pl : item.en}
                     </button>
                   ))}
                 </div>
@@ -2092,10 +2677,14 @@ export default function ContentStudio({
 
             {flow === "blog" && (
               <div>
-                <SectionLabel color={css.muted}>{text("Platformy dystrybucji bloga", "Blog distribution platforms")}</SectionLabel>
+                <SectionLabel color={css.muted}>
+                  {t("Platformy dystrybucji bloga", "Blog distribution platforms")}
+                </SectionLabel>
+
                 <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
                   {PLATFORMS.filter((item) => item.id !== "blog" && item.id !== "spotify").map((item) => {
                     const selected = selectedPlatforms.includes(item.id);
+
                     return (
                       <button
                         key={item.id}
@@ -2113,7 +2702,7 @@ export default function ContentStudio({
                           fontFamily: "inherit",
                         }}
                       >
-                        {item.name}
+                        {language === "pl" ? item.pl : item.en}
                       </button>
                     );
                   })}
@@ -2124,14 +2713,21 @@ export default function ContentStudio({
             {flow === "blog" && (
               <div style={{ display: "grid", gap: 10 }}>
                 <div>
-                  <SectionLabel color={css.muted}>{text("Link do wpisu blogowego", "Blog post link")}</SectionLabel>
+                  <SectionLabel color={css.muted}>
+                    {t("Link do wpisu blogowego", "Blog post link")}
+                  </SectionLabel>
+
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
                     <input
                       value={blogUrl}
                       onChange={(event) => setBlogUrl(event.target.value)}
-                      placeholder="https://twojastrona.pl/artykul"
+                      placeholder={t(
+                        "https://twojastrona.pl/artykul",
+                        "https://yourwebsite.com/article"
+                      )}
                       style={inputStyle(css)}
                     />
+
                     <button
                       type="button"
                       onClick={scrapeBlogUrl}
@@ -2149,17 +2745,23 @@ export default function ContentStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {scraping ? "Pobieram..." : "Pobierz"}
+                      {scraping ? t("Pobieram...", "Fetching...") : t("Pobierz", "Fetch")}
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <SectionLabel color={css.muted}>{text("Treść / streszczenie bloga", "Blog content / summary")}</SectionLabel>
+                  <SectionLabel color={css.muted}>
+                    {t("Treść / streszczenie bloga", "Blog content / summary")}
+                  </SectionLabel>
+
                   <textarea
                     value={blogText}
                     onChange={(event) => setBlogText(event.target.value)}
-                    placeholder="Wklej treść artykułu albo pobierz ją z linku. AI zrobi z niej posty na social media."
+                    placeholder={t(
+                      "Wklej treść artykułu albo pobierz ją z linku. AI połączy blog z danymi z platform i zrobi wersje do dystrybucji.",
+                      "Paste the article or fetch it from the link. AI will combine the blog with platform data and create distribution versions."
+                    )}
                     style={{ ...inputStyle(css), minHeight: 125, lineHeight: 1.65 }}
                   />
                 </div>
@@ -2168,38 +2770,54 @@ export default function ContentStudio({
 
             <div>
               <SectionLabel color={css.muted}>
-                {flow === "social" ? "Temat posta" : flow === "hooks" ? "Temat hooków" : flow === "article" ? "Brief artykułu" : "Dodatkowa sugestia"}
+                {t("Doprecyzowanie dla AI — opcjonalnie", "AI refinement — optional")}
               </SectionLabel>
+
               <textarea
                 ref={textareaRef}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 placeholder={
-                  flow === "blog"
-                    ? "Np. dodaj CTA do aplikacji, link w komentarzu, ton ekspercki na LinkedIn i lżejszy na Facebooku."
-                    : flow === "article"
-                      ? "Np. artykuł o tym, jak używać bloga jako centrum kampanii contentowej..."
-                      : "Np. temat, cel, odbiorca, oferta, link, ton lub ważna sugestia."
+                  flow === "smart"
+                    ? t(
+                        "Opcjonalnie: np. skup się na pozyskaniu leadów, użyj miękkiej sprzedaży, przygotuj coś pod demo aplikacji. Możesz zostawić puste — AI użyje danych z platform.",
+                        "Optional: e.g. focus on lead generation, use soft sales, prepare something for the app demo. You can leave this empty — AI will use platform data."
+                      )
+                    : flow === "blog"
+                      ? t(
+                          "Opcjonalnie: np. link w komentarzu, ton ekspercki na LinkedIn i lżejszy na Facebooku.",
+                          "Optional: e.g. link in the comment, expert tone on LinkedIn and lighter tone on Facebook."
+                        )
+                      : t(
+                          "Opcjonalnie: dopisz cel kampanii, ofertę, link albo ton. AI i tak zacznie od danych z platformy.",
+                          "Optional: add campaign goal, offer, link or tone. AI will still start from platform data."
+                        )
                 }
                 style={{
                   ...inputStyle(css),
-                  minHeight: 120,
+                  minHeight: 105,
                   lineHeight: 1.7,
                 }}
               />
             </div>
 
             <div>
-              <SectionLabel color={css.muted}>{text("Kontekst marki / oferta / CTA", "Brand context / offer / CTA")}</SectionLabel>
+              <SectionLabel color={css.muted}>
+                {t("Kontekst marki / oferta / CTA", "Brand context / offer / CTA")}
+              </SectionLabel>
+
               <textarea
                 value={brandContext}
                 onChange={(event) => setBrandContext(event.target.value)}
-                placeholder="Np. ANM Collective tworzy aplikacje B2B/B2C. CTA: zobacz demo, napisz do nas, link do bloga w komentarzu."
+                placeholder={t(
+                  "Np. ANM Collective tworzy aplikacje B2B/B2C. CTA: zobacz demo, napisz do nas, link do bloga w komentarzu. Jeśli zostawisz puste, AI użyje danych zapisanych w workspace.",
+                  "E.g. ANM Collective builds B2B/B2C apps. CTA: see demo, contact us, blog link in the comment. If empty, AI will use workspace data."
+                )}
                 style={{ ...inputStyle(css), minHeight: 86, lineHeight: 1.65 }}
               />
             </div>
 
-            <MediaPicker media={media} setMedia={setMedia} css={css} />
+            <MediaPicker media={media} setMedia={setMedia} css={css} lang={language} />
 
             <button
               type="button"
@@ -2214,35 +2832,21 @@ export default function ContentStudio({
                 fontSize: 13,
                 fontWeight: 900,
                 cursor: !canGenerate || loading ? "not-allowed" : "pointer",
-                opacity: !canGenerate || loading ? 0.55 : 1,
+                opacity: !canGenerate || loading ? 0.45 : 1,
                 fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 9,
               }}
             >
-              {loading && (
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    border: "2px solid currentColor",
-                    borderTopColor: "transparent",
-                    animation: "spin .75s linear infinite",
-                  }}
-                />
-              )}
-              {loading ? "AI tworzy content..." : flow === "blog" ? "Stwórz content z bloga" : flow === "hooks" ? "Wygeneruj hooki" : flow === "article" ? "Przygotuj artykuł" : "Wygeneruj post"}
+              {loading
+                ? t("AI analizuje dane i tworzy...", "AI is analyzing data and creating...")
+                : t("Wygeneruj na podstawie danych", "Generate from data")}
             </button>
 
             {error && (
               <div
                 style={{
-                  background: "#ef444414",
-                  border: "1px solid #ef444440",
-                  color: "#ef4444",
+                  background: "rgba(239,68,68,0.12)",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                  color: "#fecaca",
                   borderRadius: 14,
                   padding: 12,
                   fontSize: 12,
@@ -2255,73 +2859,7 @@ export default function ContentStudio({
           </div>
 
           <div>
-            {!result && !loading && (
-              <div
-                style={{
-                  minHeight: 420,
-                  background: css.surface,
-                  border: `1px dashed ${css.border}`,
-                  borderRadius: 24,
-                  display: "grid",
-                  placeItems: "center",
-                  textAlign: "center",
-                  padding: 28,
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 46, opacity: 0.16, marginBottom: 10 }}>✦</div>
-                  <h3
-                    style={{
-                      margin: "0 0 10px",
-                      color: css.heading,
-                      fontFamily: "var(--font-heading)",
-                      fontSize: 30,
-                      fontWeight: 500,
-                    }}
-                  >
-                    Wynik pojawi się tutaj
-                  </h3>
-                  <p style={{ margin: 0, color: css.muted, fontSize: 13, lineHeight: 1.75, maxWidth: 420 }}>
-                    Content Studio pokaże gotową treść, warianty platformowe, hooki,
-                    plan dystrybucji i akcje: szablon, inspiracja, harmonogram albo publikacja.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {loading && (
-              <div
-                style={{
-                  minHeight: 420,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                  borderRadius: 24,
-                  display: "grid",
-                  placeItems: "center",
-                  textAlign: "center",
-                  padding: 28,
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "50%",
-                      border: `3px solid ${css.border}`,
-                      borderTopColor: css.aiText,
-                      margin: "0 auto 14px",
-                      animation: "spin .8s linear infinite",
-                    }}
-                  />
-                  <p style={{ color: css.muted, fontSize: 13 }}>
-                    AI układa content i dopasowuje go do wybranego procesu...
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {result && (
+            {result ? (
               <ResultPanel
                 result={result}
                 flow={flow}
@@ -2331,24 +2869,69 @@ export default function ContentStudio({
                 contentType={contentFormat}
                 workspaceId={workspaceId}
                 css={css}
+                lang={language}
                 media={media}
               />
+            ) : (
+              <div
+                style={{
+                  minHeight: 340,
+                  background: css.surface,
+                  border: `1px dashed ${css.border}`,
+                  borderRadius: 24,
+                  display: "grid",
+                  placeItems: "center",
+                  padding: 30,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ maxWidth: 520 }}>
+                  <div style={{ fontSize: 44, marginBottom: 14, opacity: 0.35 }}>✦</div>
+
+                  <h3
+                    style={{
+                      margin: "0 0 10px",
+                      color: css.heading,
+                      fontFamily: "var(--font-heading)",
+                      fontSize: 34,
+                      lineHeight: 1.05,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t("Wynik pojawi się tutaj", "Your result will appear here")}
+                  </h3>
+
+                  <p style={{ margin: 0, color: css.text, fontSize: 14, lineHeight: 1.7 }}>
+                    {t(
+                      "Content Studio pokaże gotową treść, uzasadnienie oparte na danych, warianty platformowe, hooki, komentarz uzupełniający i plan kolejnych publikacji.",
+                      "Content Studio will show ready copy, data-based reasoning, platform variants, hooks, follow-up comment and next publishing plan."
+                    )}
+                  </p>
+                </div>
+              </div>
             )}
 
             {rawAnswer && (
-              <details
-                style={{
-                  marginTop: 12,
-                  background: css.surface,
-                  border: `1px solid ${css.border}`,
-                  borderRadius: 16,
-                  padding: 12,
-                }}
-              >
-                <summary style={{ color: css.muted, fontSize: 11, cursor: "pointer", fontWeight: 900 }}>
-                  Surowa odpowiedź AI
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ color: css.muted, fontSize: 11, cursor: "pointer" }}>
+                  {t("Pokaż surową odpowiedź AI", "Show raw AI response")}
                 </summary>
-                <pre style={{ color: css.muted, fontSize: 10, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 10 }}>
+
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    color: css.muted,
+                    background: css.surface,
+                    border: `1px solid ${css.border}`,
+                    borderRadius: 14,
+                    padding: 12,
+                    fontSize: 11,
+                    lineHeight: 1.6,
+                    marginTop: 8,
+                    maxHeight: 360,
+                    overflow: "auto",
+                  }}
+                >
                   {rawAnswer}
                 </pre>
               </details>
@@ -2358,18 +2941,4 @@ export default function ContentStudio({
       </div>
     </div>
   );
-}
-
-function inputStyle(css: Record<string, string>): CSSProperties {
-  return {
-    width: "100%",
-    borderRadius: 14,
-    border: `1px solid ${css.border}`,
-    background: css.surface,
-    color: css.text,
-    padding: "12px 13px",
-    outline: "none",
-    fontFamily: "inherit",
-    fontSize: 12,
-  };
 }

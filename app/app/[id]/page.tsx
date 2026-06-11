@@ -53,6 +53,7 @@ import ContentSummaryImproved from "@/app/components/ContentSummaryImproved";
 import BlogStudio from "@/app/components/BlogStudio";
 import BrandOffers from "@/app/components/BrandOffers";
 import BlogLibrary from "@/app/components/BlogLibrary";
+import EngagementStudio from "@/app/components/EngagementStudio";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -68,6 +69,7 @@ type TabId =
   | "accounts"
   | "content"
   | "compare"
+  | "engagement"
   | "calendar"
   | "studio"
   | "blogStudio"
@@ -252,8 +254,9 @@ function makeNavGroups(t: AppCopy): NavGroup[] {
       icon: "groupStats",
       tabs: [
         { id: "accounts", label: t.nav.accounts, icon: "accounts" },
-        { id: "content", label: t.nav.content, icon: "content" },
         { id: "compare", label: t.nav.compare, icon: "compare" },
+        { id: "engagement", label: t.nav.engagement, icon: "engagement" },
+        { id: "content", label: t.nav.content, icon: "content" },
       ],
     },
     {
@@ -470,6 +473,7 @@ const NAV_ICONS = {
   accounts: Layers3,
   content: FileText,
   compare: GitCompareArrows,
+  engagement: MessageCircle,
   calendar: CalendarDays,
 
   studio: PenLine,
@@ -3853,6 +3857,11 @@ const formatProfileNumber = (value: any) => {
     </div>
   </div>
 )}
+
+{activeTab === "engagement" && (
+  <EngagementStudio dark={dark} workspaceId={workspaceId} />
+)}
+
 {selectedPostDetails && (
   <div
     style={{
