@@ -799,6 +799,19 @@ function AppWorkspacePageInner() {
   const lang: Lang = getLang(searchParams.get("lang"));
   const t = appCopy[lang];
   const tx = (polish: string, english: string) => (lang === "pl" ? polish : english);
+  const accountInsight = (account: Account) => {
+    if (lang === "pl") return account.aiTag;
+    if (!account.connected) {
+      return "Connect this account and synchronize it to display real data here.";
+    }
+    if (account.posts > 0) {
+      return `Data comes from the latest API synchronization. Imported ${account.posts} publications for ${account.name}.`;
+    }
+    if (account.bestFormat.toLowerCase().includes("link")) {
+      return "Manual links are available as AI context, but the API has not imported any publications yet. Run synchronization and check the API response.";
+    }
+    return "The account is connected, but synchronization has not saved any posts yet. Run data synchronization.";
+  };
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
   const [syncingAccount, setSyncingAccount] = useState<string | null>(null);
@@ -2438,7 +2451,7 @@ const formatProfileNumber = (value: any) => {
                   color: account.connected ? "#22c55e" : "#f59e0b",
                 }}
               >
-                {account.connected ? "API podłączone" : "Do podłączenia"}
+                {account.connected ? tx("API podłączone", "API connected") : tx("Do podłączenia", "Not connected")}
               </span>
 
               <span style={{ color: css.muted, fontSize: 11 }}>
@@ -2472,7 +2485,7 @@ const formatProfileNumber = (value: any) => {
                     textTransform: "uppercase",
                   }}
                 >
-                  Wynik konta
+                  {tx("Wynik konta", "Account score")}
                 </div>
 
                 <div
@@ -2518,9 +2531,9 @@ const formatProfileNumber = (value: any) => {
               }}
             >
               {[
-                ["Posty", account.posts],
+                [tx("Posty", "Posts"), account.posts],
                 ["Eng.", account.engRate],
-                ["Śr. zasięg", account.reach],
+                [tx("Śr. zasięg", "Avg. reach"), account.reach],
               ].map(([label, value]) => (
                 <div
                   key={`${account.id}-${label}`}
@@ -2588,7 +2601,7 @@ const formatProfileNumber = (value: any) => {
                   textAlign: "center",
                 }}
               >
-                Zobacz szczegóły
+                {tx("Zobacz szczegóły", "View details")}
               </button>
 
               <button
@@ -2605,10 +2618,10 @@ const formatProfileNumber = (value: any) => {
                 }
                 title={
                   !account.connected
-                    ? "Najpierw połącz konto w Integracjach"
+                    ? tx("Najpierw połącz konto w Integracjach", "Connect the account in Integrations first")
                     : !account.connection_id
-                      ? "Brak identyfikatora połączenia. Odśwież stronę lub połącz konto ponownie."
-                      : `Pobierz najnowsze dane z ${account.name}`
+                      ? tx("Brak identyfikatora połączenia. Odśwież stronę lub połącz konto ponownie.", "Missing connection identifier. Refresh the page or reconnect the account.")
+                      : tx(`Pobierz najnowsze dane z ${account.name}`, `Load the latest data from ${account.name}`)
                 }
                 style={{
                   borderRadius: 14,
@@ -2641,7 +2654,7 @@ const formatProfileNumber = (value: any) => {
                   size={14}
                   className={syncingAccount === account.id ? "ciq-spin" : undefined}
                 />
-                {syncingAccount === account.id ? "Pobieranie..." : "Synchronizuj"}
+                {syncingAccount === account.id ? tx("Pobieranie...", "Loading...") : tx("Synchronizuj", "Sync")}
               </button>
             </div>
 
@@ -2686,7 +2699,7 @@ const formatProfileNumber = (value: any) => {
                   }}
                 >
                   <Wand2 size={15} color={css.aiIcon} />
-                  AI wniosek
+                  {tx("AI wniosek", "AI insight")}
                 </div>
 
                 <span
@@ -2696,7 +2709,7 @@ const formatProfileNumber = (value: any) => {
                     color: css.text,
                   }}
                 >
-                  {account.aiTag}
+                  {accountInsight(account)}
                 </span>
               </div>
             </div>
@@ -2712,10 +2725,10 @@ const formatProfileNumber = (value: any) => {
               }}
             >
               {trend === 0
-                ? "0% miesiąc do miesiąca"
+                ? tx("0% miesiąc do miesiąca", "0% month over month")
                 : `${trend > 0 ? "↑" : "↓"} ${Math.abs(
                     trend
-                  )}% miesiąc do miesiąca`}
+                  )}% ${tx("miesiąc do miesiąca", "month over month")}`}
             </div>
           </div>
         );
@@ -2762,7 +2775,7 @@ const formatProfileNumber = (value: any) => {
           textTransform: "uppercase",
         }}
       >
-        Przegląd publikacji
+        {tx("Przegląd publikacji", "Publication overview")}
       </p>
 
       <h2
@@ -2772,13 +2785,14 @@ const formatProfileNumber = (value: any) => {
           fontFamily: "var(--font-heading)",
         }}
       >
-        Podsumowanie contentu
+        {tx("Podsumowanie contentu", "Content summary")}
       </h2>
 
       <p style={{ ...st.sectionText, color: css.muted }}>
-        Tutaj analizujesz konkretne publikacje, a nie całe konta. Rozwijaj
-        platformy, sprawdzaj miniatury, wyniki pojedynczych postów i wybieraj
-        treści, które warto przerobić na kolejny format.
+        {tx(
+          "Tutaj analizujesz konkretne publikacje, a nie całe konta. Rozwijaj platformy, sprawdzaj miniatury, wyniki pojedynczych postów i wybieraj treści, które warto przerobić na kolejny format.",
+          "Analyze individual publications rather than entire accounts. Explore platforms, thumbnails and post-level results, then choose content worth repurposing."
+        )}
       </p>
 
       <div
@@ -2790,10 +2804,10 @@ const formatProfileNumber = (value: any) => {
         }}
       >
         {[
-          ["Publikacje", "lista postów z platform"],
-          ["Miniatury", "szybki podgląd treści"],
-          ["Wyniki", "zasięg, reakcje, komentarze"],
-          ["AI", "później: naprawa i recykling"],
+          [tx("Publikacje", "Publications"), tx("lista postów z platform", "posts imported from platforms")],
+          [tx("Miniatury", "Thumbnails"), tx("szybki podgląd treści", "quick content preview")],
+          [tx("Wyniki", "Results"), tx("zasięg, reakcje, komentarze", "reach, reactions and comments")],
+          ["AI", tx("później: naprawa i recykling", "improvement and repurposing")],
         ].map(([title, text]) => (
           <div
             key={title}
@@ -2850,7 +2864,7 @@ const formatProfileNumber = (value: any) => {
         border: `1px solid ${css.border}`,
       }}
     >
-      ← Wszystkie konta
+      ← {tx("Wszystkie konta", "All accounts")}
     </button>
 
     <div
@@ -2983,7 +2997,7 @@ const formatProfileNumber = (value: any) => {
                   color: activeAccount.connected ? "#22c55e" : "#f59e0b",
                 }}
               >
-                {activeAccount.connected ? "API podłączone" : "Do podłączenia"}
+                {activeAccount.connected ? tx("API podłączone", "API connected") : tx("Do podłączenia", "Not connected")}
               </span>
 
               <span
@@ -3011,7 +3025,7 @@ const formatProfileNumber = (value: any) => {
                   textDecoration: "none",
                 }}
               >
-                Otwórz profil ↗
+                {tx("Otwórz profil", "Open profile")} ↗
               </a>
             )}
           </div>
@@ -3028,10 +3042,10 @@ const formatProfileNumber = (value: any) => {
             {
               label:
                 activeAccount.id === "facebook"
-                  ? "Obserwujący / polubienia"
+                  ? tx("Obserwujący / polubienia", "Followers / likes")
                   : activeAccount.id === "youtube"
-                    ? "Subskrybenci"
-                    : "Obserwujący",
+                    ? tx("Subskrybenci", "Subscribers")
+                    : tx("Obserwujący", "Followers"),
               value: formatProfileNumber(
                 getAccountField(activeAccount, [
                   "followers",
@@ -3054,7 +3068,7 @@ const formatProfileNumber = (value: any) => {
               highlight: true,
             },
             {
-              label: "Publikacje",
+              label: tx("Publikacje", "Publications"),
               value: String(activeAccount.posts),
             },
             {
@@ -3062,11 +3076,11 @@ const formatProfileNumber = (value: any) => {
               value: activeAccount.engRate,
             },
             {
-              label: "Śr. zasięg",
+              label: tx("Śr. zasięg", "Avg. reach"),
               value: activeAccount.reach,
             },
             {
-              label: "Najlepszy format",
+              label: tx("Najlepszy format", "Best format"),
               value: activeAccount.bestFormat,
             },
           ].map((item) => (
@@ -3126,10 +3140,10 @@ const formatProfileNumber = (value: any) => {
       >
         <div style={{ ...st.aiBoxLabel, color: css.aiText }}>
           <Wand2 size={15} color={css.aiIcon} />
-          AI analiza tej platformy
+          {tx("AI analiza tej platformy", "AI analysis for this platform")}
         </div>
 
-        <span>{activeAccount.aiTag}</span>
+        <span>{accountInsight(activeAccount)}</span>
       </div>
     </div>
 
@@ -3140,7 +3154,7 @@ const formatProfileNumber = (value: any) => {
         marginTop: 28,
       }}
     >
-      Ostatnie publikacje — {postsByPlatform[activeAccount.id]?.length ?? 0}
+      {tx("Ostatnie publikacje", "Latest publications")} — {postsByPlatform[activeAccount.id]?.length ?? 0}
     </div>
 
     <div
@@ -3248,7 +3262,7 @@ const formatProfileNumber = (value: any) => {
                           textDecoration: "none",
                         }}
                       >
-                        Otwórz ↗
+                        {tx("Otwórz", "Open")} ↗
                       </a>
                     </>
                   )}
@@ -3257,10 +3271,10 @@ const formatProfileNumber = (value: any) => {
             </div>
 
             {[
-              ["Zasięg", post.reach],
-              ["Polubienia", post.likes > 0 ? post.likes.toLocaleString() : "—"],
-              ["Komentarze", String(post.comments)],
-              ["Udost.", post.shares ? String(post.shares) : "—"],
+              [tx("Zasięg", "Reach"), post.reach],
+              [tx("Polubienia", "Likes"), post.likes > 0 ? post.likes.toLocaleString() : "—"],
+              [tx("Komentarze", "Comments"), String(post.comments)],
+              [tx("Udost.", "Shares"), post.shares ? String(post.shares) : "—"],
             ].map(([label, value]) => (
               <div key={`${post.id}-${label}`}>
                 <div
@@ -3333,7 +3347,7 @@ const formatProfileNumber = (value: any) => {
                   fontFamily: "inherit",
                 }}
               >
-                Szczegóły
+                {tx("Szczegóły", "Details")}
               </button>
             </div>
           </div>
@@ -3381,7 +3395,7 @@ const formatProfileNumber = (value: any) => {
           textTransform: "uppercase",
         }}
       >
-        Porównanie contentu
+        {tx("Porównanie contentu", "Content comparison")}
       </p>
 
       <h2
@@ -3391,13 +3405,17 @@ const formatProfileNumber = (value: any) => {
           fontFamily: "var(--font-heading)",
         }}
       >
-        Które konto ciągnie wynik, a które trzeba podkręcić?
+        {tx(
+          "Które konto ciągnie wynik, a które trzeba podkręcić?",
+          "Which account drives performance and which one needs improvement?"
+        )}
       </h2>
 
       <p style={{ ...st.sectionText, color: css.muted, maxWidth: 860 }}>
-        Ten widok nie pokazuje tylko liczb. Porównuje platformy jak system:
-        gdzie content działa najlepiej, gdzie warto przenieść format, które konto
-        wymaga poprawy i na którym profilu warto się wzorować.
+        {tx(
+          "Ten widok nie pokazuje tylko liczb. Porównuje platformy jak system: gdzie content działa najlepiej, gdzie warto przenieść format, które konto wymaga poprawy i na którym profilu warto się wzorować.",
+          "This view goes beyond raw numbers. It compares platforms as one system: where content performs best, which formats are worth transferring and which profiles need improvement."
+        )}
       </p>
     </div>
 
@@ -3410,37 +3428,43 @@ const formatProfileNumber = (value: any) => {
     >
       {[
         {
-          label: "Wzoruj się na",
-          value: comparisonInsights.leader?.name || "Brak danych",
+          label: tx("Wzoruj się na", "Learn from"),
+          value: comparisonInsights.leader?.name || tx("Brak danych", "No data"),
           text: comparisonInsights.leader
-            ? `To konto ma najlepszy miks jakości, zaangażowania i średniego wyniku AI. Przenieś z niego formaty i styl hooków na słabsze platformy.`
-            : "Podłącz i zsynchronizuj konta, żeby AI mogło wskazać lidera.",
+            ? tx(
+                "To konto ma najlepszy miks jakości, zaangażowania i średniego wyniku AI. Przenieś z niego formaty i styl hooków na słabsze platformy.",
+                "This account has the strongest mix of quality, engagement and average AI score. Transfer its formats and hook style to weaker platforms."
+              )
+            : tx("Podłącz i zsynchronizuj konta, żeby AI mogło wskazać lidera.", "Connect and synchronize accounts so AI can identify the leader."),
           color: comparisonInsights.leader?.color || css.accent,
           ai: true,
         },
         {
-          label: "Podkręć najpierw",
-          value: comparisonInsights.needsBoost?.name || "Brak danych",
+          label: tx("Podkręć najpierw", "Improve first"),
+          value: comparisonInsights.needsBoost?.name || tx("Brak danych", "No data"),
           text: comparisonInsights.needsBoost
-            ? `Tu wynik jest najniższy względem reszty. Zacznij od mocniejszych hooków, krótszych opisów i recyklingu najlepszego formatu z konta lidera.`
-            : "Brak platformy do poprawy.",
+            ? tx(
+                "Tu wynik jest najniższy względem reszty. Zacznij od mocniejszych hooków, krótszych opisów i recyklingu najlepszego formatu z konta lidera.",
+                "This platform has the weakest result. Start with stronger hooks, shorter captions and repurpose the leader's best format."
+              )
+            : tx("Brak platformy do poprawy.", "No platform currently needs improvement."),
           color: comparisonInsights.needsBoost?.color || css.accent,
           ai: true,
         },
         {
-          label: "Najlepszy format",
-          value: comparisonInsights.bestFormat?.type || "Brak danych",
+          label: tx("Najlepszy format", "Best format"),
+          value: comparisonInsights.bestFormat?.type || tx("Brak danych", "No data"),
           text: comparisonInsights.bestFormat
-            ? `Ten typ treści ma najlepszą średnią skuteczność. Warto przygotować jego wariant na inne platformy.`
-            : "Po pobraniu większej liczby postów AI wskaże najmocniejszy format.",
+            ? tx("Ten typ treści ma najlepszą średnią skuteczność. Warto przygotować jego wariant na inne platformy.", "This content type has the best average performance. Prepare variants for other platforms.")
+            : tx("Po pobraniu większej liczby postów AI wskaże najmocniejszy format.", "After more posts are imported, AI will identify the strongest format."),
           color: css.accent,
           ai: false,
         },
         {
-          label: "Akcja na 7 dni",
+          label: tx("Akcja na 7 dni", "7-day action"),
           value: "Test cross-platform",
           text:
-            "Wybierz najlepszy post z konta lidera i przerób go na 2–3 warianty: short, carousel/opis oraz post edukacyjny.",
+            tx("Wybierz najlepszy post z konta lidera i przerób go na 2–3 warianty: short, carousel/opis oraz post edukacyjny.", "Choose the leader's best post and turn it into 2–3 variants: a short, a carousel/caption and an educational post."),
           color: css.aiText,
           ai: true,
         },
@@ -3550,7 +3574,7 @@ const formatProfileNumber = (value: any) => {
               textTransform: "uppercase",
             }}
           >
-            Mapa wyników
+            {tx("Mapa wyników", "Performance map")}
           </div>
 
           <h3
@@ -3562,12 +3586,12 @@ const formatProfileNumber = (value: any) => {
               lineHeight: 1.05,
             }}
           >
-            Platformy obok siebie
+            {tx("Platformy obok siebie", "Platforms side by side")}
           </h3>
         </div>
 
         <div style={{ color: css.muted, fontSize: 12 }}>
-          Porównanie liczone z ostatnio pobranych publikacji.
+          {tx("Porównanie liczone z ostatnio pobranych publikacji.", "Comparison based on the latest imported publications.")}
         </div>
       </div>
 
@@ -3587,13 +3611,13 @@ const formatProfileNumber = (value: any) => {
             padding: "0 10px",
           }}
         >
-          <span>Platforma</span>
-          <span>Posty</span>
-          <span>Śr. zasięg</span>
+          <span>{tx("Platforma", "Platform")}</span>
+          <span>{tx("Posty", "Posts")}</span>
+          <span>{tx("Śr. zasięg", "Avg. reach")}</span>
           <span>Eng.</span>
           <span>AI Score</span>
-          <span>Status</span>
-          <span>AI wniosek</span>
+          <span>{tx("Status", "Status")}</span>
+          <span>{tx("AI wniosek", "AI insight")}</span>
         </div>
 
         {comparisonRows.map((row) => {
@@ -3648,10 +3672,10 @@ const formatProfileNumber = (value: any) => {
 
                   <div style={{ color: css.muted, fontSize: 11, marginTop: 3 }}>
                     {isLeader
-                      ? "konto wzorcowe"
+                      ? tx("konto wzorcowe", "reference account")
                       : isWeak
-                        ? "do poprawy"
-                        : "stabilne"}
+                        ? tx("do poprawy", "needs improvement")
+                        : tx("stabilne", "stable")}
                   </div>
                 </div>
               </div>
@@ -3693,7 +3717,7 @@ const formatProfileNumber = (value: any) => {
                     letterSpacing: ".05em",
                   }}
                 >
-                  {isLeader ? "wzór" : isWeak ? "podkręcić" : "ok"}
+                  {isLeader ? tx("wzór", "leader") : isWeak ? tx("podkręcić", "improve") : "ok"}
                 </span>
               </div>
 
@@ -3705,10 +3729,10 @@ const formatProfileNumber = (value: any) => {
                 }}
               >
                 {isLeader
-                  ? "Z tego konta kopiuj strukturę tematów, rytm publikacji i typ hooków."
+                  ? tx("Z tego konta kopiuj strukturę tematów, rytm publikacji i typ hooków.", "Use this account as a reference for topic structure, publishing rhythm and hook style.")
                   : isWeak
-                    ? "Tu warto przetestować format z konta lidera i mocniejsze CTA."
-                    : "Utrzymuj regularność i szukaj jednego formatu do skalowania."}
+                    ? tx("Tu warto przetestować format z konta lidera i mocniejsze CTA.", "Test the leader's strongest format here and use a clearer CTA.")
+                    : tx("Utrzymuj regularność i szukaj jednego formatu do skalowania.", "Maintain consistency and identify one format worth scaling.")}
               </div>
             </div>
           );
@@ -3754,7 +3778,7 @@ const formatProfileNumber = (value: any) => {
           }}
         >
           <Wand2 size={15} color={css.aiIcon} />
-          AI playbook na następny tydzień
+          {tx("AI playbook na następny tydzień", "AI playbook for next week")}
         </div>
 
         <div
@@ -3767,22 +3791,31 @@ const formatProfileNumber = (value: any) => {
         >
           {[
             {
-              title: "1. Przenieś zwycięski schemat",
+              title: tx("1. Przenieś zwycięski schemat", "1. Transfer the winning pattern"),
               text: comparisonInsights.leader
-                ? `Weź najlepszy post z ${comparisonInsights.leader.name} i przygotuj wariant na ${comparisonInsights.needsBoost?.name || "słabszą platformę"}. Nie kopiuj 1:1 — zmień hook i CTA pod kontekst platformy.`
-                : "Najpierw zsynchronizuj platformy, żeby znaleźć zwycięski schemat.",
+                ? tx(
+                    `Weź najlepszy post z ${comparisonInsights.leader.name} i przygotuj wariant na ${comparisonInsights.needsBoost?.name || "słabszą platformę"}. Nie kopiuj 1:1 — zmień hook i CTA pod kontekst platformy.`,
+                    `Take the best post from ${comparisonInsights.leader.name} and adapt it for ${comparisonInsights.needsBoost?.name || "a weaker platform"}. Do not copy it directly — adjust the hook and CTA to the platform.`
+                  )
+                : tx("Najpierw zsynchronizuj platformy, żeby znaleźć zwycięski schemat.", "Synchronize platforms first to identify the winning pattern."),
             },
             {
-              title: "2. Popraw słabsze konto",
+              title: tx("2. Popraw słabsze konto", "2. Improve the weaker account"),
               text: comparisonInsights.needsBoost
-                ? `${comparisonInsights.needsBoost.name} wymaga najmocniejszej interwencji. Zacznij od 3 testów: krótszy hook, mocniejsze pytanie na końcu i format edukacyjny.`
-                : "Po pobraniu danych AI wskaże konto do poprawy.",
+                ? tx(
+                    `${comparisonInsights.needsBoost.name} wymaga najmocniejszej interwencji. Zacznij od 3 testów: krótszy hook, mocniejsze pytanie na końcu i format edukacyjny.`,
+                    `${comparisonInsights.needsBoost.name} needs the most attention. Start with three tests: a shorter hook, a stronger closing question and an educational format.`
+                  )
+                : tx("Po pobraniu danych AI wskaże konto do poprawy.", "After importing data, AI will identify the account that needs improvement."),
             },
             {
-              title: "3. Testuj format, nie tylko temat",
+              title: tx("3. Testuj format, nie tylko temat", "3. Test the format, not only the topic"),
               text: comparisonInsights.bestFormat
-                ? `Najlepiej wypada format ${comparisonInsights.bestFormat.type}. Przygotuj 3 warianty tego formatu z innymi tematami.`
-                : "Zbierz więcej postów, żeby AI mogło wybrać najmocniejszy format.",
+                ? tx(
+                    `Najlepiej wypada format ${comparisonInsights.bestFormat.type}. Przygotuj 3 warianty tego formatu z innymi tematami.`,
+                    `${comparisonInsights.bestFormat.type} is currently the best-performing format. Prepare three variants using different topics.`
+                  )
+                : tx("Zbierz więcej postów, żeby AI mogło wybrać najmocniejszy format.", "Collect more posts so AI can identify the strongest format."),
             },
           ].map((item) => (
             <div
