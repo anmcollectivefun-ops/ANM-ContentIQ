@@ -19,6 +19,8 @@ type AnalyzeVideoBody = {
   reference_url?: string;
   target_platforms?: string[];
   language?: "pl" | "en";
+  selected_context_kind?: "offer" | "link" | "template";
+  selected_context_id?: string;
 };
 
 type WorkspaceVideoContext = {
@@ -27,6 +29,7 @@ type WorkspaceVideoContext = {
   platformProfile: Record<string, unknown> | null;
   offers: Record<string, unknown>[];
   links: Record<string, unknown>[];
+  templates: Record<string, unknown>[];
   creatorMemory: Record<string, unknown> | null;
   learnings: Record<string, unknown>[];
 };
@@ -193,6 +196,7 @@ async function loadWorkspaceVideoContext(
       platformProfile: null,
       offers: [],
       links: [],
+      templates: [],
       creatorMemory: null,
       learnings: [],
     };
@@ -208,6 +212,8 @@ async function loadWorkspaceVideoContext(
     creatorMemoryResult,
     learningsResult,
     connectionsResult,
+    contentTemplatesResult,
+    shortTemplatesResult,
   ] = await Promise.all([
     supabase
       .schema("contentiq")
@@ -249,6 +255,26 @@ async function loadWorkspaceVideoContext(
       .from("platform_connections")
       .select("id,platform")
       .eq("workspace_id", workspace.id),
+    supabase
+      .schema("contentiq")
+      .from("content_drafts")
+      .select(
+        "id,title,body,topic,content_type,target_platforms,ai_feedback,media,created_at"
+      )
+      .eq("workspace_id", workspace.id)
+      .eq("status", "template")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    supabase
+      .schema("contentiq")
+      .from("short_templates")
+      .select(
+        "id,title,platform,hook,caption,hashtags,script,on_screen_text,shots,thumbnail_text,ai_summary,created_at"
+      )
+      .eq("workspace_id", workspace.id)
+      .eq("status", "template_ready")
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const brand =
@@ -276,6 +302,33 @@ async function loadWorkspaceVideoContext(
       : Promise.resolve({ data: [] }),
   ]);
 
+  const allOffers = (offersResult.data || []) as Record<string, unknown>[];
+  const allLinks = (linksResult.data || []) as Record<string, unknown>[];
+  const selectedId = body.selected_context_id?.trim();
+  const selectedKind = body.selected_context_kind;
+  const offers =
+    selectedKind === "offer" && selectedId
+      ? allOffers.filter((offer) => String(offer.id) === selectedId)
+      : [];
+  const links =
+    selectedKind === "link" && selectedId
+      ? allLinks.filter((link) => String(link.id) === selectedId)
+      : [];
+  const [templateSource, templateId] =
+    selectedKind === "template" && selectedId
+      ? selectedId.split(":", 2)
+      : ["", ""];
+  const templates =
+    templateSource === "content_drafts" && templateId
+      ? ((contentTemplatesResult.data || []) as Record<string, unknown>[]).filter(
+          (template) => String(template.id) === templateId
+        )
+      : templateSource === "short_templates" && templateId
+        ? ((shortTemplatesResult.data || []) as Record<string, unknown>[]).filter(
+            (template) => String(template.id) === templateId
+          )
+        : [];
+
   return {
     brand,
     brandVoice:
@@ -286,8 +339,9 @@ async function loadWorkspaceVideoContext(
       ((platformProfileResult.data || [])[0] as
         | Record<string, unknown>
         | undefined) || null,
-    offers: (offersResult.data || []) as Record<string, unknown>[],
-    links: (linksResult.data || []) as Record<string, unknown>[],
+    offers,
+    links,
+    templates,
     creatorMemory:
       ((creatorMemoryResult.data || [])[0] as
         | Record<string, unknown>
@@ -355,6 +409,9 @@ ${compactJson(workspaceContext.offers)}
 Saved brand, product and reference links:
 ${compactJson(workspaceContext.links)}
 
+Selected post or video template:
+${compactJson(workspaceContext.templates)}
+
 Creator style memory:
 ${compactJson(workspaceContext.creatorMemory)}
 
@@ -362,7 +419,9 @@ Previous AI learnings backed by workspace data:
 ${compactJson(workspaceContext.learnings)}
 
 Use this context to identify the actual product, audience, tone, CTA and content angle.
-Prefer the primary active offer when the video and the user's brief support it.
+If an offer, link or template is present above, the user explicitly selected it. Treat it as the source of truth for the content direction.
+If a template is selected, use its structure, tone and useful ideas as a reference, but adapt the result to the uploaded video instead of copying it mechanically.
+If all three lists are empty, this is general brand content. Do not attach the video to any product or invent a sales offer.
 Never force an unrelated offer into the caption.
 Never invent a URL. Use only a link present above or supplied by the user.
 

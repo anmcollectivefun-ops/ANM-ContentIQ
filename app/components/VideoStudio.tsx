@@ -29,6 +29,15 @@ type VideoFormat =
 
 type VideoAiProvider = "gemini" | "deepseek";
 
+type AnalysisContextOption = {
+  id: string;
+  kind: "offer" | "link" | "template";
+  label: string;
+  subtitle: string;
+  url?: string | null;
+  primary?: boolean;
+};
+
 type VideoUploadStatus =
   | "idle"
   | "uploaded_temp"
@@ -604,6 +613,9 @@ export default function VideoStudio({
   const [videoError, setVideoError] = useState("");
   const [videoAnalysisNotes, setVideoAnalysisNotes] = useState("");
   const [videoReferenceUrl, setVideoReferenceUrl] = useState("");
+  const [contextOptions, setContextOptions] = useState<AnalysisContextOption[]>([]);
+  const [selectedContextKey, setSelectedContextKey] = useState("");
+  const [contextOptionsLoading, setContextOptionsLoading] = useState(false);
   const [videoAiProvider, setVideoAiProvider] = useState<VideoAiProvider>("gemini");
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [analyzingVideo, setAnalyzingVideo] = useState(false);
@@ -681,6 +693,34 @@ export default function VideoStudio({
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
     };
   }, [videoPreviewUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadContextOptions() {
+      setContextOptionsLoading(true);
+      try {
+        const response = await fetch(
+          `/api/shorts/context-options?workspaceId=${encodeURIComponent(workspaceId)}`,
+          { cache: "no-store" }
+        );
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || "Nie udało się pobrać ofert.");
+        if (cancelled) return;
+        const options = (data?.options || []) as AnalysisContextOption[];
+        setContextOptions(options);
+      } catch (error) {
+        if (!cancelled) setVideoError(error instanceof Error ? error.message : String(error));
+      } finally {
+        if (!cancelled) setContextOptionsLoading(false);
+      }
+    }
+
+    void loadContextOptions();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
 
   function showToast(message: string) {
     setToast(message);
@@ -968,6 +1008,12 @@ export default function VideoStudio({
           reference_url: videoReferenceUrl,
           target_platforms: [platform],
           language: lang === "en" ? "en" : "pl",
+          selected_context_kind: selectedContextKey
+            ? selectedContextKey.split(":")[0]
+            : undefined,
+          selected_context_id: selectedContextKey
+            ? selectedContextKey.split(":").slice(1).join(":")
+            : undefined,
         }),
       });
 
@@ -1501,6 +1547,68 @@ export default function VideoStudio({
                     </PillButton>
                   ))}
                 </div>
+              </div>
+
+              <div style={{ marginTop: 13 }}>
+                <SectionLabel color={css.accent}>
+                  {text(
+                    "Opcjonalny kontekst: oferta, link lub szablon",
+                    "Optional context: offer, link or template"
+                  )}
+                </SectionLabel>
+
+                <select
+                  value={selectedContextKey}
+                  onChange={(event) => {
+                    const nextKey = event.target.value;
+                    setSelectedContextKey(nextKey);
+                    const selected = contextOptions.find(
+                      (item) => `${item.kind}:${item.id}` === nextKey
+                    );
+                    setVideoReferenceUrl(selected?.url || "");
+                  }}
+                  disabled={contextOptionsLoading}
+                  style={{
+                    width: "100%",
+                    borderRadius: 14,
+                    border: `1px solid ${css.border}`,
+                    background: css.surfaceSoft,
+                    color: css.text,
+                    padding: 12,
+                    outline: "none",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                  }}
+                >
+                  <option value="">
+                    {contextOptionsLoading
+                      ? text("Pobieram kontekst...", "Loading context...")
+                      : text("Treść ogólna — bez produktu", "General content — no product")}
+                  </option>
+                  {(["offer", "link", "template"] as const).map((kind) => {
+                    const items = contextOptions.filter((item) => item.kind === kind);
+                    if (items.length === 0) return null;
+                    const label =
+                      kind === "offer"
+                        ? text("Oferty i produkty", "Offers and products")
+                        : kind === "link"
+                          ? text("Zapisane linki", "Saved links")
+                          : text("Szablony postów", "Post templates");
+
+                    return (
+                      <optgroup key={kind} label={label}>
+                        {items.map((item) => (
+                          <option
+                            key={`${item.kind}:${item.id}`}
+                            value={`${item.kind}:${item.id}`}
+                          >
+                            {item.label} — {item.subtitle}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                </select>
               </div>
 
               <div style={{ marginTop: 13 }}>
