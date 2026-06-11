@@ -1225,7 +1225,7 @@ export default function IntegrationsPage() {
                 fontWeight: 900,
               }}
             >
-              Podsumowanie kont
+              {text("Podsumowanie kont", "Account summary")}
             </Link>
 
             <button
@@ -1240,7 +1240,7 @@ export default function IntegrationsPage() {
               })}
             >
               <RefreshCw size={14} className={syncAll ? "spin" : ""} />
-              {syncAll ? "Synchronizowanie..." : "Synchronizuj wszystko"}
+              {syncAll ? text("Synchronizowanie...", "Synchronizing...") : text("Synchronizuj wszystko", "Sync all")}
             </button>
           </div>
         </div>
@@ -1284,7 +1284,7 @@ export default function IntegrationsPage() {
             </div>
 
             <div style={{ position: "relative", zIndex: 1 }}>
-              <SectionLabel color={css.accent}>Centrum połączeń</SectionLabel>
+              <SectionLabel color={css.accent}>{text("Centrum połączeń", "Connections center")}</SectionLabel>
 
               <h1
                 style={{
@@ -1297,7 +1297,10 @@ export default function IntegrationsPage() {
                   maxWidth: 780,
                 }}
               >
-                Połącz platformy, pobierz dane i daj AI realny kontekst
+                {text(
+                  "Połącz platformy, pobierz dane i daj AI realny kontekst",
+                  "Connect platforms, import data and give AI real context"
+                )}
               </h1>
 
               <p
@@ -1309,9 +1312,10 @@ export default function IntegrationsPage() {
                   marginBottom: 18,
                 }}
               >
-                Tutaj podłączasz konta przez OAuth, synchronizujesz publikacje i
-                dodajesz ręczne linki do profilu lub konkretnych postów. Dane trafiają
-                potem do analityki, strategii, AI Partnera i Content Studio.
+                {text(
+                  "Tutaj podłączasz konta przez OAuth, synchronizujesz publikacje i dodajesz ręczne linki do profilu lub konkretnych postów. Dane trafiają potem do analityki, strategii, AI Partnera i Content Studio.",
+                  "Connect accounts through OAuth, synchronize publications and add manual links to profiles or specific posts. The data then powers analytics, strategy, AI Partner and Content Studio."
+                )}
               </p>
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1328,7 +1332,7 @@ export default function IntegrationsPage() {
                   })}
                 >
                   <RefreshCw size={14} className={syncAll ? "spin" : ""} />
-                  {syncAll ? "Synchronizuję..." : "Pobierz świeże dane"}
+                  {syncAll ? text("Synchronizuję...", "Synchronizing...") : text("Pobierz świeże dane", "Import fresh data")}
                 </button>
 
                 <Link
@@ -1343,7 +1347,7 @@ export default function IntegrationsPage() {
                     textDecoration: "none",
                   }}
                 >
-                  Zobacz porównanie contentu
+                  {text("Zobacz porównanie contentu", "View content comparison")}
                 </Link>
               </div>
             </div>
@@ -1362,7 +1366,7 @@ export default function IntegrationsPage() {
             }}
           >
             <div>
-              <SectionLabel color={css.aiText}>Status połączeń</SectionLabel>
+              <SectionLabel color={css.aiText}>{text("Status połączeń", "Connection status")}</SectionLabel>
 
               <h2
                 style={{
@@ -1374,13 +1378,21 @@ export default function IntegrationsPage() {
                   margin: "9px 0 9px",
                 }}
               >
-                {connectedCount ? `${connectedCount} aktywnych integracji` : "Brak aktywnych integracji"}
+                {connectedCount
+                  ? text(`${connectedCount} aktywnych integracji`, `${connectedCount} active integrations`)
+                  : text("Brak aktywnych integracji", "No active integrations")}
               </h2>
 
               <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7 }}>
                 {connectedCount
-                  ? "Możesz synchronizować dane pojedynczo lub zbiorczo. Linki ręczne są traktowane jako kontekst AI, a nie jako metryki."
-                  : "Podłącz pierwszą platformę, żeby zasilić aplikację prawdziwymi danymi."}
+                  ? text(
+                      "Możesz synchronizować dane pojedynczo lub zbiorczo. Linki ręczne są traktowane jako kontekst AI, a nie jako metryki.",
+                      "You can synchronize data individually or in bulk. Manual links are treated as AI context, not as metrics."
+                    )
+                  : text(
+                      "Podłącz pierwszą platformę, żeby zasilić aplikację prawdziwymi danymi.",
+                      "Connect your first platform to power the application with real data."
+                    )}
               </p>
             </div>
 
@@ -1400,7 +1412,7 @@ export default function IntegrationsPage() {
                   {connectedCount}
                 </div>
                 <div style={{ color: css.muted, fontSize: 11, marginTop: 4 }}>
-                  aktywne konta
+                  {text("aktywne konta", "active accounts")}
                 </div>
               </div>
 
@@ -1422,7 +1434,7 @@ export default function IntegrationsPage() {
                   {expiringCount}
                 </div>
                 <div style={{ color: css.muted, fontSize: 11, marginTop: 4 }}>
-                  tokeny do uwagi
+                  {text("tokeny do uwagi", "tokens needing attention")}
                 </div>
               </div>
             </div>
@@ -1437,7 +1449,7 @@ export default function IntegrationsPage() {
               fontSize: 13,
             }}
           >
-            Ładowanie połączeń...
+            {text("Ładowanie połączeń...", "Loading connections...")}
           </div>
         )}
 
@@ -1545,7 +1557,7 @@ export default function IntegrationsPage() {
                         flexShrink: 0,
                       }}
                     >
-                      {isConnected ? "Aktywne" : "Niepołączone"}
+                      {isConnected ? text("Aktywne", "Active") : text("Niepołączone", "Not connected")}
                     </span>
                   </div>
 
@@ -1572,7 +1584,7 @@ export default function IntegrationsPage() {
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                         <div>
-                          <SectionLabel color={css.muted}>Ostatnia synchronizacja</SectionLabel>
+                          <SectionLabel color={css.muted}>{text("Ostatnia synchronizacja", "Last synchronization")}</SectionLabel>
                           <div
                             style={{
                               fontSize: 13,
@@ -1602,7 +1614,7 @@ export default function IntegrationsPage() {
                             }}
                           >
                             <AlertCircle size={12} />
-                            Token wygasa
+                            {text("Token wygasa", "Token expires soon")}
                           </span>
                         )}
                       </div>
@@ -1620,14 +1632,14 @@ export default function IntegrationsPage() {
                       }}
                     >
                       <div style={{ fontSize: 11, color: css.muted, marginBottom: 7 }}>
-                        Show ID podcastu
+                        {text("Show ID podcastu", "Spotify podcast Show ID")}
                       </div>
 
                       <div style={{ display: "flex", gap: 8 }}>
                         <input
                           value={spotifyShowId}
                           onChange={(event) => setSpotifyShowId(event.target.value)}
-                          placeholder="https://open.spotify.com/show/... lub samo ID"
+                          placeholder={text("https://open.spotify.com/show/... lub samo ID", "https://open.spotify.com/show/... or the ID")}
                           style={{ ...inputStyle(), flex: 1 }}
                         />
 
@@ -1642,7 +1654,7 @@ export default function IntegrationsPage() {
                             disabled: spotifySaving,
                           })}
                         >
-                          {spotifySaving ? "..." : "Zapisz"}
+                          {spotifySaving ? "..." : text("Zapisz", "Save")}
                         </button>
                       </div>
                     </div>
@@ -1659,7 +1671,7 @@ export default function IntegrationsPage() {
                       }}
                     >
                       <div style={{ fontSize: 11, color: css.muted, marginBottom: 8 }}>
-                        Dane połączenia WordPress
+                        {text("Dane połączenia WordPress", "WordPress connection details")}
                       </div>
 
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1674,7 +1686,7 @@ export default function IntegrationsPage() {
                           <input
                             value={blogUser}
                             onChange={(event) => setBlogUser(event.target.value)}
-                            placeholder="Login WP"
+                            placeholder={text("Login WP", "WordPress login")}
                             style={inputStyle()}
                           />
 
@@ -1716,7 +1728,7 @@ export default function IntegrationsPage() {
                           }}
                         >
                           <RefreshCw size={14} className={isSyncing ? "spin" : ""} />
-                          {isSyncing ? "Pobieranie..." : "Synchronizuj"}
+                          {isSyncing ? text("Pobieranie...", "Importing...") : text("Synchronizuj", "Synchronize")}
                         </button>
 
                         <button
@@ -1725,7 +1737,7 @@ export default function IntegrationsPage() {
                           onClick={() =>
                             (window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`)
                           }
-                          title="Zreautoryzuj profil"
+                          title={text("Zreautoryzuj profil", "Reauthorize profile")}
                           style={actionButtonStyle({
                             background: css.surfaceSoft,
                             color: css.muted,

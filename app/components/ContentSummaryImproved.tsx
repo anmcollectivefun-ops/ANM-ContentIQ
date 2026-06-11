@@ -97,21 +97,21 @@ function n(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("pl-PL").format(Math.round(value || 0));
+function formatNumber(value: number, locale = "pl-PL") {
+  return new Intl.NumberFormat(locale).format(Math.round(value || 0));
 }
 
-function formatCompact(value: number) {
-  return new Intl.NumberFormat("pl-PL", {
+function formatCompact(value: number, locale = "pl-PL") {
+  return new Intl.NumberFormat(locale, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(Math.round(value || 0));
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "Brak daty";
+function formatDate(value: string | null, locale = "pl-PL", emptyLabel = "Brak daty") {
+  if (!value) return emptyLabel;
 
-  return new Intl.DateTimeFormat("pl-PL", {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -119,20 +119,20 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function formatLastSync(value: string | null) {
-  if (!value) return "Nie zsynchronizowano";
+function formatLastSync(value: string | null, lang: "pl" | "en") {
+  if (!value) return lang === "pl" ? "Nie zsynchronizowano" : "Not synced";
 
   const diffMs = Date.now() - new Date(value).getTime();
   const diffMin = Math.max(0, Math.round(diffMs / 60000));
 
-  if (diffMin < 1) return "teraz";
-  if (diffMin < 60) return `${diffMin} min temu`;
+  if (diffMin < 1) return lang === "pl" ? "teraz" : "now";
+  if (diffMin < 60) return lang === "pl" ? `${diffMin} min temu` : `${diffMin} min ago`;
 
   const diffHours = Math.round(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} godz. temu`;
+  if (diffHours < 24) return lang === "pl" ? `${diffHours} godz. temu` : `${diffHours}h ago`;
 
   const diffDays = Math.round(diffHours / 24);
-  return `${diffDays} dni temu`;
+  return lang === "pl" ? `${diffDays} dni temu` : `${diffDays}d ago`;
 }
 
 function getPostViews(post: DbPost) {
@@ -214,11 +214,11 @@ function getTotals(posts: UiPost[]) {
   };
 }
 
-function metricLabel(platform: Platform) {
-  if (platform === "tiktok" || platform === "youtube") return "Wyświetlenia filmu";
-  if (platform === "instagram" || platform === "facebook") return "Zasięg / wyświetlenia";
-  if (platform === "linkedin") return "Wyświetlenia posta";
-  return "Wyświetlenia";
+function metricLabel(platform: Platform, lang: "pl" | "en") {
+  if (platform === "tiktok" || platform === "youtube") return lang === "pl" ? "Wyświetlenia filmu" : "Video views";
+  if (platform === "instagram" || platform === "facebook") return lang === "pl" ? "Zasięg / wyświetlenia" : "Reach / views";
+  if (platform === "linkedin") return lang === "pl" ? "Wyświetlenia posta" : "Post views";
+  return lang === "pl" ? "Wyświetlenia" : "Views";
 }
 
 export default function ContentSummaryImproved({
@@ -358,7 +358,7 @@ export default function ContentSummaryImproved({
             connected: Boolean(firstConnection),
             accountName,
             handle: firstConnection?.account_name ? firstConnection.account_name : "Brak konta",
-            lastSync: formatLastSync(firstConnection?.last_synced_at || null),
+            lastSync: formatLastSync(firstConnection?.last_synced_at || null, lang),
             posts: postsByPlatform.get(meta.id) || [],
           };
         });
@@ -551,11 +551,11 @@ export default function ContentSummaryImproved({
           <div style={{ padding: 16, display: "grid", gap: 12 }}>
             <div className="ciq-platform-summary-grid">
               {[
-                ["Publikacje", formatNumber(allTotals.postsCount)],
-                ["Wyświetlenia", formatNumber(allTotals.views)],
-                ["Polubienia", formatNumber(allTotals.likes)],
-                ["Komentarze", formatNumber(allTotals.comments)],
-                ["Udostępnienia", formatNumber(allTotals.shares)],
+                [text("Publikacje", "Publications"), formatNumber(allTotals.postsCount, locale)],
+                [text("Wyświetlenia", "Views"), formatNumber(allTotals.views, locale)],
+                [text("Polubienia", "Likes"), formatNumber(allTotals.likes, locale)],
+                [text("Komentarze", "Comments"), formatNumber(allTotals.comments, locale)],
+                [text("Udostępnienia", "Shares"), formatNumber(allTotals.shares, locale)],
                 ["Engagement", `${allTotals.engagementRate.toFixed(2)}%`],
               ].map(([label, value]) => (
                 <div
@@ -656,18 +656,18 @@ export default function ContentSummaryImproved({
                         </div>
 
                         <div style={{ color: css.muted, fontSize: 12, marginTop: 3 }}>
-                          {group.connected ? group.accountName : "Niepodłączone"} · sync{" "}
+                          {group.connected ? group.accountName : text("Niepołączone", "Not connected")} · sync{" "}
                           {group.lastSync}
                         </div>
                       </div>
                     </div>
 
                     {[
-                      ["Posty", formatNumber(totals.postsCount)],
-                      [metricLabel(group.platform), formatCompact(totals.views)],
-                      ["Polubienia", formatCompact(totals.likes)],
-                      ["Komentarze", formatCompact(totals.comments)],
-                      ["Udost.", formatCompact(totals.shares)],
+                      [text("Posty", "Posts"), formatNumber(totals.postsCount, locale)],
+                      [metricLabel(group.platform, lang), formatCompact(totals.views, locale)],
+                      [text("Polubienia", "Likes"), formatCompact(totals.likes, locale)],
+                      [text("Komentarze", "Comments"), formatCompact(totals.comments, locale)],
+                      [text("Udost.", "Shares"), formatCompact(totals.shares, locale)],
                     ].map(([label, value]) => (
                       <div key={label}>
                         <div
@@ -712,12 +712,12 @@ export default function ContentSummaryImproved({
                     >
                       <div className="ciq-platform-summary-grid">
                         {[
-                          ["Śr. wyświetleń / post", formatNumber(totals.avgViews)],
-                          ["Śr. polubień / post", formatNumber(totals.avgLikes)],
-                          ["Śr. komentarzy / post", formatNumber(totals.avgComments)],
-                          ["Śr. udostępnień / post", formatNumber(totals.avgShares)],
-                          ["Zapisania", formatNumber(totals.saves)],
-                          ["Kliknięcia", formatNumber(totals.clicks)],
+                          [text("Śr. wyświetleń / post", "Avg. views / post"), formatNumber(totals.avgViews, locale)],
+                          [text("Śr. polubień / post", "Avg. likes / post"), formatNumber(totals.avgLikes, locale)],
+                          [text("Śr. komentarzy / post", "Avg. comments / post"), formatNumber(totals.avgComments, locale)],
+                          [text("Śr. udostępnień / post", "Avg. shares / post"), formatNumber(totals.avgShares, locale)],
+                          [text("Zapisania", "Saves"), formatNumber(totals.saves, locale)],
+                          [text("Kliknięcia", "Clicks"), formatNumber(totals.clicks, locale)],
                         ].map(([label, value]) => (
                           <div
                             key={label}
@@ -767,8 +767,10 @@ export default function ContentSummaryImproved({
                             background: css.surface,
                           }}
                         >
-                          Brak pobranych postów dla tej platformy w wybranym okresie.
-                          Jeżeli konto jest podłączone, uruchom synchronizację danych.
+                          {text(
+                            "Brak pobranych postów dla tej platformy w wybranym okresie. Jeżeli konto jest podłączone, uruchom synchronizację danych.",
+                            "No posts were imported for this platform in the selected period. If the account is connected, run data synchronization."
+                          )}
                         </div>
                       )}
 
@@ -877,22 +879,22 @@ export default function ContentSummaryImproved({
                                         marginTop: 4,
                                       }}
                                     >
-                                      {post.type} · {formatDate(post.published_at)}
+                                      {post.type} · {formatDate(post.published_at, locale, text("Brak daty", "No date"))}
                                     </div>
                                   </div>
                                 </div>
 
                                 <strong style={{ color: css.text, fontSize: 13 }}>
-                                  {formatNumber(post.views)}
+                                  {formatNumber(post.views, locale)}
                                 </strong>
                                 <strong style={{ color: css.text, fontSize: 13 }}>
-                                  {formatNumber(post.likes)}
+                                  {formatNumber(post.likes, locale)}
                                 </strong>
                                 <strong style={{ color: css.text, fontSize: 13 }}>
-                                  {formatNumber(post.comments)}
+                                  {formatNumber(post.comments, locale)}
                                 </strong>
                                 <strong style={{ color: css.text, fontSize: 13 }}>
-                                  {formatNumber(post.shares)}
+                                  {formatNumber(post.shares, locale)}
                                 </strong>
 
                                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -909,12 +911,12 @@ export default function ContentSummaryImproved({
                                         fontWeight: 900,
                                       }}
                                     >
-                                      Otwórz ↗
+                                      {text("Otwórz ↗", "Open ↗")}
                                     </a>
                                   )}
 
                                   <span style={{ color: css.muted, fontSize: 11 }}>
-                                    Szczegóły
+                                    {text("Szczegóły", "Details")}
                                   </span>
                                 </div>
                               </summary>
@@ -945,7 +947,7 @@ export default function ContentSummaryImproved({
                                       fontFamily: "var(--font-label)",
                                     }}
                                   >
-                                    Opis posta
+                                    {text("Opis posta", "Post description")}
                                   </div>
 
                                   <p
@@ -958,7 +960,7 @@ export default function ContentSummaryImproved({
                                       fontWeight: 400,
                                     }}
                                   >
-                                    {post.description || "Brak opisu posta w pobranych danych."}
+                                    {post.description || text("Brak opisu posta w pobranych danych.", "No post description was included in the imported data.")}
                                   </p>
 
                                   <div
@@ -990,7 +992,7 @@ export default function ContentSummaryImproved({
                                       }}
                                     >
                                       <Wand2 size={15} color={css.aiIcon} />
-                                      AI analiza
+                                      {text("AI analiza", "AI analysis")}
                                     </strong>
                                     {post.ai_summary}
                                   </div>
@@ -1015,18 +1017,18 @@ export default function ContentSummaryImproved({
                                       fontFamily: "var(--font-label)",
                                     }}
                                   >
-                                    Statystyki posta
+                                    {text("Statystyki posta", "Post statistics")}
                                   </div>
 
                                   {[
-                                    ["Wyświetlenia / zasięg", formatNumber(post.views)],
-                                    ["Impressions", formatNumber(post.impressions)],
-                                    ["Reach", formatNumber(post.reach)],
-                                    ["Polubienia", formatNumber(post.likes)],
-                                    ["Komentarze", formatNumber(post.comments)],
-                                    ["Udostępnienia", formatNumber(post.shares)],
-                                    ["Zapisania", formatNumber(post.saves)],
-                                    ["Kliknięcia", formatNumber(post.clicks)],
+                                    [text("Wyświetlenia / zasięg", "Views / reach"), formatNumber(post.views, locale)],
+                                    [text("Wyświetlenia", "Impressions"), formatNumber(post.impressions, locale)],
+                                    [text("Zasięg", "Reach"), formatNumber(post.reach, locale)],
+                                    [text("Polubienia", "Likes"), formatNumber(post.likes, locale)],
+                                    [text("Komentarze", "Comments"), formatNumber(post.comments, locale)],
+                                    [text("Udostępnienia", "Shares"), formatNumber(post.shares, locale)],
+                                    [text("Zapisania", "Saves"), formatNumber(post.saves, locale)],
+                                    [text("Kliknięcia", "Clicks"), formatNumber(post.clicks, locale)],
                                     ["AI score", post.ai_score ? `${post.ai_score}/100` : "—"],
                                   ].map(([label, value]) => (
                                     <div
