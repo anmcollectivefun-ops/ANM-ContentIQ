@@ -311,9 +311,7 @@ export default function ContentSummaryImproved({
           const { data: postsData, error: postsError } = await supabase
             .schema("contentiq")
             .from("posts")
-            .select(
-              "id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at"
-            )
+            .select("*")
             .in("connection_id", connectionIds)
             .gte("published_at", fromDate.toISOString())
             .order("published_at", { ascending: false });

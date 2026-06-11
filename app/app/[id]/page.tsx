@@ -1124,7 +1124,7 @@ const integrations = t.integrations;
         supabase
           .schema("contentiq")
           .from("platform_connections")
-          .select("id, platform, account_name, username, avatar_url, profile_image_url, profile_name, profile_likes, likes_count, total_likes, heart_count, followers, followers_count, follower_count, total_followers, fan_count, page_likes, page_fans, subscriber_count, last_synced_at, connected")
+          .select("*")
           .eq("workspace_id", resolvedWorkspaceId)
           .eq("connected", true)
           .then(({ data, error }) => {
@@ -1147,9 +1147,7 @@ const integrations = t.integrations;
   supabase
     .schema("contentiq")
     .from("posts")
-    .select(
-      "id, connection_id, platform_post_id, title, content, post_type, url, published_at, thumbnail_url, media_url, image_url, cover_url, reach, impressions, likes, comments, shares, saves, clicks, ai_score, ai_summary, fetched_at"
-    )
+    .select("*")
     .in("connection_id", connectionIds)
     .order("published_at", { ascending: false }),
 
@@ -1163,6 +1161,7 @@ const integrations = t.integrations;
 .then(([postsResult, linksResult]) => {
               if (postsResult.error) {
                 console.error("Posts load error:", postsResult.error.message);
+                return;
               }
               if (linksResult.error) {
                 console.error("Manual links load error:", linksResult.error.message);
