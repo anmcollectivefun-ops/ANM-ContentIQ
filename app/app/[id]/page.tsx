@@ -798,6 +798,7 @@ function AppWorkspacePageInner() {
   const searchParams = useSearchParams();
   const lang: Lang = getLang(searchParams.get("lang"));
   const t = appCopy[lang];
+  const tx = (polish: string, english: string) => (lang === "pl" ? polish : english);
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
   const [syncingAccount, setSyncingAccount] = useState<string | null>(null);
@@ -1192,6 +1193,11 @@ const integrations = t.integrations;
 }
 
 function openTab(tab: TabId) {
+  if (tab === "integrations") {
+    router.push(`/app/${workspaceId}/settings?lang=${lang}`);
+    return;
+  }
+
   setActiveTab(tab);
   setActiveAccount(null);
 }
@@ -1808,7 +1814,7 @@ const formatProfileNumber = (value: any) => {
                   margin: 0,
                 }}
               >
-                {activeAccount ? activeAccount.name : "Centrum analityki contentu"}
+                {activeAccount ? activeAccount.name : tx("Centrum analityki contentu", "Content analytics center")}
               </h1>
 
               <p
@@ -1820,8 +1826,10 @@ const formatProfileNumber = (value: any) => {
                   lineHeight: 1.65,
                 }}
               >
-                Wszystkie konta, wyniki live, treści, blog, oferta i rekomendacje AI w
-                jednym miejscu.
+                {tx(
+                  "Wszystkie konta, wyniki live, treści, blog, oferta i rekomendacje AI w jednym miejscu.",
+                  "All accounts, live results, content, blog, offers and AI recommendations in one place."
+                )}
               </p>
             </div>
 
@@ -2033,7 +2041,7 @@ const formatProfileNumber = (value: any) => {
             letterSpacing: ".12em",
           }}
         >
-          Analiza live
+          {tx("Analiza live", "Live analysis")}
         </p>
 
         <h3
@@ -2043,12 +2051,14 @@ const formatProfileNumber = (value: any) => {
             fontFamily: "var(--font-heading)",
           }}
         >
-          7 kanałów w jednym widoku
+          {tx("7 kanałów w jednym widoku", "7 channels in one view")}
         </h3>
 
         <p style={{ ...st.summaryNote, color: css.muted }}>
-          Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify i Blog
-          zebrane w jednym centrum analitycznym.
+          {tx(
+            "Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify i Blog zebrane w jednym centrum analitycznym.",
+            "Instagram, Facebook, LinkedIn, TikTok, YouTube, Spotify and Blog brought together in one analytics center."
+          )}
         </p>
       </div>
 
@@ -2091,7 +2101,7 @@ const formatProfileNumber = (value: any) => {
             }}
           >
             <Wand2 size={15} color={css.aiIcon} />
-            AI rekomendacja
+            {tx("AI rekomendacja", "AI recommendation")}
           </p>
 
           <h3
@@ -2101,7 +2111,7 @@ const formatProfileNumber = (value: any) => {
               fontFamily: "var(--font-heading)",
             }}
           >
-            Najmocniejszy kanał: {bestAccount.name}
+            {tx("Najmocniejszy kanał", "Strongest channel")}: {bestAccount.name}
           </h3>
 
           <p style={{ ...st.summaryNote, color: css.muted }}>
@@ -2149,7 +2159,7 @@ const formatProfileNumber = (value: any) => {
             }}
           >
             <Wand2 size={15} color={css.aiIcon} />
-            AI alert
+            {tx("AI alert", "AI alert")}
           </p>
 
           <h3
@@ -2159,7 +2169,7 @@ const formatProfileNumber = (value: any) => {
               fontFamily: "var(--font-heading)",
             }}
           >
-            Do poprawy: {weakestAccount.name}
+            {tx("Do poprawy", "Needs improvement")}: {weakestAccount.name}
           </h3>
 
           <p style={{ ...st.summaryNote, color: css.muted }}>
@@ -2208,7 +2218,7 @@ const formatProfileNumber = (value: any) => {
           }}
         >
           <Wand2 size={15} color={css.aiIcon} />
-          AI analiza cross-platform
+          {tx("AI analiza cross-platform", "Cross-platform AI analysis")}
         </p>
 
         <h2
@@ -2221,7 +2231,10 @@ const formatProfileNumber = (value: any) => {
             fontWeight: 500,
           }}
         >
-          Co działa najlepiej i gdzie warto podkręcić wynik?
+          {tx(
+            "Co działa najlepiej i gdzie warto podkręcić wynik?",
+            "What works best and where can performance improve?"
+          )}
         </h2>
 
         <div style={{ display: "grid", gap: 10 }}>
@@ -5250,16 +5263,19 @@ const formatProfileNumber = (value: any) => {
           >
             <div style={st.footerLegal}>
               <Link href="/privacy" style={{ ...st.footerLink, color: css.muted }}>
-                Polityka prywatności
+                {tx("Polityka prywatności", "Privacy Policy")}
               </Link>
               <span style={{ opacity: 0.4 }}>·</span>
               <Link href="/terms" style={{ ...st.footerLink, color: css.muted }}>
-                Regulamin
+                {tx("Regulamin", "Terms of Service")}
               </Link>
             </div>
 
             <div style={st.footerSignature}>
-              Stworzone z pasji do danych, contentu i mądrzejszej pracy przez{" "}
+              {tx(
+                "Stworzone z pasji do danych, contentu i mądrzejszej pracy przez",
+                "Created with a passion for data, content and smarter work by"
+              )}{" "}
               <a
                 href="https://anmcollective.pl"
                 target="_blank"

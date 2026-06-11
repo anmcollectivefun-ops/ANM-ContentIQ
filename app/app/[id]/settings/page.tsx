@@ -7,6 +7,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { getLang } from "@/lib/contentiq-app-copy";
 import {
   AlertCircle,
   ArrowLeft,
@@ -608,6 +609,8 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
 export default function IntegrationsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const lang = getLang(searchParams.get("lang"));
+  const text = (polish: string, english: string) => (lang === "pl" ? polish : english);
   const workspaceId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
   const supabase = createClient();
 
@@ -1161,7 +1164,7 @@ export default function IntegrationsPage() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <Link
-              href={`/app/${workspaceId}`}
+              href={`/app/${workspaceId}?lang=${lang}`}
               className="btn"
               style={{
                 padding: "10px 14px",
@@ -1175,7 +1178,7 @@ export default function IntegrationsPage() {
               }}
             >
               <ArrowLeft size={15} />
-              Panel główny
+              {text("Panel główny", "Main dashboard")}
             </Link>
 
             <div style={{ width: 1, height: 26, background: css.border }} />
@@ -1190,7 +1193,7 @@ export default function IntegrationsPage() {
                   fontWeight: 500,
                 }}
               >
-                Integracje
+                {text("Integracje", "Integrations")}
               </div>
 
               <div
@@ -1202,14 +1205,14 @@ export default function IntegrationsPage() {
                   marginTop: 5,
                 }}
               >
-                Social media · blog · podcasty
+                {text("Social media · blog · podcasty", "Social media · blog · podcasts")}
               </div>
             </div>
           </div>
 
           <div className="integrations-top-actions" style={{ display: "flex", gap: 9 }}>
             <Link
-              href={`/app/${workspaceId}?tab=accounts`}
+              href={`/app/${workspaceId}?tab=accounts&lang=${lang}`}
               className="btn"
               style={{
                 padding: "10px 14px",
@@ -1329,7 +1332,7 @@ export default function IntegrationsPage() {
                 </button>
 
                 <Link
-                  href={`/app/${workspaceId}?tab=compare`}
+                  href={`/app/${workspaceId}?tab=compare&lang=${lang}`}
                   className="btn"
                   style={{
                     ...actionButtonStyle({
