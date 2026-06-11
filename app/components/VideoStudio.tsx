@@ -893,7 +893,7 @@ export default function VideoStudio({
         ? activeVideo.duration
         : 1;
 
-    const times = [0.8, duration * 0.45, Math.max(duration - 0.8, duration * 0.8)].map(
+    const times = [0.5, duration * 0.2, duration * 0.4, duration * 0.65, Math.max(duration - 0.5, duration * 0.88)].map(
       (time) => Math.min(Math.max(time, 0.1), Math.max(duration - 0.1, 0.1))
     );
 
@@ -967,6 +967,7 @@ export default function VideoStudio({
           custom_user_notes: videoAnalysisNotes,
           reference_url: videoReferenceUrl,
           target_platforms: [platform],
+          language: lang === "en" ? "en" : "pl",
         }),
       });
 

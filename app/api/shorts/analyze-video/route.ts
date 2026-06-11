@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { GoogleGenAI, Type } from "@google/genai";
+import { requireWorkspace } from "@/lib/engagement/server";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,18 @@ type AnalyzeVideoBody = {
   ai_provider?: "deepseek" | "gemini";
   custom_user_notes?: string;
   reference_url?: string;
+  target_platforms?: string[];
+  language?: "pl" | "en";
+};
+
+type WorkspaceVideoContext = {
+  brand: Record<string, unknown> | null;
+  brandVoice: Record<string, unknown> | null;
+  platformProfile: Record<string, unknown> | null;
+  offers: Record<string, unknown>[];
+  links: Record<string, unknown>[];
+  creatorMemory: Record<string, unknown> | null;
+  learnings: Record<string, unknown>[];
 };
 
 const ALLOWED_VIDEO_TYPES = new Set([
@@ -166,6 +179,123 @@ function getDataUrlParts(dataUrl: string) {
   };
 }
 
+function compactJson(value: unknown) {
+  return JSON.stringify(value ?? null, null, 2);
+}
+
+async function loadWorkspaceVideoContext(
+  body: AnalyzeVideoBody
+): Promise<WorkspaceVideoContext> {
+  if (!body.workspace_id) {
+    return {
+      brand: null,
+      brandVoice: null,
+      platformProfile: null,
+      offers: [],
+      links: [],
+      creatorMemory: null,
+      learnings: [],
+    };
+  }
+
+  const { supabase, workspace } = await requireWorkspace(body.workspace_id);
+  const targetPlatform = body.target_platforms?.[0]?.trim().toLowerCase() || "";
+
+  const [
+    brandResult,
+    brandVoiceResult,
+    offersResult,
+    creatorMemoryResult,
+    learningsResult,
+    connectionsResult,
+  ] = await Promise.all([
+    supabase
+      .schema("contentiq")
+      .from("brand_profiles")
+      .select("*")
+      .eq("workspace_id", workspace.id)
+      .order("is_default", { ascending: false })
+      .limit(1),
+    supabase
+      .schema("contentiq")
+      .from("brand_voice")
+      .select("*")
+      .eq("workspace_id", workspace.id)
+      .limit(1),
+    supabase
+      .schema("contentiq")
+      .from("brand_offers")
+      .select("*")
+      .eq("workspace_id", workspace.id)
+      .eq("status", "active")
+      .order("is_primary", { ascending: false })
+      .limit(8),
+    supabase
+      .schema("contentiq")
+      .from("creator_style_profiles")
+      .select("*")
+      .eq("workspace_id", workspace.id)
+      .limit(1),
+    supabase
+      .schema("contentiq")
+      .from("ai_learnings")
+      .select("type,platform,insight,evidence,confidence")
+      .eq("workspace_id", workspace.id)
+      .eq("dismissed", false)
+      .order("confidence", { ascending: false })
+      .limit(12),
+    supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .select("id,platform")
+      .eq("workspace_id", workspace.id),
+  ]);
+
+  const brand =
+    ((brandResult.data || [])[0] as Record<string, unknown> | undefined) || null;
+  const connectionIds = (connectionsResult.data || []).map((row) => row.id);
+
+  const [platformProfileResult, linksResult] = await Promise.all([
+    brand?.id && targetPlatform
+      ? supabase
+          .schema("contentiq")
+          .from("brand_platform_profiles")
+          .select("*")
+          .eq("brand_profile_id", String(brand.id))
+          .eq("platform", targetPlatform)
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+    connectionIds.length
+      ? supabase
+          .schema("contentiq")
+          .from("manual_links")
+          .select("type,url,title,connection_id,created_at")
+          .in("connection_id", connectionIds)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  return {
+    brand,
+    brandVoice:
+      ((brandVoiceResult.data || [])[0] as
+        | Record<string, unknown>
+        | undefined) || null,
+    platformProfile:
+      ((platformProfileResult.data || [])[0] as
+        | Record<string, unknown>
+        | undefined) || null,
+    offers: (offersResult.data || []) as Record<string, unknown>[],
+    links: (linksResult.data || []) as Record<string, unknown>[],
+    creatorMemory:
+      ((creatorMemoryResult.data || [])[0] as
+        | Record<string, unknown>
+        | undefined) || null,
+    learnings: (learningsResult.data || []) as Record<string, unknown>[],
+  };
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -183,59 +313,103 @@ function isTemporaryGeminiError(error: unknown) {
   );
 }
 
-function buildVideoAnalysisPrompt(body: AnalyzeVideoBody) {
-  const userContext = [
-    body.custom_user_notes?.trim()
-      ? `Dodatkowe sugestie u?ytkownika: ${body.custom_user_notes.trim()}`
-      : "",
-    body.reference_url?.trim()
-      ? `Link referencyjny lub kontekstowy: ${body.reference_url.trim()}`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+export function buildVideoAnalysisPromptGemini(
+  body: AnalyzeVideoBody,
+  workspaceContext: WorkspaceVideoContext
+) {
+  const language = body.language === "en" ? "English" : "Polish";
+  const platforms =
+    body.target_platforms?.filter(Boolean).join(", ") ||
+    "TikTok, Instagram Reels, YouTube Shorts";
+  const notes = body.custom_user_notes?.trim();
+  const referenceUrl = body.reference_url?.trim();
 
   return `
-Przeanalizuj short video dla aplikacji ANM ContentIQ na podstawie klatek obrazu, napis?w widocznych na ekranie i sugestii u?ytkownika.
+You are an outstanding video marketing expert, social media strategist and specialist in the algorithms of ${platforms}.
 
-Dane pliku:
-- upload_id: ${body.upload_id}
-- file_name: ${body.file_name}
-- mime_type: ${body.mime_type}
-${userContext ? `\n${userContext}` : ""}
+You receive representative frames from the video "${body.file_name}" (${body.mime_type}).
+Write the entire response in ${language}.
 
-Najwa?niejsza zasada:
-Pole "caption" NIE jest opisem technicznym filmu. To ma by? gotowy tekst posta do publikacji pod filmem.
-Ma zach?ca? odbiorc? do klikni?cia, zapisania, komentarza, wej?cia w link albo wykonania akcji wskazanej w sugestiach u?ytkownika.
+YOUR ROLE:
+Do not produce a dry inventory of objects visible in the frames. Analyze what the video communicates, what value it offers, who should watch it and how to package it to maximize click-through rate, retention and meaningful engagement.
 
-?r?d?a tre?ci:
-- Najpierw czytaj napisy i tekst na ekranie. To jest g??wny sens filmu.
-- Klatki wykorzystuj tylko jako kontekst pomocniczy: klimat, osoby, produkt, ekran, miejsce.
-- Je?eli napisy s? urwane, odtw?rz sens ostro?nie i napisz w "transcript", co uda?o si? odczyta?.
-- Je?eli u?ytkownik poda? sugestie, potraktuj je jako brief marketingowy i dopasuj do nich hook, caption, CTA oraz hashtagi.
+TARGET PLATFORMS:
+${platforms}
 
-Co zwr?ci?:
-- "visual_summary": kr?tka notatka techniczna dla u?ytkownika, co wida? w filmie. Nie u?ywaj jej jako posta.
-- "transcript": odczytane napisy / tekst z filmu.
-- "detected_topic": temat biznesowy/contentowy, nie opis kadru.
-- "hook": mocne zdanie otwieraj?ce post.
-- "caption": gotowy opis posta: naturalny, marketingowy, zach?caj?cy, z CTA. Je?li jest link referencyjny, wspomnij o klikni?ciu/sprawdzeniu linku.
-- "hashtags": praktyczne hashtagi pod publikacj?.
-- "platform_recommendations": osobne wersje caption/hook pod TikTok, Instagram Reels, YouTube Shorts, Facebook Reels i LinkedIn Video.
+${notes ? `USER'S MARKETING BRIEF — treat this as the main business direction:\n${notes}\n` : ""}
+${referenceUrl ? `REFERENCE URL / CTA DESTINATION:\n${referenceUrl}\nUse it only as supplied context. Do not claim that you opened or verified its contents.\n` : ""}
 
-Przyk?ad r??nicy:
-?le: "Wideo pokazuje dwie osoby przy biurku i tablet graficzny."
-Dobrze: "Planujesz event, wesele albo 18. urodziny? ANM Collective tworzy narz?dzie, kt?re pomaga ogarn?? zaproszenia, harmonogram i komunikacj? w jednym miejscu. Sprawd?, jak ?atwiej zaplanowa? wydarzenie bez chaosu."
+REAL BRAND CONTEXT FROM ANM CONTENTIQ:
+Brand profile:
+${compactJson(workspaceContext.brand)}
+
+General Brand Voice:
+${compactJson(workspaceContext.brandVoice)}
+
+Platform-specific Brand Voice:
+${compactJson(workspaceContext.platformProfile)}
+
+Active products and offers:
+${compactJson(workspaceContext.offers)}
+
+Saved brand, product and reference links:
+${compactJson(workspaceContext.links)}
+
+Creator style memory:
+${compactJson(workspaceContext.creatorMemory)}
+
+Previous AI learnings backed by workspace data:
+${compactJson(workspaceContext.learnings)}
+
+Use this context to identify the actual product, audience, tone, CTA and content angle.
+Prefer the primary active offer when the video and the user's brief support it.
+Never force an unrelated offer into the caption.
+Never invent a URL. Use only a link present above or supplied by the user.
+
+ANALYSIS PRIORITIES:
+1. Read visible subtitles, overlays, product names and screen text first. They are the strongest source of meaning.
+2. Use frames as supporting context for emotion, pace, credibility, product and visual hook.
+3. Identify the core audience value: education, entertainment, relatability, transformation, controversy or proof.
+4. Create a thumb-stopping hook for the first two seconds that also works without sound.
+5. Write a complete social media caption, not a technical description of the recording.
+6. The caption must provide value, create curiosity and finish with a concrete CTA aligned with the user's brief.
+7. Select precise hashtags that tell the algorithm what niche and audience the video belongs to. Prefer relevance over generic popularity.
+8. Give separate, materially different recommendations for every target platform.
+
+TRUTHFULNESS:
+- Never invent spoken words.
+- In "transcript", include only text that can be read with reasonable confidence from the supplied frames.
+- If there is not enough readable text, return an empty transcript and base the marketing proposal on the user's brief and visual context.
+- Never invent performance data, trends, platform rules, audience numbers or the contents of the reference URL.
+- If the brief and frames are insufficient to identify the offer, keep the caption useful but explicitly neutral rather than fabricating a product.
+
+FIELD RULES:
+- "title": magnetic, specific, maximum 60 characters.
+- "visual_summary": short marketing assessment of the video's impact on the viewer; do not list physical objects.
+- "detected_topic": clear niche/topic for recommendation systems.
+- "hook": one strong sentence for 0-2 seconds.
+- "caption": publication-ready copy with natural formatting, value, curiosity and CTA.
+- "hashtags": 8-15 relevant tags; do not add invented statistics about hashtag volume.
+- "on_screen_text": concise overlay suggestions with timing.
+- "platform_recommendations": one entry per target platform, adapted to that platform's audience behavior and format.
+- "template_summary": explain the repeatable mechanism and one way to turn it into a series.
+
+Return only a valid JSON object matching the supplied response schema. No markdown and no additional text.
   `.trim();
 }
 
-async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
+async function analyzeWithGemini(
+  body: AnalyzeVideoBody,
+  frames: string[],
+  workspaceContext: WorkspaceVideoContext
+) {
   const apiKey =
     process.env.GOOGLE_GENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim() || "";
 
   if (!apiKey) {
-    console.warn("Brak klucza API dla Gemini. Uruchamiam fallback.");
-    return fallbackAnalysis(body.file_name || "short video", frames.length > 0);
+    throw new Error(
+      "Brak GOOGLE_GENAI_API_KEY lub GEMINI_API_KEY w zmiennych środowiskowych."
+    );
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -244,17 +418,24 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
     .filter((item): item is { mimeType: string; data: string } => Boolean(item));
 
   if (frameParts.length === 0) {
-    return fallbackAnalysis(body.file_name || "short video", false);
+    throw new Error(
+      "Nie udało się odczytać klatek filmu. Odtwórz podgląd i spróbuj ponownie."
+    );
   }
 
   const contents = [
-    buildVideoAnalysisPrompt(body),
-    ...frameParts.map((frame) => ({
-      inlineData: {
-        mimeType: frame.mimeType,
-        data: frame.data,
-      },
-    })),
+    {
+      role: "user",
+      parts: [
+        { text: buildVideoAnalysisPromptGemini(body, workspaceContext) },
+        ...frameParts.map((frame) => ({
+          inlineData: {
+            mimeType: frame.mimeType,
+            data: frame.data,
+          },
+        })),
+      ],
+    },
   ];
 
   const configuredModel = process.env.GEMINI_VIDEO_ANALYSIS_MODEL?.trim();
@@ -263,7 +444,12 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
     .map((model) => model.trim())
     .filter(Boolean);
   const models = Array.from(
-    new Set([configuredModel || "gemini-2.5-flash", ...fallbackModels, "gemini-2.0-flash"])
+    new Set([
+      configuredModel || "gemini-2.5-flash",
+      ...fallbackModels,
+      "gemini-2.5-flash-lite",
+      "gemini-2.0-flash",
+    ])
   );
 
   let lastError: unknown = null;
@@ -294,7 +480,11 @@ async function analyzeWithGemini(body: AnalyzeVideoBody, frames: string[]) {
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
-async function analyzeWithDeepSeek(body: AnalyzeVideoBody, frames: string[]) {
+async function analyzeWithDeepSeek(
+  body: AnalyzeVideoBody,
+  frames: string[],
+  workspaceContext: WorkspaceVideoContext
+) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const userContext = [
     body.custom_user_notes?.trim()
@@ -339,6 +529,9 @@ Dane pliku:
 W visual_summary jasno napisz, że DeepSeek nie analizuje klatek, i zaproponuj użytkownikowi przełączenie na Gemini w celu wykonania OCR napisów i analizy wizualnej.
 
 ${userContext ? `${userContext}\n\n` : ""}${outputSchemaText()}
+
+Kontekst marki i oferty z aplikacji:
+${compactJson(workspaceContext)}
         `.trim(),
       },
     ],
@@ -372,14 +565,15 @@ export async function POST(req: Request) {
     }
 
     const frames = Array.isArray(body.frame_data_urls)
-      ? body.frame_data_urls.filter((item) => item.startsWith("data:image/")).slice(0, 4)
+      ? body.frame_data_urls.filter((item) => item.startsWith("data:image/")).slice(0, 8)
       : [];
 
     const provider = body.ai_provider === "deepseek" ? "deepseek" : "gemini";
+    const workspaceContext = await loadWorkspaceVideoContext(body);
     const parsed =
       provider === "deepseek"
-        ? await analyzeWithDeepSeek(body, frames)
-        : await analyzeWithGemini(body, frames);
+        ? await analyzeWithDeepSeek(body, frames, workspaceContext)
+        : await analyzeWithGemini(body, frames, workspaceContext);
 
     return NextResponse.json(parsed);
   } catch (error) {
