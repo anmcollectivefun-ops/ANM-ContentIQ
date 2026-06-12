@@ -8,6 +8,9 @@ create schema if not exists contentiq;
 alter table contentiq.content_drafts
   add column if not exists media jsonb not null default '[]'::jsonb;
 
+alter table contentiq.inspirations
+  add column if not exists media jsonb not null default '[]'::jsonb;
+
 create table if not exists contentiq.media_assets (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references contentiq.workspaces(id) on delete cascade,

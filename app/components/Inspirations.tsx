@@ -15,6 +15,21 @@ type Platform =
 
 type InspirationKind = "content" | "video" | "short" | "creative";
 
+interface InspirationMediaItem {
+  kind?: string | null;
+  asset_type?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  file_name?: string | null;
+  mime_type?: string | null;
+  public_url?: string | null;
+  url?: string | null;
+  data_url?: string | null;
+  preview_text?: string | null;
+  source?: string | null;
+  status?: string | null;
+}
+
 interface InspirationRow {
   id: string;
   workspace_id: string;
@@ -26,6 +41,9 @@ interface InspirationRow {
   platforms: string[] | null;
   hashtags: string[] | null;
   image_url: string | null;
+  media: InspirationMediaItem[] | null;
+  preview_url?: string | null;
+  preview_asset_type?: string | null;
   ai_score: number | null;
   ai_feedback: string | null;
   status: string | null;
@@ -132,6 +150,10 @@ function makeTemplateBody(item: InspirationRow) {
 }
 
 function makeDraftMedia(item: InspirationRow) {
+  if (Array.isArray(item.media) && item.media.length > 0) {
+    return item.media;
+  }
+
   return item.image_url
     ? [
         {
@@ -145,6 +167,57 @@ function makeDraftMedia(item: InspirationRow) {
         },
       ]
     : [];
+}
+
+function getCoverMedia(item: InspirationRow) {
+  const media = Array.isArray(item.media) ? item.media : [];
+  return (
+    media.find((entry) => entry.kind === "cover") ||
+    media.find((entry) => entry.asset_type === "image") ||
+    media.find((entry) => entry.asset_type === "video") ||
+    media[0] ||
+    null
+  );
+}
+
+async function resolveMediaPreview(
+  supabase: ReturnType<typeof createClient>,
+  item: InspirationRow
+) {
+  const cover = getCoverMedia(item);
+  const directUrl =
+    cover?.public_url || cover?.url || cover?.data_url || item.image_url || null;
+  const assetType =
+    cover?.asset_type ||
+    (cover?.mime_type?.startsWith("video/") ? "video" : directUrl ? "image" : null);
+
+  if (directUrl) {
+    return {
+      ...item,
+      preview_url: directUrl,
+      preview_asset_type: assetType,
+    };
+  }
+
+  if (cover?.storage_bucket && cover?.storage_path) {
+    const { data, error } = await supabase.storage
+      .from(cover.storage_bucket)
+      .createSignedUrl(cover.storage_path, 60 * 60);
+
+    if (!error && data?.signedUrl) {
+      return {
+        ...item,
+        preview_url: data.signedUrl,
+        preview_asset_type: assetType,
+      };
+    }
+  }
+
+  return {
+    ...item,
+    preview_url: item.image_url,
+    preview_asset_type: item.image_url ? "image" : null,
+  };
 }
 
 function safeFileName(fileName: string) {
@@ -255,7 +328,7 @@ export default function Inspirations({
         const { data, error: listError } = await supabase
           .schema("contentiq")
           .from("inspirations")
-          .select("id,workspace_id,source_kind,source_studio,title,description,body,platforms,hashtags,image_url,ai_score,ai_feedback,status,created_at")
+          .select("id,workspace_id,source_kind,source_studio,title,description,body,platforms,hashtags,image_url,media,ai_score,ai_feedback,status,created_at")
           .eq("workspace_id", ws.id)
           .eq("source_kind", kind)
           .eq("status", "active")
@@ -263,7 +336,13 @@ export default function Inspirations({
 
         if (listError) throw new Error(listError.message);
 
-        if (!cancelled) setItems((data || []) as InspirationRow[]);
+        const resolvedItems = await Promise.all(
+          ((data || []) as InspirationRow[]).map((item) =>
+            resolveMediaPreview(supabase, item)
+          )
+        );
+
+        if (!cancelled) setItems(resolvedItems);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -438,6 +517,21 @@ export default function Inspirations({
 
       if (deleteError) throw new Error(deleteError.message);
 
+      const storagePaths = (Array.isArray(item.media) ? item.media : [])
+        .filter((entry) => entry.storage_bucket && entry.storage_path)
+        .reduce<Record<string, string[]>>((groups, entry) => {
+          const bucket = String(entry.storage_bucket);
+          groups[bucket] ||= [];
+          groups[bucket].push(String(entry.storage_path));
+          return groups;
+        }, {});
+
+      await Promise.all(
+        Object.entries(storagePaths).map(([bucket, paths]) =>
+          supabase.storage.from(bucket).remove(paths)
+        )
+      );
+
       setItems((prev) => prev.filter((row) => row.id !== item.id));
       showToast("✓ Usunięto inspirację z bazy");
     } catch (err) {
@@ -608,10 +702,28 @@ export default function Inspirations({
   function renderMiniature(item: InspirationRow, platform: Platform) {
     const platformInfo = PLATFORMS.find((p) => p.id === platform) || PLATFORMS[0];
 
-    if (item.image_url) {
+    if (item.preview_url && item.preview_asset_type === "video") {
+      return (
+        <video
+          src={item.preview_url}
+          muted
+          playsInline
+          preload="metadata"
+          style={{
+            width: "100%",
+            height: 132,
+            objectFit: "cover",
+            background: "#000",
+            display: "block",
+          }}
+        />
+      );
+    }
+
+    if (item.preview_url) {
       return (
         <img
-          src={item.image_url}
+          src={item.preview_url}
           alt=""
           style={{
             width: "100%",

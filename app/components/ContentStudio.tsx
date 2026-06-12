@@ -39,6 +39,11 @@ type UploadedMediaItem = {
   expires_at: string;
 };
 
+type InspirationMediaItem = Omit<UploadedMediaItem, "status" | "expires_at"> & {
+  status: "active";
+  source: "content_studio";
+};
+
 type GeneratedPost = {
   title: string;
   hook: string;
@@ -1951,7 +1956,7 @@ function ContentActions({
       const wsId = await getOrCreateWorkspaceUuid();
       if (!wsId) throw new Error(t("Brak przestrzeni aplikacji.", "Missing workspace."));
 
-      const { error } = await supabase
+      const { data: inspiration, error } = await supabase
         .schema("contentiq")
         .from("inspirations")
         .insert({
@@ -1966,9 +1971,67 @@ function ContentActions({
           ai_score: score,
           ai_feedback: notes,
           status: "active",
-        });
+          media: [],
+        })
+        .select("id")
+        .single();
 
       if (error) throw new Error(error.message);
+
+      const uploaded: InspirationMediaItem[] = [];
+
+      try {
+        for (const mediaItem of media) {
+          const fileName = safeFileName(mediaItem.name || "media");
+          const path = `${wsId}/inspirations/${inspiration.id}/${Date.now()}-${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(path, mediaItem.file, {
+              contentType: mediaItem.mimeType,
+              upsert: false,
+            });
+
+          if (uploadError) throw new Error(uploadError.message);
+
+          uploaded.push({
+            kind: uploaded.length === 0 ? "cover" : "attachment",
+            storage_bucket: STORAGE_BUCKET,
+            storage_path: path,
+            file_name: mediaItem.name,
+            mime_type: mediaItem.mimeType,
+            file_size: mediaItem.size,
+            asset_type: mediaItem.assetType,
+            status: "active",
+            source: "content_studio",
+          });
+        }
+
+        if (uploaded.length > 0) {
+          const { error: mediaUpdateError } = await supabase
+            .schema("contentiq")
+            .from("inspirations")
+            .update({ media: uploaded })
+            .eq("id", inspiration.id);
+
+          if (mediaUpdateError) throw new Error(mediaUpdateError.message);
+        }
+      } catch (mediaError) {
+        if (uploaded.length > 0) {
+          await supabase.storage
+            .from(STORAGE_BUCKET)
+            .remove(uploaded.map((mediaItem) => mediaItem.storage_path));
+        }
+
+        await supabase
+          .schema("contentiq")
+          .from("inspirations")
+          .delete()
+          .eq("id", inspiration.id);
+
+        throw mediaError;
+      }
+
       showToast(t("✓ Zapisano jako inspirację", "✓ Saved as inspiration"), "ok");
     } catch (err) {
       showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");

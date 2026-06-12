@@ -172,6 +172,44 @@ function getMediaUrl(item: DraftMediaItem | null | undefined) {
   return item?.public_url || item?.url || item?.data_url || null;
 }
 
+async function hydrateDraftMedia(
+  supabase: ReturnType<typeof createClient>,
+  template: TemplateDraft
+) {
+  const media = await Promise.all(
+    safeMedia(template.media).map(async (item) => {
+      if (getMediaUrl(item) || !item.storage_bucket || !item.storage_path) {
+        return item;
+      }
+
+      const { data, error } = await supabase.storage
+        .from(item.storage_bucket)
+        .createSignedUrl(item.storage_path, 60 * 60);
+
+      return !error && data?.signedUrl
+        ? { ...item, url: data.signedUrl }
+        : item;
+    })
+  );
+
+  return { ...template, media };
+}
+
+async function hydrateShortTemplateVideo(
+  supabase: ReturnType<typeof createClient>,
+  template: ShortTemplateRow
+) {
+  if (template.video_public_url || !template.video_storage_path) return template;
+
+  const { data, error } = await supabase.storage
+    .from("contentiq-temp-videos")
+    .createSignedUrl(template.video_storage_path, 60 * 60);
+
+  return !error && data?.signedUrl
+    ? { ...template, video_public_url: data.signedUrl }
+    : template;
+}
+
 function getCoverMedia(template: TemplateDraft) {
   const media = safeMedia(template.media);
   return (
@@ -397,9 +435,20 @@ export default function Templates({
           shortTemplates = (shortResult.data || []) as ShortTemplateRow[];
         }
 
+        const hydratedDrafts = await Promise.all(
+          ((drafts || []) as TemplateDraft[]).map((template) =>
+            hydrateDraftMedia(supabase, template)
+          )
+        );
+        const hydratedShortTemplates = await Promise.all(
+          shortTemplates.map((template) =>
+            hydrateShortTemplateVideo(supabase, template)
+          )
+        );
+
         const merged = [
-          ...((drafts || []) as TemplateDraft[]).map(draftToUnified),
-          ...shortTemplates.map(shortTemplateToUnified),
+          ...hydratedDrafts.map(draftToUnified),
+          ...hydratedShortTemplates.map(shortTemplateToUnified),
         ];
 
         if (!cancelled) setTemplates(merged);

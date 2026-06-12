@@ -1319,6 +1319,22 @@ export default function VideoStudio({
           ai_score: brief.estimated_score,
           ai_feedback: brief.ai_notes,
           status: "active",
+          media: videoUpload
+            ? [
+                {
+                  kind: "cover",
+                  asset_type: "video",
+                  storage_bucket: TEMP_VIDEO_BUCKET,
+                  storage_path: videoUpload.storage_path,
+                  file_name: videoUpload.file_name,
+                  mime_type: videoUpload.mime_type,
+                  file_size: videoUpload.file_size,
+                  preview_text: brief.thumbnail_text || brief.title,
+                  source: "video_studio",
+                  status: "active",
+                },
+              ]
+            : [],
         });
 
       if (insertError) throw new Error(insertError.message);
