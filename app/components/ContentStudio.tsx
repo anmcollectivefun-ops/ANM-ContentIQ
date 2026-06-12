@@ -772,15 +772,40 @@ function MediaPicker({
       </div>
 
       {media.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 8,
-            marginTop: 10,
-          }}
-        >
-          {media.map((item) => (
+        <>
+          <div
+            style={{
+              marginTop: 10,
+              borderRadius: 12,
+              border: `1px solid ${css.border}`,
+              background: css.surface,
+              padding: 10,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: css.muted, fontSize: 10, fontWeight: 800 }}>
+              <span>{t("Media wybrane — podgląd gotowy", "Media selected — preview ready")}</span>
+              <span>100%</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 999, background: css.bg, overflow: "hidden", marginTop: 7 }}>
+              <div style={{ width: "100%", height: "100%", background: css.accent, borderRadius: 999 }} />
+            </div>
+            <div style={{ color: css.muted, fontSize: 10, marginTop: 6 }}>
+              {t(
+                "Pliki zostaną wysłane do bezpiecznego Storage po zapisaniu inspiracji, szablonu lub harmonogramu.",
+                "Files will be uploaded to secure Storage when you save an inspiration, template or schedule."
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 8,
+              marginTop: 10,
+            }}
+          >
+            {media.map((item) => (
             <div
               key={item.id}
               style={{
@@ -861,8 +886,9 @@ function MediaPicker({
                 </button>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -1848,6 +1874,8 @@ function ContentActions({
   const [scheduling, setScheduling] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
 
   const score = "estimated_score" in item ? item.estimated_score : item.score;
@@ -1891,10 +1919,19 @@ function ContentActions({
 
     const expiresAt = getExpiryDate(scheduledAt);
     const uploaded = [];
+    setUploadProgress(8);
+    setUploadStatus(t("Przygotowuję media...", "Preparing media..."));
 
-    for (const mediaItem of media) {
+    for (let index = 0; index < media.length; index += 1) {
+      const mediaItem = media[index];
       const fileName = safeFileName(mediaItem.name || "media");
       const path = `${wsId}/${draftId}/${Date.now()}-${fileName}`;
+      setUploadStatus(
+        t(
+          `Wysyłam ${index + 1} z ${media.length}: ${mediaItem.name}`,
+          `Uploading ${index + 1} of ${media.length}: ${mediaItem.name}`
+        )
+      );
 
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -1936,8 +1973,11 @@ function ContentActions({
         });
 
       if (assetError) throw new Error(assetError.message);
+      setUploadProgress(Math.round(12 + ((index + 1) / media.length) * 76));
     }
 
+    setUploadStatus(t("Zapisuję miniaturę i metadane...", "Saving thumbnail and metadata..."));
+    setUploadProgress(94);
     const { error: updateError } = await supabase
       .schema("contentiq")
       .from("content_drafts")
@@ -1946,11 +1986,15 @@ function ContentActions({
 
     if (updateError) throw new Error(updateError.message);
 
+    setUploadProgress(100);
+    setUploadStatus(t("Media zapisane", "Media saved"));
     return uploaded;
   }
 
   async function saveInspiration() {
     setSaving(true);
+    setUploadProgress(media.length > 0 ? 5 : 0);
+    setUploadStatus(media.length > 0 ? t("Przygotowuję inspirację...", "Preparing inspiration...") : "");
 
     try {
       const wsId = await getOrCreateWorkspaceUuid();
@@ -1981,9 +2025,16 @@ function ContentActions({
       const uploaded: InspirationMediaItem[] = [];
 
       try {
-        for (const mediaItem of media) {
+        for (let index = 0; index < media.length; index += 1) {
+          const mediaItem = media[index];
           const fileName = safeFileName(mediaItem.name || "media");
           const path = `${wsId}/inspirations/${inspiration.id}/${Date.now()}-${fileName}`;
+          setUploadStatus(
+            t(
+              `Wysyłam ${index + 1} z ${media.length}: ${mediaItem.name}`,
+              `Uploading ${index + 1} of ${media.length}: ${mediaItem.name}`
+            )
+          );
 
           const { error: uploadError } = await supabase.storage
             .from(STORAGE_BUCKET)
@@ -2005,9 +2056,12 @@ function ContentActions({
             status: "active",
             source: "content_studio",
           });
+          setUploadProgress(Math.round(10 + ((index + 1) / media.length) * 78));
         }
 
         if (uploaded.length > 0) {
+          setUploadStatus(t("Zapisuję miniaturę...", "Saving thumbnail..."));
+          setUploadProgress(94);
           const { error: mediaUpdateError } = await supabase
             .schema("contentiq")
             .from("inspirations")
@@ -2015,6 +2069,8 @@ function ContentActions({
             .eq("id", inspiration.id);
 
           if (mediaUpdateError) throw new Error(mediaUpdateError.message);
+          setUploadProgress(100);
+          setUploadStatus(t("Zdjęcie lub film zapisane", "Image or video saved"));
         }
       } catch (mediaError) {
         if (uploaded.length > 0) {
@@ -2184,6 +2240,34 @@ function ContentActions({
           onClose={() => setShowModal(false)}
           onSchedule={schedulePost}
         />
+      )}
+
+      {media.length > 0 && uploadProgress > 0 && (
+        <div
+          style={{
+            marginTop: 10,
+            borderRadius: 12,
+            border: `1px solid ${uploadProgress === 100 ? "#22c55e55" : css.border}`,
+            background: css.surface,
+            padding: 10,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: uploadProgress === 100 ? "#22c55e" : css.muted, fontSize: 10, fontWeight: 900 }}>
+            <span>{uploadStatus}</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div style={{ height: 7, borderRadius: 999, background: css.bg, overflow: "hidden", marginTop: 7 }}>
+            <div
+              style={{
+                width: `${uploadProgress}%`,
+                height: "100%",
+                borderRadius: 999,
+                background: uploadProgress === 100 ? "#22c55e" : pColor,
+                transition: "width .25s ease",
+              }}
+            />
+          </div>
+        </div>
       )}
 
       <div

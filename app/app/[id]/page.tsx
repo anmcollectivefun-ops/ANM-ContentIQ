@@ -4579,47 +4579,8 @@ const formatProfileNumber = (value: any) => {
 )}
 {/* ================= CONTENT STUDIO ================= */}
 {activeTab === "studio" && (
-  <div>
-    <div
-      style={{
-        ...st.panel,
-        background: css.surface,
-        border: `1px solid ${css.border}`,
-        marginBottom: 18,
-      }}
-    >
-      <p
-        style={{
-          ...st.smallLabel,
-          color: css.accent,
-          fontFamily: "var(--font-label)",
-          letterSpacing: ".12em",
-          textTransform: "uppercase",
-        }}
-      >
-        Content Studio AI
-      </p>
-
-      <h2
-        style={{
-          ...st.sectionTitle,
-          color: css.heading,
-          fontFamily: "var(--font-heading)",
-          fontWeight: 500,
-        }}
-      >
-        Twórz, analizuj, adaptuj i testuj hooki
-      </h2>
-
-      <p style={{ ...st.sectionText, color: css.muted }}>
-        Ten moduł zna treść przed publikacją. Dzięki temu po opublikowaniu
-        system porównuje treść z realnym wynikiem i uczy AI, jaki styl działa
-        najlepiej na danej platformie.
-      </p>
-    </div>
-
-    <ContentStudio dark={dark} workspaceId={workspaceId} />
-  </div>
+  <ContentStudio dark={dark} workspaceId={workspaceId} />
+  
 )}
 {/* ================= VIDEO STUDIO ================= */}
 {activeTab === "video" && (
@@ -4627,9 +4588,8 @@ const formatProfileNumber = (value: any) => {
 )}
 {/* ================= OFERTA I LINKI ================= */}
 {activeTab === "offers" && (
-  <div>
-    <BrandOffers dark={dark} workspaceId={workspaceId} />
-  </div>
+  <BrandOffers dark={dark} workspaceId={workspaceId} />
+
 )}
 {/* ================= BLOG STUDIO ================= */}
 {activeTab === "blogStudio" && (

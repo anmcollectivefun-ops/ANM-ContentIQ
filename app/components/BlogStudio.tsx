@@ -7,6 +7,7 @@ import { useContentIQLanguage } from "@/lib/contentiq-language";
 import {
   BookOpen,
   FileText,
+  ImagePlus,
   Lightbulb,
   Link2,
   PenLine,
@@ -77,6 +78,31 @@ type BrandOffer = {
   is_primary: boolean | null;
   status: string | null;
 };
+
+type BlogCover = {
+  file: File;
+  previewUrl: string;
+};
+
+const BLOG_MEDIA_BUCKET = "content-temp-media";
+
+function safeMediaFileName(name: string) {
+  const dot = name.lastIndexOf(".");
+  const extension = dot >= 0 ? name.slice(dot).toLowerCase() : "";
+  const base = dot >= 0 ? name.slice(0, dot) : name;
+
+  return `${base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 72) || "blog-cover"}${extension}`;
+}
+
+function formatMediaSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
 
 const EMPTY_DRAFT: BlogDraft = {
   title: "",
@@ -448,6 +474,7 @@ export default function BlogStudio({
   const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [brandOffers, setBrandOffers] = useState<BrandOffer[]>([]);
 
@@ -468,6 +495,9 @@ export default function BlogStudio({
   const [aiOutput, setAiOutput] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [blogCover, setBlogCover] = useState<BlogCover | null>(null);
+  const [coverUploadProgress, setCoverUploadProgress] = useState(0);
+  const [coverUploadStatus, setCoverUploadStatus] = useState("");
 
   const css: Record<string, string> = dark
     ? {
@@ -517,6 +547,12 @@ export default function BlogStudio({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
+  useEffect(() => {
+    return () => {
+      if (blogCover?.previewUrl) URL.revokeObjectURL(blogCover.previewUrl);
+    };
+  }, [blogCover]);
+
 
   function showToast(message: string) {
     setToast(message);
@@ -525,6 +561,106 @@ export default function BlogStudio({
 
   function updateDraft<K extends keyof BlogDraft>(field: K, value: BlogDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectBlogCover(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError(text("Wybierz plik graficzny JPG, PNG, WebP lub GIF.", "Choose a JPG, PNG, WebP or GIF image."));
+      return;
+    }
+
+    setBlogCover((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return { file, previewUrl: URL.createObjectURL(file) };
+    });
+    setCoverUploadProgress(0);
+    setCoverUploadStatus(text("Zdjęcie wybrane — podgląd gotowy", "Image selected — preview ready"));
+    setError("");
+  }
+
+  function removeBlogCover() {
+    setBlogCover((current) => {
+      if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
+      return null;
+    });
+    setCoverUploadProgress(0);
+    setCoverUploadStatus("");
+    if (coverInputRef.current) coverInputRef.current.value = "";
+  }
+
+  async function uploadBlogCover(wsId: string, draftId: string) {
+    if (!blogCover) return;
+
+    const file = blogCover.file;
+    const path = `${wsId}/${draftId}/${Date.now()}-${safeMediaFileName(file.name)}`;
+
+    setCoverUploadProgress(12);
+    setCoverUploadStatus(text("Przygotowuję zdjęcie...", "Preparing image..."));
+
+    setCoverUploadProgress(28);
+    setCoverUploadStatus(text("Wysyłam zdjęcie do Storage...", "Uploading image to Storage..."));
+    const { error: uploadError } = await supabase.storage
+      .from(BLOG_MEDIA_BUCKET)
+      .upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) throw new Error(uploadError.message);
+
+    setCoverUploadProgress(84);
+    setCoverUploadStatus(text("Zapisuję miniaturę przy szkicu...", "Saving thumbnail with the draft..."));
+
+    const media = [
+      {
+        kind: "cover",
+        asset_type: "image",
+        storage_bucket: BLOG_MEDIA_BUCKET,
+        storage_path: path,
+        file_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+        preview_text: draft.title || draft.topic || file.name,
+        source: "blog_studio",
+        status: "temporary",
+      },
+    ];
+
+    const [{ error: draftMediaError }, { error: assetError }] = await Promise.all([
+      supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .update({ media })
+        .eq("id", draftId),
+      supabase
+        .schema("contentiq")
+        .from("media_assets")
+        .insert({
+          workspace_id: wsId,
+          draft_id: draftId,
+          storage_bucket: BLOG_MEDIA_BUCKET,
+          storage_path: path,
+          file_name: file.name,
+          mime_type: file.type,
+          file_size: file.size,
+          asset_type: "image",
+          status: "temporary",
+        }),
+    ]);
+
+    if (draftMediaError || assetError) {
+      await supabase.storage.from(BLOG_MEDIA_BUCKET).remove([path]);
+      await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .update({ media: [] })
+        .eq("id", draftId);
+      throw new Error(draftMediaError?.message || assetError?.message || "Nie udało się zapisać miniatury.");
+    }
+
+    setCoverUploadProgress(100);
+    setCoverUploadStatus(text("Zdjęcie zapisane", "Image saved"));
   }
 
   function captureSelection() {
@@ -759,6 +895,10 @@ async function loadBrandOffers() {
   async function saveAs(status: BlogStatus) {
     setSaving(true);
     setError("");
+    if (blogCover) {
+      setCoverUploadProgress(5);
+      setCoverUploadStatus(text("Przygotowuję zapis...", "Preparing save..."));
+    }
 
     try {
       const wsId = await getOrCreateWorkspaceUuid();
@@ -787,8 +927,9 @@ async function loadBrandOffers() {
           .filter(Boolean)
           .join("\n"),
         status,
-        media: [],
       };
+
+      let draftId = draft.id || "";
 
       if (draft.id) {
         const { error: updateError } = await supabase
@@ -802,13 +943,19 @@ async function loadBrandOffers() {
         const { data, error: insertError } = await supabase
           .schema("contentiq")
           .from("content_drafts")
-          .insert(payload)
+          .insert({ ...payload, media: [] })
           .select("id")
           .single();
 
         if (insertError) throw new Error(insertError.message);
-        if (data?.id) updateDraft("id", data.id);
+        if (data?.id) {
+          draftId = data.id;
+          updateDraft("id", data.id);
+        }
       }
+
+      if (!draftId) throw new Error(text("Nie udało się ustalić ID szkicu.", "Could not determine the draft ID."));
+      await uploadBlogCover(wsId, draftId);
 
       updateDraft("status", status);
       await loadDrafts();
@@ -822,6 +969,7 @@ async function loadBrandOffers() {
 
   function loadSavedDraft(item: BlogDraft) {
     setDraft(item);
+    removeBlogCover();
     setAiOutput("");
     setSelectedText("");
     showToast("✓ Wczytano szkic");
@@ -1224,6 +1372,125 @@ async function loadBrandOffers() {
           </div>
 
           <div>
+            <div style={labelStyle}>{text("Okładka / miniatura wpisu", "Post cover / thumbnail")}</div>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(event) => selectBlogCover(event.target.files?.[0] || null)}
+              style={{ display: "none" }}
+            />
+
+            {!blogCover ? (
+              <button
+                type="button"
+                className="blog-btn"
+                onClick={() => coverInputRef.current?.click()}
+                style={{
+                  width: "100%",
+                  minHeight: 92,
+                  borderRadius: 16,
+                  border: `1px dashed ${css.border}`,
+                  background: css.surfaceSoft,
+                  color: css.text,
+                  padding: 14,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                  display: "grid",
+                  placeItems: "center",
+                  textAlign: "center",
+                }}
+              >
+                <span>
+                  <ImagePlus size={22} color={css.accent} />
+                  <strong style={{ display: "block", marginTop: 6, fontSize: 12 }}>
+                    {text("Dodaj zdjęcie do wpisu", "Add an image to the post")}
+                  </strong>
+                  <span style={{ display: "block", color: css.muted, fontSize: 10, marginTop: 4 }}>
+                    JPG, PNG, WebP lub GIF
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <div
+                style={{
+                  borderRadius: 16,
+                  border: `1px solid ${css.border}`,
+                  background: css.surfaceSoft,
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={blogCover.previewUrl}
+                  alt={blogCover.file.name}
+                  style={{
+                    width: "100%",
+                    maxHeight: 280,
+                    objectFit: "cover",
+                    display: "block",
+                    background: "#000",
+                  }}
+                />
+                <div style={{ padding: 11 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: css.text, fontSize: 11, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {blogCover.file.name}
+                      </div>
+                      <div style={{ color: css.muted, fontSize: 10, marginTop: 3 }}>
+                        {formatMediaSize(blogCover.file.size)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeBlogCover}
+                      disabled={saving}
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid #ef444455",
+                        background: "#ef444412",
+                        color: "#ef4444",
+                        padding: "7px 10px",
+                        cursor: saving ? "not-allowed" : "pointer",
+                        fontSize: 10,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {text("Usuń", "Remove")}
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: coverUploadProgress === 100 ? "#22c55e" : css.muted, fontSize: 10, fontWeight: 800, marginTop: 10 }}>
+                    <span>
+                      {coverUploadStatus ||
+                        text(
+                          "Zdjęcie wybrane — zostanie wysłane przy zapisie",
+                          "Image selected — it will upload when saved"
+                        )}
+                    </span>
+                    <span>
+                      {coverUploadProgress > 0
+                        ? `${coverUploadProgress}%`
+                        : text("Podgląd", "Preview")}
+                    </span>
+                  </div>
+                  <div style={{ height: 7, borderRadius: 999, background: css.bg, overflow: "hidden", marginTop: 7 }}>
+                    <div
+                      style={{
+                        width: `${coverUploadProgress > 0 ? coverUploadProgress : 100}%`,
+                        height: "100%",
+                        borderRadius: 999,
+                        background: coverUploadProgress === 100 ? "#22c55e" : css.accent,
+                        transition: "width .25s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 8 }}>
               <div style={labelStyle}>{text("Notatnik pisarza", "Writer's notebook")}</div>
               <div style={{ display: "flex", gap: 8, color: css.muted, fontSize: 10, fontWeight: 800 }}>
@@ -1326,7 +1593,10 @@ async function loadBrandOffers() {
             <button
               type="button"
               className="blog-btn"
-              onClick={() => setDraft(EMPTY_DRAFT)}
+              onClick={() => {
+                setDraft(EMPTY_DRAFT);
+                removeBlogCover();
+              }}
               style={{
                 borderRadius: 14,
                 border: `1px solid ${css.border}`,
