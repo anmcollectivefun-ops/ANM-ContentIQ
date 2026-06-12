@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
+import { publishScheduledPost } from "@/lib/publishing/client";
 
 type Lang = "pl" | "en";
 type StudioFlow = "smart" | "social" | "hooks" | "blog" | "article";
@@ -2143,7 +2144,7 @@ function ContentActions({
     }
   }
 
-  async function schedulePost(scheduledAt: string) {
+  async function schedulePost(scheduledAt: string, publishImmediately = false) {
     setScheduling(true);
     setShowModal(false);
 
@@ -2185,6 +2186,12 @@ function ContentActions({
         .update({ scheduled_post_id: scheduled.id })
         .eq("draft_id", draftId);
 
+      if (publishImmediately) {
+        await publishScheduledPost(workspaceId, scheduled.id);
+        showToast(t("✓ Opublikowano na wybranej platformie", "✓ Published to the selected platform"), "ok");
+        return;
+      }
+
       showToast(
         `${t("✓ Zaplanowano na", "✓ Scheduled for")} ${new Date(scheduledAt).toLocaleString("pl-PL")}`,
         "ok"
@@ -2200,8 +2207,7 @@ function ContentActions({
     setPublishing(true);
 
     try {
-      await schedulePost(new Date().toISOString());
-      showToast(t("✓ Wysłano do kolejki publikacji", "✓ Sent to publishing queue"), "ok");
+      await schedulePost(new Date().toISOString(), true);
     } catch (err) {
       showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
     } finally {

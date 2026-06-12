@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
+import { publishScheduledPost } from "@/lib/publishing/client";
 
 // ─── TYPY ────────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export default function Schedule({
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [selected, setSelected] = useState<ScheduledPost | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const css = dark
@@ -138,6 +140,24 @@ export default function Schedule({
     if (error) showToast(text("Błąd anulowania", "Cancellation error"));
     else { showToast(text("Post anulowany", "Post cancelled")); await load(); setSelected(null); }
     setCancelling(null);
+  }
+
+  async function publishPost(post: ScheduledPost) {
+    setPublishing(post.id);
+    try {
+      await publishScheduledPost(workspaceId, post.id);
+      showToast(text("Post został opublikowany.", "Post published."));
+      await load();
+      setSelected(null);
+    } catch (error) {
+      showToast(
+        `${text("Błąd publikacji", "Publishing error")}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    } finally {
+      setPublishing(null);
+    }
   }
 
   const filtered = filter === "all" ? posts : posts.filter(p => p.status === filter);
@@ -231,6 +251,27 @@ export default function Schedule({
               <span style={{ flex: 1, padding: "8px 12px", borderRadius: 8, background: STATUS_META[selected.status].bg, color: STATUS_META[selected.status].color, fontSize: 12, fontWeight: 600, textAlign: "center" }}>
                 {STATUS_META[selected.status].label}
               </span>
+              {selected.status === "scheduled" && (
+                <button
+                  className="sch-btn"
+                  onClick={() => publishPost(selected)}
+                  disabled={publishing === selected.id}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: PLATFORM_META[selected.platform]?.color || css.accent,
+                    border: "none",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    opacity: publishing === selected.id ? 0.6 : 1,
+                  }}
+                >
+                  {publishing === selected.id
+                    ? text("Publikuję...", "Publishing...")
+                    : text("Publikuj teraz", "Publish now")}
+                </button>
+              )}
               {selected.status === "scheduled" && (
                 <button className="sch-btn" onClick={() => cancelPost(selected.id)} disabled={cancelling === selected.id}
                   style={{ padding: "8px 16px", borderRadius: 8, background: "#ef444415", border: "1px solid #ef444430", color: "#ef4444", fontSize: 12, fontWeight: 600, opacity: cancelling === selected.id ? 0.6 : 1 }}>

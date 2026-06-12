@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
+import { publishScheduledPost } from "@/lib/publishing/client";
 
 type Platform =
   | "linkedin"
@@ -549,14 +550,19 @@ export default function Templates({
     return conn.id as string;
   }
 
-  async function scheduleTemplate(template: UnifiedTemplate, platform: Platform, scheduledAt: string) {
+  async function scheduleTemplate(
+    template: UnifiedTemplate,
+    platform: Platform,
+    scheduledAt: string,
+    publishImmediately = false
+  ) {
     setActionLoadingId(`${template.source}:${template.id}:schedule`);
 
     try {
       const draftId = await createScheduledDraft(template, platform);
       const connectionId = await getConnectionId(platform);
 
-      const { error: schedErr } = await supabase
+      const { data: scheduled, error: schedErr } = await supabase
         .schema("contentiq")
         .from("scheduled_posts")
         .insert({
@@ -565,9 +571,17 @@ export default function Templates({
           platform,
           scheduled_at: scheduledAt,
           status: "scheduled",
-        });
+        })
+        .select("id")
+        .single();
 
       if (schedErr) throw new Error(schedErr.message);
+
+      if (publishImmediately) {
+        await publishScheduledPost(workspaceId, scheduled.id);
+        showToast(text("✓ Opublikowano na wybranej platformie", "✓ Published to the selected platform"));
+        return;
+      }
 
       showToast(`✓ Dodano do harmonogramu: ${new Date(scheduledAt).toLocaleString("pl-PL")}`);
     } catch (err) {
@@ -585,7 +599,7 @@ export default function Templates({
   }
 
   async function publishNow(template: UnifiedTemplate, platform: Platform) {
-    await scheduleTemplate(template, platform, new Date().toISOString());
+    await scheduleTemplate(template, platform, new Date().toISOString(), true);
   }
 
   async function deleteTemplate(template: UnifiedTemplate) {

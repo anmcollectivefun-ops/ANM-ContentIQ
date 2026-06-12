@@ -127,59 +127,77 @@ const PLATFORM_TARGETS: { id: Platform; name: string; color: string }[] = [
 
 const ACTIONS: {
   id: BlogAiAction;
-  label: string;
-  hint: string;
+  labelPl: string;
+  labelEn: string;
+  hintPl: string;
+  hintEn: string;
   icon: React.ReactNode;
   accent?: boolean;
 }[] = [
   {
     id: "idea",
-    label: "Pomysł AI",
-    hint: "Gdy nie wiesz, o czym pisać",
+    labelPl: "Pomysł AI",
+    labelEn: "AI idea",
+    hintPl: "Gdy nie wiesz, o czym pisać",
+    hintEn: "When you are not sure what to write about",
     icon: <Lightbulb size={15} />,
     accent: true,
   },
   {
     id: "outline",
-    label: "Plan wpisu",
-    hint: "Nadaj strukturę artykułowi",
+    labelPl: "Plan wpisu",
+    labelEn: "Post outline",
+    hintPl: "Nadaj strukturę artykułowi",
+    hintEn: "Create a clear article structure",
     icon: <BookOpen size={15} />,
   },
   {
     id: "start",
-    label: "Zacznij tekst",
-    hint: "Pierwszy akapit i wejście w temat",
+    labelPl: "Zacznij tekst",
+    labelEn: "Start writing",
+    hintPl: "Pierwszy akapit i wejście w temat",
+    hintEn: "Write the opening and first paragraph",
     icon: <PenLine size={15} />,
   },
   {
     id: "continue",
-    label: "Co dalej?",
-    hint: "Dopisz kolejną część wpisu",
+    labelPl: "Co dalej?",
+    labelEn: "Continue",
+    hintPl: "Dopisz kolejną część wpisu",
+    hintEn: "Write the next section of the post",
     icon: <Sparkles size={15} />,
     accent: true,
   },
   {
     id: "words",
-    label: "Znajdź słowa",
-    hint: "Lepsze frazy, metafory, nagłówki",
+    labelPl: "Znajdź słowa",
+    labelEn: "Find better words",
+    hintPl: "Lepsze frazy, metafory, nagłówki",
+    hintEn: "Improve phrases, metaphors and headings",
     icon: <Wand2 size={15} />,
   },
   {
     id: "improve",
-    label: "Popraw fragment",
-    hint: "Wygładź styl i logikę tekstu",
+    labelPl: "Popraw fragment",
+    labelEn: "Improve excerpt",
+    hintPl: "Wygładź styl i logikę tekstu",
+    hintEn: "Polish the style and logic",
     icon: <RefreshCw size={15} />,
   },
   {
     id: "seo",
-    label: "SEO i tytuły",
-    hint: "Tytuł, meta, H2, FAQ",
+    labelPl: "SEO i tytuły",
+    labelEn: "SEO and titles",
+    hintPl: "Tytuł, meta, H2, FAQ",
+    hintEn: "Titles, metadata, H2s and FAQ",
     icon: <FileText size={15} />,
   },
   {
     id: "social",
-    label: "Zrób social",
-    hint: "Posty promujące wpis blogowy",
+    labelPl: "Zrób social",
+    labelEn: "Create social posts",
+    hintPl: "Posty promujące wpis blogowy",
+    hintEn: "Turn the article into promotional posts",
     icon: <Link2 size={15} />,
     accent: true,
   },
@@ -228,7 +246,9 @@ function buildPrompt({
   sourceNotes: string;
   brandOffers: BrandOffer[];
 }) {
-  const offersContext = formatBrandOffersForPrompt(brandOffers);
+  const offersContext = formatBrandOffersForPrompt(brandOffers, language);
+  const missing = language === "pl" ? "brak" : "not provided";
+  const responseLanguage = language === "pl" ? "polskim" : "angielskim";
 
   const base = `
 Jesteś AI pisarzem, redaktorem i strategiem content marketingu.
@@ -246,25 +266,27 @@ Jesteś AI pisarzem i redaktorem.
 Nie pisz ogólników. Pracuj na notatkach użytkownika, aktualnym szkicu, kontekście marki i zapisanych ofertach.
 Jeżeli zadanie dotyczy pomysłów, planu, SEO albo social media, połącz temat z konkretną ofertą, produktem, aplikacją, usługą, kursem lub landing page z listy.
 Nie kończ całego artykułu na siłę, jeśli użytkownik prosi tylko o dalszy fragment.
-Pisz naturalnie i konkretnie w języku ${language === "pl" ? "polskim" : "angielskim"}.
+JĘZYK ODPOWIEDZI: ${responseLanguage}.
+Całą odpowiedź napisz wyłącznie w języku ${responseLanguage}. Nie mieszaj języków, także w nagłówkach, CTA, przykładach i nazwach sekcji.
+Pisz naturalnie i konkretnie.
 
 DANE WPISU:
-Tytuł: ${draft.title || "brak"}
-Temat: ${draft.topic || "brak"}
-Kąt komunikacji: ${draft.angle || "brak"}
-Odbiorca: ${draft.audience || "brak"}
-CTA / cel wpisu: ${draft.cta || "brak"}
-Link źródłowy lub docelowy: ${draft.source_url || "brak"}
-Notatki użytkownika: ${draft.notes || "brak"}
+Tytuł: ${draft.title || missing}
+Temat: ${draft.topic || missing}
+Kąt komunikacji: ${draft.angle || missing}
+Odbiorca: ${draft.audience || missing}
+CTA / cel wpisu: ${draft.cta || missing}
+Link źródłowy lub docelowy: ${draft.source_url || missing}
+Notatki użytkownika: ${draft.notes || missing}
 
 TREŚĆ OBECNEGO SZKICU:
-${draft.body || "brak"}
+${draft.body || missing}
 
 ZAZNACZONY FRAGMENT / FRAGMENT DO POPRAWY:
-${selectedText || "brak"}
+${selectedText || missing}
 
 DANE POBRANE ZE STRONY / BLOGA:
-${sourceNotes || "brak"}
+${sourceNotes || missing}
 `.trim();
 
   if (action === "idea") {
@@ -409,13 +431,64 @@ Dostosuj ton:
 - YouTube: tytuł/short/miniatura i retencja.
 Nie kopiuj jednego posta 1:1 na wszystkie platformy.`;
 }
-function formatBrandOffersForPrompt(offers: BrandOffer[]) {
+function formatBrandOffersForPrompt(offers: BrandOffer[], language: "pl" | "en") {
+  const missing = language === "pl" ? "brak" : "not provided";
   if (!offers.length) {
-    return "Brak zapisanych produktów, usług lub aplikacji marki.";
+    return language === "pl"
+      ? "Brak zapisanych produktów, usług lub aplikacji marki."
+      : "No saved brand products, services or applications.";
   }
 
   return offers
     .map((offer, index) => {
+      if (language === "en") {
+        return `
+OFFER ${index + 1}${offer.is_primary ? " — PRIMARY OFFER" : ""}
+
+Name:
+${offer.name}
+
+Type:
+${offer.offer_type || missing}
+
+Link:
+${offer.url || missing}
+
+Short description:
+${offer.short_description || missing}
+
+Full description:
+${offer.full_description || missing}
+
+Target audience:
+${offer.target_audience || missing}
+
+Audience pain points:
+${safeArray(offer.pain_points).map((x) => `- ${x}`).join("\n") || `- ${missing}`}
+
+Benefits:
+${safeArray(offer.benefits).map((x) => `- ${x}`).join("\n") || `- ${missing}`}
+
+Features:
+${safeArray(offer.features).map((x) => `- ${x}`).join("\n") || `- ${missing}`}
+
+CTA options:
+${safeArray(offer.cta_options).map((x) => `- ${x}`).join("\n") || `- ${missing}`}
+
+Content angles:
+${safeArray(offer.content_angles).map((x) => `- ${x}`).join("\n") || `- ${missing}`}
+
+Keywords:
+${safeArray(offer.keywords).join(", ") || missing}
+
+Words to avoid:
+${safeArray(offer.avoid_words).join(", ") || missing}
+
+Platforms:
+${safeArray(offer.platforms).join(", ") || missing}
+`.trim();
+      }
+
       return `
 OFERTA ${index + 1}${offer.is_primary ? " — OFERTA GŁÓWNA" : ""}
 
@@ -423,19 +496,19 @@ Nazwa:
 ${offer.name}
 
 Typ:
-${offer.offer_type || "brak"}
+${offer.offer_type || missing}
 
 Link:
-${offer.url || "brak"}
+${offer.url || missing}
 
 Krótki opis:
-${offer.short_description || "brak"}
+${offer.short_description || missing}
 
 Pełny opis:
-${offer.full_description || "brak"}
+${offer.full_description || missing}
 
 Dla kogo:
-${offer.target_audience || "brak"}
+${offer.target_audience || missing}
 
 Problemy odbiorcy:
 ${(offer.pain_points || []).map((x) => `- ${x}`).join("\n") || "- brak"}
@@ -656,7 +729,11 @@ export default function BlogStudio({
         .from("content_drafts")
         .update({ media: [] })
         .eq("id", draftId);
-      throw new Error(draftMediaError?.message || assetError?.message || "Nie udało się zapisać miniatury.");
+      throw new Error(
+        draftMediaError?.message ||
+          assetError?.message ||
+          text("Nie udało się zapisać miniatury.", "Could not save the thumbnail.")
+      );
     }
 
     setCoverUploadProgress(100);
@@ -729,7 +806,7 @@ async function loadBrandOffers() {
 
     const { data: auth, error: authError } = await supabase.auth.getUser();
     if (authError) throw new Error(authError.message);
-    if (!auth.user) throw new Error("Brak aktywnej sesji.");
+    if (!auth.user) throw new Error(text("Brak aktywnej sesji.", "No active session."));
 
     const { data: created, error } = await supabase
       .schema("contentiq")
@@ -744,7 +821,7 @@ async function loadBrandOffers() {
       .single();
 
     if (error || !created?.id) {
-      throw new Error(error?.message || "Nie udało się utworzyć workspace.");
+      throw new Error(error?.message || text("Nie udało się utworzyć workspace.", "Could not create the workspace."));
     }
 
     return created.id as string;
@@ -777,7 +854,7 @@ async function loadBrandOffers() {
       setSavedDrafts(
         (data || []).map((item: any) => ({
           id: item.id,
-          title: item.title || "Szkic blogowy",
+          title: item.title || text("Szkic blogowy", "Blog draft"),
           topic: item.topic || "",
           body: item.body || "",
           angle: "",
@@ -798,7 +875,7 @@ async function loadBrandOffers() {
   async function scrapeSource() {
     const url = draft.source_url.trim();
     if (!url) {
-      setError("Wklej link do bloga, strony lub materiału źródłowego.");
+      setError(text("Wklej link do bloga, strony lub materiału źródłowego.", "Paste a link to a blog, website or source material."));
       return;
     }
 
@@ -815,7 +892,7 @@ async function loadBrandOffers() {
       const data = (await response.json().catch(() => null)) as ScrapeResponse | null;
 
       if (!response.ok || data?.error) {
-        throw new Error(data?.error || "Nie udało się pobrać treści ze strony.");
+        throw new Error(data?.error || text("Nie udało się pobrać treści ze strony.", "Could not collect content from the website."));
       }
 
       const notes =
@@ -827,7 +904,7 @@ async function loadBrandOffers() {
       if (!draft.title && data?.title) updateDraft("title", data.title);
       if (!draft.topic && data?.description) updateDraft("topic", data.description);
 
-      showToast("✓ Pobrano kontekst ze strony");
+      showToast(text("✓ Pobrano kontekst ze strony", "✓ Website context collected"));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -876,7 +953,7 @@ async function loadBrandOffers() {
       const data = (await response.json().catch(() => null)) as ChatResponse | null;
 
       if (!response.ok || data?.error) {
-        throw new Error(data?.details || data?.error || "AI nie zwróciło odpowiedzi.");
+        throw new Error(data?.details || data?.error || text("AI nie zwróciło odpowiedzi.", "AI did not return a response."));
       }
 
       const answer = cleanAiText(data?.answer || "");
@@ -902,11 +979,11 @@ async function loadBrandOffers() {
 
     try {
       const wsId = await getOrCreateWorkspaceUuid();
-      const title = draft.title.trim() || draft.topic.trim() || "Szkic blogowy";
+      const title = draft.title.trim() || draft.topic.trim() || text("Szkic blogowy", "Blog draft");
       const body = draft.body.trim() || aiOutput.trim();
 
       if (!body && !draft.topic.trim()) {
-        throw new Error("Najpierw wpisz temat albo treść szkicu.");
+        throw new Error(text("Najpierw wpisz temat albo treść szkicu.", "Enter a topic or draft content first."));
       }
 
       const payload = {
@@ -918,11 +995,11 @@ async function loadBrandOffers() {
         target_platforms: ["blog", ...selectedPlatforms.filter((item) => item !== "blog")],
         ai_score: null,
         ai_feedback: [
-          draft.angle ? `Kąt: ${draft.angle}` : "",
-          draft.audience ? `Odbiorca: ${draft.audience}` : "",
+          draft.angle ? `${text("Kąt", "Angle")}: ${draft.angle}` : "",
+          draft.audience ? `${text("Odbiorca", "Audience")}: ${draft.audience}` : "",
           draft.cta ? `CTA: ${draft.cta}` : "",
-          draft.source_url ? `Źródło: ${draft.source_url}` : "",
-          draft.notes ? `Notatki: ${draft.notes}` : "",
+          draft.source_url ? `${text("Źródło", "Source")}: ${draft.source_url}` : "",
+          draft.notes ? `${text("Notatki", "Notes")}: ${draft.notes}` : "",
         ]
           .filter(Boolean)
           .join("\n"),
@@ -959,7 +1036,11 @@ async function loadBrandOffers() {
 
       updateDraft("status", status);
       await loadDrafts();
-      showToast(status === "template" ? "✓ Zapisano jako szablon blogowy" : "✓ Zapisano szkic do dalszej edycji");
+      showToast(
+        status === "template"
+          ? text("✓ Zapisano jako szablon blogowy", "✓ Saved as a blog template")
+          : text("✓ Zapisano szkic do dalszej edycji", "✓ Draft saved for further editing")
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -972,7 +1053,7 @@ async function loadBrandOffers() {
     removeBlogCover();
     setAiOutput("");
     setSelectedText("");
-    showToast("✓ Wczytano szkic");
+    showToast(text("✓ Wczytano szkic", "✓ Draft loaded"));
   }
 
   function togglePlatform(platform: Platform) {
@@ -1152,12 +1233,18 @@ async function loadBrandOffers() {
                 marginBottom: 6,
               }}
             >
-              Kontekst oferty dla AI
+              {text("Kontekst oferty dla AI", "Offer context for AI")}
             </div>
             <div style={{ color: css.text, fontSize: 12, lineHeight: 1.55 }}>
               {brandOffers.length
-                ? `AI widzi ${brandOffers.length} aktywnych ofert/produktów marki.`
-                : "Brak aktywnych ofert. Dodaj je w sekcji Oferta i linki, żeby AI pisało bardziej sprzedażowo."}
+                ? text(
+                    `AI widzi ${brandOffers.length} aktywnych ofert/produktów marki.`,
+                    `AI can use ${brandOffers.length} active brand offers/products.`
+                  )
+                : text(
+                    "Brak aktywnych ofert. Dodaj je w sekcji Oferta i linki, żeby AI pisało bardziej sprzedażowo.",
+                    "No active offers. Add them in Offers and links so AI can write more conversion-focused content."
+                  )}
             </div>
             {brandOffers.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
@@ -1187,6 +1274,8 @@ async function loadBrandOffers() {
             <div className="blog-tool-grid">
               {ACTIONS.map((action) => {
                 const loading = loadingAction === action.id;
+                const actionLabel = text(action.labelPl, action.labelEn);
+                const actionHint = text(action.hintPl, action.hintEn);
                 return (
                   <button
                     key={action.id}
@@ -1194,7 +1283,7 @@ async function loadBrandOffers() {
                     className="blog-btn"
                     onClick={() => runAi(action.id)}
                     disabled={Boolean(loadingAction)}
-                    title={action.hint}
+                    title={actionHint}
                     style={{
                       borderRadius: 14,
                       border: `1px solid ${action.accent ? css.aiBorder : css.border}`,
@@ -1210,10 +1299,10 @@ async function loadBrandOffers() {
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 900 }}>
                       <span style={{ color: action.accent ? css.aiIcon : css.accent }}>{loading ? "…" : action.icon}</span>
-                      {action.label}
+                      {actionLabel}
                     </span>
                     <span style={{ display: "block", marginTop: 4, color: css.muted, fontSize: 10, lineHeight: 1.35 }}>
-                      {action.hint}
+                      {actionHint}
                     </span>
                   </button>
                 );
@@ -1256,7 +1345,7 @@ async function loadBrandOffers() {
               {loadingDrafts && <div style={{ color: css.muted, fontSize: 12 }}>{text("Ładowanie szkiców...", "Loading drafts...")}</div>}
               {!loadingDrafts && savedDrafts.length === 0 && (
                 <div style={{ color: css.muted, fontSize: 12, lineHeight: 1.5 }}>
-                  Nie masz jeszcze zapisanych szkiców z Blog Studio.
+                  {text("Nie masz jeszcze zapisanych szkiców z Blog Studio.", "You do not have any saved Blog Studio drafts yet.")}
                 </div>
               )}
               {savedDrafts.map((item) => (
@@ -1276,10 +1365,11 @@ async function loadBrandOffers() {
                   }}
                 >
                   <div style={{ color: css.heading, fontFamily: "var(--font-heading)", fontSize: 16, lineHeight: 1.1 }}>
-                    {item.title || "Szkic blogowy"}
+                    {item.title || text("Szkic blogowy", "Blog draft")}
                   </div>
                   <div style={{ color: css.muted, fontSize: 10, marginTop: 5 }}>
-                    {item.status === "template" ? "Szablon" : "Szkic edytowalny"} · {wordCount(item.body)} słów
+                    {item.status === "template" ? text("Szablon", "Template") : text("Szkic edytowalny", "Editable draft")} ·{" "}
+                    {wordCount(item.body)} {text("słów", "words")}
                   </div>
                 </button>
               ))}
@@ -1303,7 +1393,10 @@ async function loadBrandOffers() {
               <input
                 value={draft.title}
                 onChange={(event) => updateDraft("title", event.target.value)}
-                placeholder="Np. Jak z jednego artykułu stworzyć content na cały tydzień"
+                placeholder={text(
+                  "Np. Jak z jednego artykułu stworzyć content na cały tydzień",
+                  "E.g. How to turn one article into a full week of content"
+                )}
                 style={fieldStyle}
               />
             </div>
@@ -1312,7 +1405,7 @@ async function loadBrandOffers() {
               <input
                 value={draft.topic}
                 onChange={(event) => updateDraft("topic", event.target.value)}
-                placeholder="O czym jest wpis?"
+                placeholder={text("O czym jest wpis?", "What is the post about?")}
                 style={fieldStyle}
               />
             </div>
@@ -1324,7 +1417,7 @@ async function loadBrandOffers() {
               <input
                 value={draft.angle}
                 onChange={(event) => updateDraft("angle", event.target.value)}
-                placeholder="Np. blog jako centrum contentu"
+                placeholder={text("Np. blog jako centrum contentu", "E.g. the blog as a content hub")}
                 style={fieldStyle}
               />
             </div>
@@ -1333,7 +1426,7 @@ async function loadBrandOffers() {
               <input
                 value={draft.audience}
                 onChange={(event) => updateDraft("audience", event.target.value)}
-                placeholder="Np. twórcy, marki, małe firmy, B2B"
+                placeholder={text("Np. twórcy, marki, małe firmy, B2B", "E.g. creators, brands, small businesses, B2B")}
                 style={fieldStyle}
               />
             </div>
@@ -1345,7 +1438,7 @@ async function loadBrandOffers() {
               <input
                 value={draft.source_url}
                 onChange={(event) => updateDraft("source_url", event.target.value)}
-                placeholder="https://... — opcjonalnie pobierz kontekst"
+                placeholder={text("https://... — opcjonalnie pobierz kontekst", "https://... — optionally collect context")}
                 style={fieldStyle}
               />
             </div>
@@ -1367,7 +1460,7 @@ async function loadBrandOffers() {
                 whiteSpace: "nowrap",
               }}
             >
-              Pobierz kontekst
+              {text("Pobierz kontekst", "Collect context")}
             </button>
           </div>
 
@@ -1407,7 +1500,7 @@ async function loadBrandOffers() {
                     {text("Dodaj zdjęcie do wpisu", "Add an image to the post")}
                   </strong>
                   <span style={{ display: "block", color: css.muted, fontSize: 10, marginTop: 4 }}>
-                    JPG, PNG, WebP lub GIF
+                    {text("JPG, PNG, WebP lub GIF", "JPG, PNG, WebP or GIF")}
                   </span>
                 </span>
               </button>
@@ -1494,9 +1587,9 @@ async function loadBrandOffers() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 8 }}>
               <div style={labelStyle}>{text("Notatnik pisarza", "Writer's notebook")}</div>
               <div style={{ display: "flex", gap: 8, color: css.muted, fontSize: 10, fontWeight: 800 }}>
-                <span>{stats.words} słów</span>
-                <span>{stats.read} min czytania</span>
-                <span>{stats.chars} znaków</span>
+                <span>{stats.words} {text("słów", "words")}</span>
+                <span>{stats.read} {text("min czytania", "min read")}</span>
+                <span>{stats.chars} {text("znaków", "characters")}</span>
               </div>
             </div>
             <textarea
@@ -1505,7 +1598,10 @@ async function loadBrandOffers() {
               onChange={(event) => updateDraft("body", event.target.value)}
               onSelect={captureSelection}
               className="blog-editor"
-              placeholder="Zacznij pisać tutaj. To może być brudnopis, fragment artykułu, luźne myśli albo pełny wpis. Kiedy utkniesz, użyj narzędzi AI po lewej stronie."
+              placeholder={text(
+                "Zacznij pisać tutaj. To może być brudnopis, fragment artykułu, luźne myśli albo pełny wpis. Kiedy utkniesz, użyj narzędzi AI po lewej stronie.",
+                "Start writing here. This can be a rough draft, an article excerpt, loose notes or a complete post. When you get stuck, use the AI tools on the left."
+              )}
               style={{
                 ...fieldStyle,
                 minHeight: 520,
@@ -1525,7 +1621,10 @@ async function loadBrandOffers() {
               <input
                 value={draft.cta}
                 onChange={(event) => updateDraft("cta", event.target.value)}
-                placeholder="Np. przejście do aplikacji, zapytanie, pobranie demo"
+                placeholder={text(
+                  "Np. przejście do aplikacji, zapytanie, pobranie demo",
+                  "E.g. visit the app, send an inquiry, request a demo"
+                )}
                 style={fieldStyle}
               />
             </div>
@@ -1534,7 +1633,7 @@ async function loadBrandOffers() {
               <input
                 value={draft.notes}
                 onChange={(event) => updateDraft("notes", event.target.value)}
-                placeholder="Co jeszcze dopisać, czego nie zapomnieć?"
+                placeholder={text("Co jeszcze dopisać, czego nie zapomnieć?", "What else should be added or remembered?")}
                 style={fieldStyle}
               />
             </div>
@@ -1569,7 +1668,7 @@ async function loadBrandOffers() {
               }}
             >
               <Save size={15} />
-              {saving ? "Zapisuję..." : "Zapisz szkic"}
+              {saving ? text("Zapisuję...", "Saving...") : text("Zapisz szkic", "Save draft")}
             </button>
             <button
               type="button"
@@ -1588,7 +1687,7 @@ async function loadBrandOffers() {
                 fontFamily: "var(--font-body)",
               }}
             >
-              Zapisz jako szablon
+              {text("Zapisz jako szablon", "Save as template")}
             </button>
             <button
               type="button"
@@ -1609,7 +1708,7 @@ async function loadBrandOffers() {
                 fontFamily: "var(--font-body)",
               }}
             >
-              Nowy szkic
+              {text("Nowy szkic", "New draft")}
             </button>
           </div>
         </main>
@@ -1632,17 +1731,20 @@ async function loadBrandOffers() {
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ ...labelStyle, color: css.aiText, display: "flex", alignItems: "center", gap: 7 }}>
               <Wand2 size={15} color={css.aiIcon} />
-              Odpowiedź AI
+              {text("Odpowiedź AI", "AI response")}
             </div>
             {!aiOutput && !loadingAction && (
               <div style={{ borderRadius: 18, border: `1px dashed ${css.border}`, background: dark ? "#080808" : "#FFFDFB", padding: 20, minHeight: 280, display: "grid", placeItems: "center", textAlign: "center" }}>
                 <div>
                   <div style={{ fontSize: 34, color: css.aiText, opacity: .35 }}>✦</div>
                   <h3 style={{ margin: "8px 0", color: css.heading, fontFamily: "var(--font-heading)", fontSize: 24, fontWeight: 500 }}>
-                    AI pisarz czeka obok
+                    {text("AI pisarz czeka obok", "Your AI writer is ready")}
                   </h3>
                   <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.7 }}>
-                    Wybierz narzędzie po lewej. Wynik możesz dopisać do notatnika, wkleić w miejsce zaznaczenia albo potraktować jako inspirację.
+                    {text(
+                      "Wybierz narzędzie po lewej. Wynik możesz dopisać do notatnika, wkleić w miejsce zaznaczenia albo potraktować jako inspirację.",
+                      "Choose a tool on the left. You can append the result to the notebook, replace selected text or use it as inspiration."
+                    )}
                   </p>
                 </div>
               </div>
@@ -1653,7 +1755,10 @@ async function loadBrandOffers() {
                 <div>
                   <div style={{ color: css.aiText, fontSize: 13, fontWeight: 900 }}>{text("AI pisze...", "AI is writing...")}</div>
                   <p style={{ color: css.muted, fontSize: 12, lineHeight: 1.6 }}>
-                    Pracuję na Twoim szkicu, notatkach i wybranym zadaniu.
+                    {text(
+                      "Pracuję na Twoim szkicu, notatkach i wybranym zadaniu.",
+                      "I am working with your draft, notes and selected task."
+                    )}
                   </p>
                 </div>
               </div>
@@ -1671,7 +1776,7 @@ async function loadBrandOffers() {
                     onClick={() => insertIntoEditor(aiOutput, "append")}
                     style={{ borderRadius: 13, border: `1px solid ${css.aiBorder}`, background: css.aiBg, color: css.aiText, padding: "10px 8px", fontSize: 11, fontWeight: 900, cursor: "pointer", fontFamily: "var(--font-body)" }}
                   >
-                    Dopisz do tekstu
+                    {text("Dopisz do tekstu", "Append to text")}
                   </button>
                   <button
                     type="button"
@@ -1680,7 +1785,7 @@ async function loadBrandOffers() {
                     disabled={!selectedText}
                     style={{ borderRadius: 13, border: `1px solid ${css.border}`, background: css.surfaceSoft, color: selectedText ? css.text : css.muted, padding: "10px 8px", fontSize: 11, fontWeight: 900, cursor: selectedText ? "pointer" : "not-allowed", opacity: selectedText ? 1 : .55, fontFamily: "var(--font-body)" }}
                   >
-                    Zamień zaznaczenie
+                    {text("Zamień zaznaczenie", "Replace selection")}
                   </button>
                 </div>
                 <button
@@ -1689,7 +1794,7 @@ async function loadBrandOffers() {
                   onClick={() => navigator.clipboard.writeText(aiOutput)}
                   style={{ borderRadius: 13, border: `1px solid ${css.border}`, background: "transparent", color: css.muted, padding: "10px 8px", fontSize: 11, fontWeight: 900, cursor: "pointer", fontFamily: "var(--font-body)" }}
                 >
-                  Kopiuj odpowiedź AI
+                  {text("Kopiuj odpowiedź AI", "Copy AI response")}
                 </button>
               </div>
             )}

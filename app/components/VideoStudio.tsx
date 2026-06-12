@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
+import { publishScheduledPost } from "@/lib/publishing/client";
 
 type VideoPlatform = "youtube" | "tiktok" | "facebook" | "instagram" | "linkedin";
 
@@ -624,6 +625,7 @@ export default function VideoStudio({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+  const [publishingVideo, setPublishingVideo] = useState(false);
 
   const [brief, setBrief] = useState<VideoBrief | null>(null);
   const [rawAnswer, setRawAnswer] = useState("");
@@ -1202,6 +1204,115 @@ export default function VideoStudio({
       );
     } finally {
       setSavingTemplate(false);
+    }
+  }
+
+  async function publishUploadedVideo() {
+    if (!videoAnalysis || !videoUpload) {
+      setVideoError(text("Najpierw przeanalizuj video AI.", "Analyze the video with AI first."));
+      return;
+    }
+
+    setPublishingVideo(true);
+    setVideoError("");
+
+    try {
+      const { data: connection, error: connectionError } = await supabase
+        .schema("contentiq")
+        .from("platform_connections")
+        .select("id")
+        .eq("workspace_id", videoUpload.workspace_id)
+        .eq("platform", platform)
+        .eq("connected", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (connectionError) throw new Error(connectionError.message);
+      if (!connection?.id) {
+        throw new Error(text(`Brak podłączonego konta: ${platform}.`, `No connected account: ${platform}.`));
+      }
+
+      const recommendation = videoAnalysis.platform_recommendations.find(
+        (item) => item.platform.toLowerCase().includes(platform)
+      );
+      const hook = recommendation?.hook || videoAnalysis.hook;
+      const caption = recommendation?.caption || videoAnalysis.caption;
+      const hashtags = recommendation?.hashtags?.length
+        ? recommendation.hashtags
+        : videoAnalysis.hashtags;
+      const body = [hook, caption, hashtags.join(" ")].filter(Boolean).join("\n\n");
+
+      const { data: draft, error: draftError } = await supabase
+        .schema("contentiq")
+        .from("content_drafts")
+        .insert({
+          workspace_id: videoUpload.workspace_id,
+          title: videoAnalysis.title || videoAnalysis.detected_topic || videoUpload.file_name,
+          body,
+          topic: videoAnalysis.detected_topic || videoAnalysis.title,
+          content_type: "Video Studio / published video",
+          target_platforms: [platform],
+          ai_feedback: videoAnalysis.template_summary,
+          status: "scheduled",
+          media: [
+            {
+              kind: "cover",
+              asset_type: "video",
+              storage_bucket: TEMP_VIDEO_BUCKET,
+              storage_path: videoUpload.storage_path,
+              file_name: videoUpload.file_name,
+              mime_type: videoUpload.mime_type,
+              file_size: videoUpload.file_size,
+              preview_text: hook || videoAnalysis.title,
+              source: "video_studio",
+              status: "scheduled",
+            },
+          ],
+        })
+        .select("id")
+        .single();
+
+      if (draftError || !draft?.id) {
+        throw new Error(draftError?.message || text("Nie udało się utworzyć publikacji.", "Could not create the publication."));
+      }
+
+      const { data: scheduled, error: scheduleError } = await supabase
+        .schema("contentiq")
+        .from("scheduled_posts")
+        .insert({
+          draft_id: draft.id,
+          connection_id: connection.id,
+          platform,
+          scheduled_at: new Date().toISOString(),
+          status: "scheduled",
+        })
+        .select("id")
+        .single();
+
+      if (scheduleError || !scheduled?.id) {
+        throw new Error(scheduleError?.message || text("Nie udało się utworzyć wpisu publikacji.", "Could not create the publishing record."));
+      }
+
+      const result = await publishScheduledPost(workspaceId, scheduled.id);
+
+      await supabase
+        .schema("contentiq")
+        .from("short_video_uploads")
+        .update({
+          status: "published_external",
+          external_platform: platform,
+          external_post_id: result.externalPostId || null,
+          external_post_url: result.externalPostUrl || null,
+          published_at: new Date().toISOString(),
+        })
+        .eq("id", videoUpload.id);
+
+      setVideoStatus("published_external");
+      showToast(text(`✓ Opublikowano na ${platformInfo.name}`, `✓ Published to ${platformInfo.name}`));
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPublishingVideo(false);
     }
   }
 
@@ -2011,19 +2122,38 @@ export default function VideoStudio({
                     />
                   </ResultBlock>
 
-                  <button
-                    type="button"
-                    onClick={saveUploadedVideoTemplate}
-                    disabled={savingTemplate}
-                    style={{
-                      ...primaryButton,
-                      marginTop: 2,
-                      opacity: savingTemplate ? 0.6 : 1,
-                      cursor: savingTemplate ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {savingTemplate ? "Zapisuję..." : "Zapisz video jako szablon"}
-                  </button>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 2 }}>
+                    <button
+                      type="button"
+                      onClick={saveUploadedVideoTemplate}
+                      disabled={savingTemplate || publishingVideo}
+                      style={{
+                        ...primaryButton,
+                        opacity: savingTemplate || publishingVideo ? 0.6 : 1,
+                        cursor: savingTemplate || publishingVideo ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {savingTemplate
+                        ? text("Zapisuję...", "Saving...")
+                        : text("Zapisz video jako szablon", "Save video as template")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={publishUploadedVideo}
+                      disabled={publishingVideo || savingTemplate}
+                      style={{
+                        ...primaryButton,
+                        background: platformInfo.color,
+                        color: "#fff",
+                        opacity: publishingVideo || savingTemplate ? 0.6 : 1,
+                        cursor: publishingVideo || savingTemplate ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {publishingVideo
+                        ? text("Publikuję...", "Publishing...")
+                        : text(`Publikuj na ${platformInfo.name}`, `Publish to ${platformInfo.name}`)}
+                    </button>
+                  </div>
                 </div>
               )}
             </Card>

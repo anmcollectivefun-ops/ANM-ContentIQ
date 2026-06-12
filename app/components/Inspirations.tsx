@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useContentIQLanguage } from "@/lib/contentiq-language";
+import { publishScheduledPost } from "@/lib/publishing/client";
 
 type Platform =
   | "linkedin"
@@ -605,14 +606,19 @@ export default function Inspirations({
     return draft.id as string;
   }
 
-  async function scheduleInspiration(item: InspirationRow, platform: Platform, scheduledAt: string) {
+  async function scheduleInspiration(
+    item: InspirationRow,
+    platform: Platform,
+    scheduledAt: string,
+    publishImmediately = false
+  ) {
     setActionLoadingId(`${item.id}:schedule`);
 
     try {
       const draftId = await createScheduledDraft(item, platform);
       const connectionId = await getConnectionId(platform);
 
-      const { error: schedErr } = await supabase
+      const { data: scheduled, error: schedErr } = await supabase
         .schema("contentiq")
         .from("scheduled_posts")
         .insert({
@@ -621,9 +627,17 @@ export default function Inspirations({
           platform,
           scheduled_at: scheduledAt,
           status: "scheduled",
-        });
+        })
+        .select("id")
+        .single();
 
       if (schedErr) throw new Error(schedErr.message);
+
+      if (publishImmediately) {
+        await publishScheduledPost(workspaceId, scheduled.id);
+        showToast(text("✓ Opublikowano na wybranej platformie", "✓ Published to the selected platform"));
+        return;
+      }
 
       showToast(`✓ Dodano do harmonogramu: ${new Date(scheduledAt).toLocaleString("pl-PL")}`);
     } catch (err) {
@@ -642,7 +656,7 @@ export default function Inspirations({
   }
 
   async function publishNow(item: InspirationRow, platform: Platform) {
-    await scheduleInspiration(item, platform, new Date().toISOString());
+    await scheduleInspiration(item, platform, new Date().toISOString(), true);
   }
 
   function printInspiration(item: InspirationRow) {
