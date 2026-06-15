@@ -723,32 +723,61 @@ async function fetchYouTube(token: string): Promise<FetchPlatformResult> {
   return { profile, posts };
 }
 
-async function fetchSpotify(token: string, showId: string) {
-  const res = await fetch(`https://api.spotify.com/v1/shows/${showId}/episodes?limit=20`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+async function fetchSpotify(token: string, showId: string): Promise<FetchPlatformResult> {
+  const [showRes, episodesRes] = await Promise.all([
+    fetch(`https://api.spotify.com/v1/shows/${showId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+    fetch(`https://api.spotify.com/v1/shows/${showId}/episodes?limit=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  ]);
 
-  return (data.items || []).map((ep: Record<string, unknown>) => {
+  const show = await showRes.json();
+  const data = await episodesRes.json();
+  if (!showRes.ok || show.error) throw new Error(show.error?.message || `Spotify show error: ${showRes.status}`);
+  if (!episodesRes.ok || data.error) throw new Error(data.error?.message || `Spotify episodes error: ${episodesRes.status}`);
+
+  const showImages = (show.images as Array<{ url?: string }> | undefined) || [];
+  const showImage = showImages[0]?.url || null;
+
+  const posts = (data.items || []).map((ep: Record<string, unknown>) => {
     const images = (ep.images as Array<{ url?: string }> | undefined) || [];
-    const image = images[0]?.url || null;
+    const externalUrls = ep.external_urls as { spotify?: string } | undefined;
+    const image = images[0]?.url || showImage;
 
     return {
       platform_post_id: ep.id,
       title: ep.name,
       content: ep.description,
       post_type: "podcast",
-      published_at: ep.release_date ? new Date(ep.release_date as string).toISOString() : null,
+      url: externalUrls?.spotify || null,
+      published_at: ep.release_date
+        ? new Date(ep.release_date as string).toISOString()
+        : null,
 
       thumbnail_url: image,
       media_url: image,
       image_url: image,
       cover_url: image,
 
-      reach: ep.duration_ms,
+      reach: 0,
+      likes: 0,
+      comments: 0,
+      shares: 0,
     };
   });
+
+  return {
+    profile: {
+      profile_name: show.name || null,
+      username: show.publisher || show.name || null,
+      avatar_url: showImage,
+      profile_image_url: showImage,
+      total_posts: numberOrNull(show.total_episodes) ?? posts.length,
+    },
+    posts,
+  };
 }
 
 async function fetchBlog(basicAuth: string, blogUrl: string) {
@@ -940,7 +969,7 @@ case "facebook": {
           "Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz."
         );
       }
-      return { posts: await fetchSpotify(token, accountId) };
+      return fetchSpotify(token, accountId);
 
     case "blog":
       ensureAccountId(connection.platform, accountId);

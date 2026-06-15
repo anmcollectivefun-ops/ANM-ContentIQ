@@ -60,6 +60,15 @@ interface MetaSelectablePage {
   name: string;
 }
 
+interface SpotifyShowOption {
+  id: string;
+  name: string;
+  publisher: string;
+  image: string;
+  url: string;
+  totalEpisodes: number;
+}
+
 type ThemeVars = {
   bg: string;
   bgSoft: string;
@@ -171,7 +180,7 @@ const PLATFORM_META = {
     label: "Spotify",
     color: "#1DB954",
     gradient: "linear-gradient(135deg,#1DB954,#158a3e)",
-    desc: "Podcasty, odcinki, słuchalność i completion rate.",
+    desc: "Podcasty i odcinki: tytuły, opisy, daty publikacji, linki i okładki.",
     icon: Music,
     type: "oauth" as const,
     accountPlaceholder: "https://open.spotify.com/show/TWOJEID",
@@ -392,15 +401,20 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
     setSaving(false);
   }
 
-  async function deleteLink(id: string) {
-    setDeleting(id);
+  async function deleteLink(link: ManualLink) {
+    const confirmed = window.confirm(
+      `Czy na pewno chcesz usunąć link „${link.title || link.url}”?`
+    );
+    if (!confirmed) return;
+
+    setDeleting(link.id);
     setError("");
 
     const { error: dbError } = await supabase
       .schema("contentiq")
       .from("manual_links")
       .delete()
-      .eq("id", id);
+      .eq("id", link.id);
 
     if (dbError) {
       setError(dbError.message);
@@ -539,7 +553,7 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
 
             <button
               type="button"
-              onClick={() => deleteLink(link.id)}
+              onClick={() => deleteLink(link)}
               disabled={deleting === link.id}
               style={actionButtonStyle({
                 background: "transparent",
@@ -628,6 +642,9 @@ export default function IntegrationsPage() {
   const [blogSaving, setBlogSaving] = useState(false);
   const [spotifyShowId, setSpotifyShowId] = useState("");
   const [spotifySaving, setSpotifySaving] = useState(false);
+  const [spotifyShows, setSpotifyShows] = useState<SpotifyShowOption[]>([]);
+  const [spotifyShowsLoading, setSpotifyShowsLoading] = useState(false);
+  const [spotifyShowsError, setSpotifyShowsError] = useState("");
   const [metaPages, setMetaPages] = useState<MetaSelectablePage[]>([]);
   const [metaPlatform, setMetaPlatform] = useState<Platform | null>(null);
   const [metaSelecting, setMetaSelecting] = useState("");
@@ -669,6 +686,32 @@ export default function IntegrationsPage() {
     return cr.id as string;
   }
 
+  async function loadSpotifyShows(connId: string) {
+    setSpotifyShowsLoading(true);
+    setSpotifyShowsError("");
+
+    try {
+      const response = await fetch(
+        `/api/connections/spotify?connection_id=${encodeURIComponent(connId)}`,
+        { cache: "no-store" }
+      );
+      const data = await response.json();
+
+      if (!response.ok || data?.error) {
+        throw new Error(data?.error || "Nie udało się pobrać podcastów Spotify.");
+      }
+
+      setSpotifyShows(data.shows || []);
+    } catch (error) {
+      setSpotifyShows([]);
+      setSpotifyShowsError(
+        error instanceof Error ? error.message : String(error)
+      );
+    } finally {
+      setSpotifyShowsLoading(false);
+    }
+  }
+
   async function load() {
     setLoading(true);
 
@@ -689,8 +732,17 @@ export default function IntegrationsPage() {
         (connection: Connection) => connection.platform === "spotify"
       );
 
-      if (spotify?.account_id && spotify.account_id !== "unknown") {
+      if (/^[A-Za-z0-9]{22}$/.test(spotify?.account_id || "")) {
         setSpotifyShowId(spotify.account_id);
+      } else {
+        setSpotifyShowId("");
+      }
+
+      if (spotify?.id) {
+        void loadSpotifyShows(spotify.id);
+      } else {
+        setSpotifyShows([]);
+        setSpotifyShowsError("");
       }
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), false);
@@ -847,21 +899,27 @@ export default function IntegrationsPage() {
 
     setSpotifySaving(true);
 
-    const extracted = spotifyShowId.includes("spotify.com/show/")
-      ? spotifyShowId.split("/show/")[1].split("?")[0].split("/")[0]
-      : spotifyShowId.trim();
+    try {
+      const response = await fetch("/api/connections/spotify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connection_id: connId,
+          show: spotifyShowId,
+        }),
+      });
+      const data = await response.json();
 
-    const { error } = await supabase
-      .schema("contentiq")
-      .from("platform_connections")
-      .update({ account_id: extracted })
-      .eq("id", connId);
+      if (!response.ok || data?.error) {
+        throw new Error(data?.error || "Nie udało się zapisać podcastu Spotify.");
+      }
 
-    if (error) {
-      showToast(error.message, false);
-    } else {
-      showToast("✓ Show ID zapisane");
+      showToast(`✓ Wybrano podcast: ${data.show?.name || "Spotify"}`);
+      const connection = connections.find((item) => item.id === connId);
+      if (connection) await syncOne(connection);
       await load();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : String(error), false);
     }
 
     setSpotifySaving(false);
@@ -1631,15 +1689,58 @@ export default function IntegrationsPage() {
                         marginBottom: 12,
                       }}
                     >
-                      <div style={{ fontSize: 11, color: css.muted, marginBottom: 7 }}>
-                        {text("Show ID podcastu", "Spotify podcast Show ID")}
+                      <div style={{ fontSize: 12, color: css.text, fontWeight: 900, marginBottom: 5 }}>
+                        {text("Wybierz podcast do synchronizacji", "Choose a podcast to synchronize")}
                       </div>
+
+                      <div style={{ fontSize: 10, color: css.muted, lineHeight: 1.55, marginBottom: 10 }}>
+                        {text(
+                          "Spotify udostępnia tytuły, opisy, daty, linki i okładki odcinków. Statystyki odsłuchań nie są dostępne przez Spotify Web API.",
+                          "Spotify provides episode titles, descriptions, dates, links and cover art. Listening analytics are not available through Spotify Web API."
+                        )}
+                      </div>
+
+                      {spotifyShows.length > 0 && (
+                        <select
+                          value={
+                            spotifyShows.some((show) => show.id === spotifyShowId)
+                              ? spotifyShowId
+                              : ""
+                          }
+                          onChange={(event) => setSpotifyShowId(event.target.value)}
+                          style={{ ...inputStyle(), width: "100%", marginBottom: 8 }}
+                        >
+                          <option value="">
+                            {text("Wybierz z zapisanych podcastów", "Choose from saved podcasts")}
+                          </option>
+                          {spotifyShows.map((show) => (
+                            <option key={show.id} value={show.id}>
+                              {show.name} ({show.totalEpisodes})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {spotifyShowsLoading && (
+                        <div style={{ color: css.muted, fontSize: 10, marginBottom: 8 }}>
+                          {text("Pobieram zapisane podcasty...", "Loading saved podcasts...")}
+                        </div>
+                      )}
+
+                      {spotifyShowsError && (
+                        <div style={{ color: css.warningText, fontSize: 10, lineHeight: 1.5, marginBottom: 8 }}>
+                          {text(
+                            "Nie udało się pobrać biblioteki. Wklej link do podcastu poniżej albo ponownie połącz Spotify.",
+                            "The library could not be loaded. Paste a podcast link below or reconnect Spotify."
+                          )}
+                        </div>
+                      )}
 
                       <div style={{ display: "flex", gap: 8 }}>
                         <input
                           value={spotifyShowId}
                           onChange={(event) => setSpotifyShowId(event.target.value)}
-                          placeholder={text("https://open.spotify.com/show/... lub samo ID", "https://open.spotify.com/show/... or the ID")}
+                          placeholder={text("Link do podcastu Spotify lub Show ID", "Spotify podcast link or Show ID")}
                           style={{ ...inputStyle(), flex: 1 }}
                         />
 
@@ -1654,7 +1755,7 @@ export default function IntegrationsPage() {
                             disabled: spotifySaving,
                           })}
                         >
-                          {spotifySaving ? "..." : text("Zapisz", "Save")}
+                          {spotifySaving ? "..." : text("Zapisz i pobierz", "Save and import")}
                         </button>
                       </div>
                     </div>

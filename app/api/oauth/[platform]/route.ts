@@ -42,11 +42,15 @@ const PLATFORM_CONFIG: Record<string, {
   spotify: {
     authUrl: "https://accounts.spotify.com/authorize",
     clientIdEnv: "SPOTIFY_CLIENT_ID",
-    scope: "user-read-email user-read-private",
+    scope: "user-read-email user-read-private user-library-read user-read-playback-position",
   },
 };
 
 function getRedirectUri(req: NextRequest, platform: string) {
+  if (platform === "spotify" && env("SPOTIFY_REDIRECT_URI")) {
+    return env("SPOTIFY_REDIRECT_URI");
+  }
+
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
   return new URL(`/api/oauth/${platform}/callback`, origin).toString();
 }

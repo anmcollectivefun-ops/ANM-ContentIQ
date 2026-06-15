@@ -281,18 +281,18 @@ export default function BlogLibrary({ dark = true, workspaceId = "contentiq" }: 
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }
   async function deleteSchedule(item: BlogScheduleItem) {
-    if (!window.confirm("Usunąć ten wpis z harmonogramu?")) return;
+    if (!window.confirm(`Czy na pewno chcesz usunąć z harmonogramu wpis „${item.title}”?`)) return;
     const { error } = await supabase.schema("contentiq").from("blog_schedule").delete().eq("id", item.id);
     if (error) setError(error.message); else { await load(); showToast("✓ Usunięto z harmonogramu"); }
   }
   async function deleteInspiration(item: BlogInspiration) {
-    if (!window.confirm("Usunąć inspirację blogową z bazy?")) return;
+    if (!window.confirm(`Czy na pewno chcesz usunąć inspirację „${item.title || "Bez tytułu"}”? Tej operacji nie można cofnąć.`)) return;
     await supabase.schema("contentiq").from("blog_schedule").delete().eq("source_kind", "inspiration").eq("source_id", item.id);
     const { error } = await supabase.schema("contentiq").from("inspirations").delete().eq("id", item.id);
     if (error) setError(error.message); else { await load(); showToast("✓ Inspiracja usunięta"); }
   }
   async function deleteDraft(item: BlogDraft) {
-    if (!window.confirm("Usunąć ten szkic/szablon blogowy z bazy?")) return;
+    if (!window.confirm(`Czy na pewno chcesz usunąć szkic lub szablon „${item.title || item.topic || "Bez tytułu"}”? Tej operacji nie można cofnąć.`)) return;
     await supabase.schema("contentiq").from("blog_schedule").delete().in("source_kind", ["draft", "template"]).eq("source_id", item.id);
     const { error } = await supabase.schema("contentiq").from("content_drafts").delete().eq("id", item.id);
     if (error) setError(error.message); else { await load(); showToast("✓ Szkic/szablon usunięty"); }

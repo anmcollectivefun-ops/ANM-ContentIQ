@@ -652,7 +652,20 @@ export default function BlogStudio({
     setError("");
   }
 
-  function removeBlogCover() {
+  function removeBlogCover(requireConfirmation = false) {
+    if (
+      requireConfirmation &&
+      blogCover &&
+      !window.confirm(
+        text(
+          `Czy na pewno chcesz usunąć okładkę „${blogCover.file.name}”?`,
+          `Are you sure you want to remove the “${blogCover.file.name}” cover?`
+        )
+      )
+    ) {
+      return;
+    }
+
     setBlogCover((current) => {
       if (current?.previewUrl) URL.revokeObjectURL(current.previewUrl);
       return null;
@@ -1536,7 +1549,7 @@ async function loadBrandOffers() {
                     </div>
                     <button
                       type="button"
-                      onClick={removeBlogCover}
+                      onClick={() => removeBlogCover(true)}
                       disabled={saving}
                       style={{
                         borderRadius: 10,

@@ -207,14 +207,6 @@ const CONTENT_FORMATS = [
   },
 ];
 
-const BLOG_REPURPOSE_PLATFORMS: Platform[] = [
-  "linkedin",
-  "facebook",
-  "instagram",
-  "tiktok",
-  "youtube",
-];
-
 const EMPTY_CONTEXT: AiContext = {
   hasData: false,
   postsAnalyzed: 0,
@@ -382,6 +374,7 @@ function buildStudioPrompt({
       return language === "pl" ? info.pl : info.en;
     })
     .join(", ");
+  const selectedIds = selectedPlatforms.join(", ");
 
   const contextBlock = `
 DANE Z PLATFORMY, KTÓRE MASZ WYKORZYSTAĆ:
@@ -448,12 +441,17 @@ Wygeneruj najlepszy następny ruch contentowy na podstawie danych z platformy.
 Platforma główna:
 ${platformName}
 
+Wszystkie platformy docelowe:
+${selectedNames}
+Do pola platform używaj wyłącznie tych identyfikatorów: ${selectedIds}
+
 Format preferowany:
 ${contentFormat}
 
 Wymagania:
 - wskaż, co AI zauważyło w danych,
-- przygotuj gotowy post,
+- przygotuj gotowy post dla platformy głównej,
+- jeśli wybrano więcej platform, przygotuj w variants osobną wersję dla każdej pozostałej platformy,
 - zaproponuj komentarz uzupełniający pod postem,
 - zaproponuj 3-5 kolejnych tematów,
 - uzasadnij, dlaczego ten kierunek wynika z wyników platformy.
@@ -476,6 +474,22 @@ JSON:
     "why_this_should_work": "uzasadnienie na podstawie danych",
     "based_on_data": ["dana 1", "dana 2", "dana 3"]
   },
+  "variants": [
+    {
+      "platform": "identyfikator jednej z pozostałych wybranych platform",
+      "title": "tytuł wariantu",
+      "hook": "hook dopasowany do platformy",
+      "body": "treść dopasowana do platformy",
+      "cta": "CTA",
+      "hashtags": ["#..."],
+      "format": "format",
+      "score": 0,
+      "notes": "dlaczego ta wersja pasuje",
+      "recommended_comment": "opcjonalny komentarz",
+      "why_this_should_work": "uzasadnienie",
+      "based_on_data": ["konkret z danych"]
+    }
+  ],
   "content_plan": [
     {
       "platform": "${platform}",
@@ -494,13 +508,21 @@ JSON:
 ${commonRules}
 
 Zadanie:
-Stwórz gotowy post social media na podstawie danych z platformy.
+Stwórz gotowe treści na podstawie danych z platformy.
 
-Platforma:
+Platforma główna:
 ${platformName}
+
+Wszystkie platformy docelowe:
+${selectedNames}
+Do pola platform używaj wyłącznie tych identyfikatorów: ${selectedIds}
 
 Format:
 ${contentFormat}
+
+Przygotuj primary dla platformy głównej. Jeśli wybrano więcej platform,
+zwróć w variants dokładnie po jednej odrębnej wersji dla każdej pozostałej
+platformy docelowej. Dopasuj długość, hook, CTA, hashtagowanie i format.
 
 JSON:
 {
@@ -520,6 +542,22 @@ JSON:
     "why_this_should_work": "uzasadnienie na podstawie danych",
     "based_on_data": ["konkret z danych"]
   },
+  "variants": [
+    {
+      "platform": "identyfikator jednej z pozostałych wybranych platform",
+      "title": "tytuł",
+      "hook": "hook",
+      "body": "treść",
+      "cta": "CTA",
+      "hashtags": ["#..."],
+      "format": "format",
+      "score": 0,
+      "notes": "dopasowanie do platformy",
+      "recommended_comment": "opcjonalny komentarz",
+      "why_this_should_work": "uzasadnienie",
+      "based_on_data": ["konkret z danych"]
+    }
+  ],
   "content_plan": []
 }
 `.trim();
@@ -534,6 +572,10 @@ Wygeneruj hooki na podstawie treści, które do tej pory miały najlepsze wyniki
 
 Platforma główna:
 ${platformName}
+
+Platformy docelowe:
+${selectedNames}
+Identyfikatory platform: ${selectedIds}
 
 Format:
 ${contentFormat}
@@ -571,6 +613,7 @@ ${blogText || "Brak treści bloga."}
 
 Platformy docelowe:
 ${selectedNames}
+Identyfikatory platform: ${selectedIds}
 
 JSON:
 {
@@ -613,6 +656,10 @@ ${commonRules}
 Zadanie:
 Przygotuj artykuł / wpis blogowy jako treść źródłową do kampanii.
 Temat artykułu powinien wynikać z danych: najlepszych tematów, komentarzy i pytań odbiorców.
+
+Platformy docelowe kampanii:
+${selectedNames}
+Identyfikatory platform: ${selectedIds}
 
 Format:
 ${contentFormat}
@@ -709,20 +756,43 @@ function MediaPicker({
   function addFiles(files: FileList | null) {
     if (!files?.length) return;
 
-    const nextItems: LocalMediaItem[] = Array.from(files).map((file) => ({
-      id: `${Date.now()}-${crypto.randomUUID()}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-      name: file.name,
-      mimeType: file.type || "application/octet-stream",
-      size: file.size,
-      assetType: getAssetType(file),
-    }));
+    setMedia((prev) => {
+      const existingFiles = new Set(
+        prev.map((item) => `${item.file.name}:${item.file.size}:${item.file.lastModified}`)
+      );
+      const nextItems: LocalMediaItem[] = Array.from(files)
+        .filter(
+          (file) =>
+            !existingFiles.has(`${file.name}:${file.size}:${file.lastModified}`)
+        )
+        .map((file) => ({
+          id: `${Date.now()}-${crypto.randomUUID()}`,
+          file,
+          previewUrl: URL.createObjectURL(file),
+          name: file.name,
+          mimeType: file.type || "application/octet-stream",
+          size: file.size,
+          assetType: getAssetType(file),
+        }));
 
-    setMedia((prev) => [...prev, ...nextItems]);
+      return [...prev, ...nextItems];
+    });
   }
 
   function removeMedia(id: string) {
+    const mediaItem = media.find((entry) => entry.id === id);
+    if (
+      mediaItem &&
+      !window.confirm(
+        t(
+          `Czy na pewno chcesz usunąć plik „${mediaItem.name}”?`,
+          `Are you sure you want to remove “${mediaItem.name}”?`
+        )
+      )
+    ) {
+      return;
+    }
+
     setMedia((prev) => {
       const item = prev.find((entry) => entry.id === id);
       if (item) URL.revokeObjectURL(item.previewUrl);
@@ -756,18 +826,24 @@ function MediaPicker({
           type="file"
           multiple
           accept="image/*,video/*"
-          onChange={(event) => addFiles(event.target.files)}
+          onChange={(event) => {
+            addFiles(event.target.files);
+            event.target.value = "";
+          }}
           style={{ display: "none" }}
         />
 
         <div style={{ fontSize: 13, fontWeight: 900, color: css.text }}>
-          {t("Dodaj zdjęcie, grafikę albo video", "Add a photo, graphic or video")}
+          {t(
+            "Dodaj kilka zdjęć, grafik lub filmów",
+            "Add multiple photos, graphics or videos"
+          )}
         </div>
 
         <div style={{ fontSize: 11, color: css.muted, marginTop: 5, lineHeight: 1.6 }}>
           {t(
-            "AI uwzględni media przy tworzeniu posta, hooka albo planu dystrybucji.",
-            "AI will use your media when creating posts, hooks or distribution plans."
+            "Możesz zaznaczyć wiele plików naraz albo przeciągnąć je tutaj. AI uwzględni wszystkie media podczas tworzenia treści.",
+            "Select multiple files at once or drag them here. AI will use all media while creating content."
           )}
         </div>
       </div>
@@ -784,8 +860,23 @@ function MediaPicker({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: css.muted, fontSize: 10, fontWeight: 800 }}>
-              <span>{t("Media wybrane — podgląd gotowy", "Media selected — preview ready")}</span>
-              <span>100%</span>
+              <span>{t(`Wybrane pliki: ${media.length}`, `Selected files: ${media.length}`)}</span>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: css.accent,
+                  padding: 0,
+                  fontSize: 10,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {t("Dodaj kolejne", "Add more")}
+              </button>
             </div>
             <div style={{ height: 6, borderRadius: 999, background: css.bg, overflow: "hidden", marginTop: 7 }}>
               <div style={{ width: "100%", height: "100%", background: css.accent, borderRadius: 999 }} />
@@ -2341,7 +2432,7 @@ export default function ContentStudio({
   const [flow, setFlow] = useState<StudioFlow>("smart");
   const [aiProvider, setAiProvider] = useState<AiProvider>("deepseek");
   const [platform, setPlatform] = useState<Platform>("facebook");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(BLOG_REPURPOSE_PLATFORMS);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["facebook"]);
   const [contentFormat, setContentFormat] = useState(CONTENT_FORMATS[0].pl);
   const [prompt, setPrompt] = useState("");
   const [brandContext, setBrandContext] = useState("");
@@ -2532,11 +2623,15 @@ export default function ContentStudio({
     setSelectedPlatforms((prev) => {
       if (prev.includes(platformId)) {
         if (prev.length === 1) return prev;
-        return prev.filter((item) => item !== platformId);
+        const next = prev.filter((item) => item !== platformId);
+        if (platform === platformId) setPlatform(next[0]);
+        return next;
       }
 
+      if (prev.length === 0) setPlatform(platformId);
       return [...prev, platformId];
     });
+    resetResult();
   }
 
   async function scrapeBlogUrl() {
@@ -2803,74 +2898,54 @@ export default function ContentStudio({
               </div>
             </div>
 
-            {flow !== "blog" && (
-              <div>
-                <SectionLabel color={css.muted}>
-                  {t("Platforma główna", "Primary platform")}
-                </SectionLabel>
+            <div>
+              <SectionLabel color={css.muted}>
+                {t("Platformy docelowe", "Target platforms")}
+              </SectionLabel>
 
-                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                  {PLATFORMS.map((item) => (
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                {PLATFORMS.map((item) => {
+                  const selected = selectedPlatforms.includes(item.id);
+                  const primary = platform === item.id;
+
+                  return (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => {
-                        setPlatform(item.id);
-                        resetResult();
-                      }}
+                      aria-pressed={selected}
+                      onClick={() => toggleSelectedPlatform(item.id)}
                       style={{
                         padding: "7px 12px",
-                        borderRadius: 11,
-                        border: `1px solid ${platform === item.id ? item.color : css.border}`,
-                        background: platform === item.id ? `${item.color}18` : css.surface,
-                        color: platform === item.id ? item.color : css.muted,
+                        borderRadius: 8,
+                        border: `1px solid ${selected ? item.color : css.border}`,
+                        background: selected ? `${item.color}18` : css.surface,
+                        color: selected ? item.color : css.muted,
                         fontSize: 11,
                         fontWeight: 900,
                         cursor: "pointer",
                         fontFamily: "inherit",
+                        boxShadow: primary ? `inset 0 -2px 0 ${item.color}` : "none",
                       }}
+                      title={
+                        primary
+                          ? t("Platforma główna dla analityki", "Primary analytics platform")
+                          : undefined
+                      }
                     >
+                      {selected ? "[x] " : ""}
                       {language === "pl" ? item.pl : item.en}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
 
-            {flow === "blog" && (
-              <div>
-                <SectionLabel color={css.muted}>
-                  {t("Platformy dystrybucji bloga", "Blog distribution platforms")}
-                </SectionLabel>
-
-                <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                  {PLATFORMS.filter((item) => item.id !== "blog" && item.id !== "spotify").map((item) => {
-                    const selected = selectedPlatforms.includes(item.id);
-
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => toggleSelectedPlatform(item.id)}
-                        style={{
-                          padding: "7px 12px",
-                          borderRadius: 11,
-                          border: `1px solid ${selected ? item.color : css.border}`,
-                          background: selected ? `${item.color}18` : css.surface,
-                          color: selected ? item.color : css.muted,
-                          fontSize: 11,
-                          fontWeight: 900,
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {language === "pl" ? item.pl : item.en}
-                      </button>
-                    );
-                  })}
-                </div>
+              <div style={{ marginTop: 7, color: css.muted, fontSize: 10, lineHeight: 1.5 }}>
+                {t(
+                  "Możesz wybrać kilka platform. Pierwsza aktywna platforma jest główna dla analizy danych.",
+                  "You can select multiple platforms. The first active platform is primary for data analysis."
+                )}
               </div>
-            )}
+            </div>
 
             {flow === "blog" && (
               <div style={{ display: "grid", gap: 10 }}>

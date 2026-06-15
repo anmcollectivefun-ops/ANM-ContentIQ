@@ -1036,6 +1036,15 @@ export default function ShortStudio({
   }
 
   async function deleteTempVideo() {
+    const fileName = videoUpload?.file_name || videoFile?.name || "wybrany film";
+    if (
+      !window.confirm(
+        `Czy na pewno chcesz usunąć plik „${fileName}”? Tej operacji nie można cofnąć.`
+      )
+    ) {
+      return;
+    }
+
     if (!videoUpload) {
       setVideoFile(null);
 

@@ -608,7 +608,9 @@ export default function BrandOffers({
   async function deleteOffer() {
     if (!draft.id) return;
 
-    const ok = window.confirm("Usunąć tę ofertę z bazy marki?");
+    const ok = window.confirm(
+      `Czy na pewno chcesz usunąć ofertę „${draft.name || "Bez nazwy"}”? Tej operacji nie można cofnąć.`
+    );
     if (!ok) return;
 
     setDeleting(true);

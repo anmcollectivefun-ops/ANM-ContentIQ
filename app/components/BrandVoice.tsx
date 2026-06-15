@@ -723,6 +723,11 @@ export default function BrandVoice({
   }
 
   function removeTag(field: "keywords" | "avoid_words", index: number) {
+    const tag = safeArray(brand[field])[index];
+    if (tag && !window.confirm(`Czy na pewno chcesz usunąć frazę „${tag}”?`)) {
+      return;
+    }
+
     setBrand((current) => ({
       ...current,
       [field]: safeArray(current[field]).filter((_, itemIndex) => itemIndex !== index),

@@ -504,7 +504,9 @@ export default function Inspirations({
   }
 
   async function deleteInspiration(item: InspirationRow) {
-    const confirmed = window.confirm("Usunąć tę inspirację z bazy?");
+    const confirmed = window.confirm(
+      `Czy na pewno chcesz usunąć inspirację „${item.title || "Bez tytułu"}”? Tej operacji nie można cofnąć.`
+    );
     if (!confirmed) return;
 
     setActionLoadingId(`${item.id}:delete`);

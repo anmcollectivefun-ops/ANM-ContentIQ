@@ -457,6 +457,10 @@ function encodeMetaPending(data: Record<string, unknown>) {
 }
  
 function getRedirectUri(req: NextRequest, platform: string) {
+  if (platform === "spotify" && env("SPOTIFY_REDIRECT_URI")) {
+    return env("SPOTIFY_REDIRECT_URI");
+  }
+
   const origin = process.env.NEXT_PUBLIC_SITE_URL?.trim() || req.nextUrl.origin;
   return new URL(`/api/oauth/${platform}/callback`, origin).toString();
 }
