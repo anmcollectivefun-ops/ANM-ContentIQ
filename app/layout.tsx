@@ -4,6 +4,7 @@ import {
   Montserrat,
   Cormorant_Garamond,
 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${playfair.variable} ${montserrat.variable} ${cormorant.variable}`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
