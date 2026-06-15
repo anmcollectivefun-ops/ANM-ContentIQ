@@ -228,11 +228,28 @@ function safeArray<T>(value: T[] | undefined | null): T[] {
 }
 
 function cleanJsonAnswer(answer: string) {
-  return answer
+  const cleaned = answer
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return cleaned.slice(firstBrace, lastBrace + 1);
+  }
+
+  return cleaned;
+}
+
+function parseStudioAnswer(answer: string, data?: unknown) {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return data as Partial<StudioResult>;
+  }
+
+  return JSON.parse(cleanJsonAnswer(answer)) as Partial<StudioResult>;
 }
 
 function formatNumber(value?: number) {
@@ -2691,6 +2708,7 @@ export default function ContentStudio({
           mode: "chat",
           provider: aiProvider,
           ai_provider: aiProvider,
+          structured_json: true,
           prompt: studioPrompt,
           historicalData: {
             flow,
@@ -2719,11 +2737,19 @@ export default function ContentStudio({
       const answer = json?.answer || "";
       setRawAnswer(answer);
 
-      const parsed = normalizeStudioResult(
-        JSON.parse(cleanJsonAnswer(answer)) as Partial<StudioResult>
-      );
+      let parsedAnswer: Partial<StudioResult>;
+      try {
+        parsedAnswer = parseStudioAnswer(answer, json?.data);
+      } catch {
+        throw new Error(
+          t(
+            "AI zwróciło niepełną odpowiedź. Kliknij „Wygeneruj” ponownie.",
+            "AI returned an incomplete response. Click “Generate” again."
+          )
+        );
+      }
 
-      setResult(parsed);
+      setResult(normalizeStudioResult(parsedAnswer));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

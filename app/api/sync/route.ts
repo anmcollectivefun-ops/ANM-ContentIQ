@@ -780,6 +780,29 @@ async function fetchSpotify(token: string, showId: string): Promise<FetchPlatfor
   };
 }
 
+async function getSpotifyAppToken() {
+  const credentials = Buffer.from(
+    `${process.env.SPOTIFY_CLIENT_ID?.trim() || ""}:${process.env.SPOTIFY_CLIENT_SECRET?.trim() || ""}`
+  ).toString("base64");
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ grant_type: "client_credentials" }),
+  });
+  const data = await response.json();
+
+  if (!response.ok || data.error || !data.access_token) {
+    throw new Error(
+      data.error_description || data.error || "Nie udało się połączyć ze Spotify API."
+    );
+  }
+
+  return data.access_token as string;
+}
+
 async function fetchBlog(basicAuth: string, blogUrl: string) {
   const res = await fetch(`${blogUrl.replace(/\/$/, "")}/wp-json/wp/v2/posts?per_page=20&_embed`, {
     headers: basicAuth ? { Authorization: `Basic ${basicAuth}` } : {},
@@ -969,7 +992,7 @@ case "facebook": {
           "Spotify wymaga Show ID podcastu. Wklej URL podcastu w ustawieniach Spotify i zapisz."
         );
       }
-      return fetchSpotify(token, accountId);
+      return fetchSpotify(await getSpotifyAppToken(), accountId);
 
     case "blog":
       ensureAccountId(connection.platform, accountId);

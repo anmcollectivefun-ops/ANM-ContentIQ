@@ -60,15 +60,6 @@ interface MetaSelectablePage {
   name: string;
 }
 
-interface SpotifyShowOption {
-  id: string;
-  name: string;
-  publisher: string;
-  image: string;
-  url: string;
-  totalEpisodes: number;
-}
-
 type ThemeVars = {
   bg: string;
   bgSoft: string;
@@ -182,7 +173,7 @@ const PLATFORM_META = {
     gradient: "linear-gradient(135deg,#1DB954,#158a3e)",
     desc: "Podcasty i odcinki: tytuły, opisy, daty publikacji, linki i okładki.",
     icon: Music,
-    type: "oauth" as const,
+    type: "manual" as const,
     accountPlaceholder: "https://open.spotify.com/show/TWOJEID",
     postPlaceholder: "https://open.spotify.com/episode/ABC123",
   },
@@ -642,9 +633,6 @@ export default function IntegrationsPage() {
   const [blogSaving, setBlogSaving] = useState(false);
   const [spotifyShowId, setSpotifyShowId] = useState("");
   const [spotifySaving, setSpotifySaving] = useState(false);
-  const [spotifyShows, setSpotifyShows] = useState<SpotifyShowOption[]>([]);
-  const [spotifyShowsLoading, setSpotifyShowsLoading] = useState(false);
-  const [spotifyShowsError, setSpotifyShowsError] = useState("");
   const [metaPages, setMetaPages] = useState<MetaSelectablePage[]>([]);
   const [metaPlatform, setMetaPlatform] = useState<Platform | null>(null);
   const [metaSelecting, setMetaSelecting] = useState("");
@@ -686,32 +674,6 @@ export default function IntegrationsPage() {
     return cr.id as string;
   }
 
-  async function loadSpotifyShows(connId: string) {
-    setSpotifyShowsLoading(true);
-    setSpotifyShowsError("");
-
-    try {
-      const response = await fetch(
-        `/api/connections/spotify?connection_id=${encodeURIComponent(connId)}`,
-        { cache: "no-store" }
-      );
-      const data = await response.json();
-
-      if (!response.ok || data?.error) {
-        throw new Error(data?.error || "Nie udało się pobrać podcastów Spotify.");
-      }
-
-      setSpotifyShows(data.shows || []);
-    } catch (error) {
-      setSpotifyShows([]);
-      setSpotifyShowsError(
-        error instanceof Error ? error.message : String(error)
-      );
-    } finally {
-      setSpotifyShowsLoading(false);
-    }
-  }
-
   async function load() {
     setLoading(true);
 
@@ -738,12 +700,6 @@ export default function IntegrationsPage() {
         setSpotifyShowId("");
       }
 
-      if (spotify?.id) {
-        void loadSpotifyShows(spotify.id);
-      } else {
-        setSpotifyShows([]);
-        setSpotifyShowsError("");
-      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), false);
     }
@@ -891,7 +847,7 @@ export default function IntegrationsPage() {
     setBlogSaving(false);
   }
 
-  async function saveSpotifyShowId(connId: string) {
+  async function saveSpotifyShowId(connId?: string) {
     if (!spotifyShowId) {
       showToast("Wpisz Show ID podcastu", false);
       return;
@@ -904,7 +860,8 @@ export default function IntegrationsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          connection_id: connId,
+          workspace_id: workspaceId,
+          connection_id: connId || undefined,
           show: spotifyShowId,
         }),
       });
@@ -915,8 +872,20 @@ export default function IntegrationsPage() {
       }
 
       showToast(`✓ Wybrano podcast: ${data.show?.name || "Spotify"}`);
-      const connection = connections.find((item) => item.id === connId);
-      if (connection) await syncOne(connection);
+      if (data.connectionId) {
+        const syncResponse = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            connection_id: data.connectionId,
+            platform: "spotify",
+          }),
+        });
+        const syncData = await syncResponse.json();
+        if (!syncResponse.ok || syncData?.error) {
+          throw new Error(syncData?.error || "Podcast zapisano, ale import odcinków nie powiódł się.");
+        }
+      }
       await load();
     } catch (error) {
       showToast(error instanceof Error ? error.message : String(error), false);
@@ -959,7 +928,18 @@ export default function IntegrationsPage() {
     return connections.find((connection) => connection.platform === platform);
   }
 
-  const connectedCount = connections.length;
+  function hasValidSpotifyShow(connection?: Connection) {
+    return Boolean(
+      connection &&
+        connection.platform === "spotify" &&
+        /^[A-Za-z0-9]{22}$/.test(connection.account_id || "")
+    );
+  }
+
+  const connectedCount = connections.filter(
+    (connection) =>
+      connection.platform !== "spotify" || hasValidSpotifyShow(connection)
+  ).length;
   const expiringCount = connections.filter((connection) =>
     isExpiring(connection.token_expires_at)
   ).length;
@@ -1522,7 +1502,12 @@ export default function IntegrationsPage() {
           {PLATFORMS.map((platform, idx) => {
             const meta = PLATFORM_META[platform];
             const connection = getConn(platform);
-            const isConnected = !!connection;
+            const isConnected = Boolean(
+              connection &&
+                (platform !== "spotify" || hasValidSpotifyShow(connection))
+            );
+            const needsSpotifyShow =
+              platform === "spotify" && Boolean(connection) && !isConnected;
             const isSyncing = syncing === connection?.id;
             const isDisconnecting = disconnecting === connection?.id;
             const isExpanded = expanded === platform;
@@ -1586,7 +1571,7 @@ export default function IntegrationsPage() {
                           {meta.label}
                         </div>
 
-                        {isConnected && (
+                        {isConnected && connection && (
                           <div
                             style={{
                               fontSize: 12,
@@ -1615,7 +1600,11 @@ export default function IntegrationsPage() {
                         flexShrink: 0,
                       }}
                     >
-                      {isConnected ? text("Aktywne", "Active") : text("Niepołączone", "Not connected")}
+                      {isConnected
+                        ? text("Aktywne", "Active")
+                        : needsSpotifyShow
+                          ? text("Wymaga linku", "Podcast link required")
+                          : text("Niepołączone", "Not connected")}
                     </span>
                   </div>
 
@@ -1630,7 +1619,7 @@ export default function IntegrationsPage() {
                     {meta.desc}
                   </p>
 
-                  {isConnected && (
+                  {isConnected && connection && (
                     <div
                       style={{
                         padding: "11px 12px",
@@ -1679,7 +1668,7 @@ export default function IntegrationsPage() {
                     </div>
                   )}
 
-                  {isConnected && platform === "spotify" && (
+                  {platform === "spotify" && (
                     <div
                       style={{
                         padding: 13,
@@ -1700,38 +1689,22 @@ export default function IntegrationsPage() {
                         )}
                       </div>
 
-                      {spotifyShows.length > 0 && (
-                        <select
-                          value={
-                            spotifyShows.some((show) => show.id === spotifyShowId)
-                              ? spotifyShowId
-                              : ""
-                          }
-                          onChange={(event) => setSpotifyShowId(event.target.value)}
-                          style={{ ...inputStyle(), width: "100%", marginBottom: 8 }}
+                      {needsSpotifyShow && (
+                        <div
+                          style={{
+                            color: css.warningText,
+                            background: css.warningBg,
+                            border: `1px solid ${css.warningBorder}`,
+                            borderRadius: 10,
+                            padding: "8px 10px",
+                            fontSize: 10,
+                            lineHeight: 1.5,
+                            marginBottom: 9,
+                          }}
                         >
-                          <option value="">
-                            {text("Wybierz z zapisanych podcastów", "Choose from saved podcasts")}
-                          </option>
-                          {spotifyShows.map((show) => (
-                            <option key={show.id} value={show.id}>
-                              {show.name} ({show.totalEpisodes})
-                            </option>
-                          ))}
-                        </select>
-                      )}
-
-                      {spotifyShowsLoading && (
-                        <div style={{ color: css.muted, fontSize: 10, marginBottom: 8 }}>
-                          {text("Pobieram zapisane podcasty...", "Loading saved podcasts...")}
-                        </div>
-                      )}
-
-                      {spotifyShowsError && (
-                        <div style={{ color: css.warningText, fontSize: 10, lineHeight: 1.5, marginBottom: 8 }}>
                           {text(
-                            "Nie udało się pobrać biblioteki. Wklej link do podcastu poniżej albo ponownie połącz Spotify.",
-                            "The library could not be loaded. Paste a podcast link below or reconnect Spotify."
+                            "Poprzednie połączenie zapisało konto bez ID podcastu. Wklej link do swojego show, aby uzupełnić ten rekord.",
+                            "The previous connection saved an account without a podcast ID. Paste your show link to complete this record."
                           )}
                         </div>
                       )}
@@ -1747,7 +1720,7 @@ export default function IntegrationsPage() {
                         <button
                           type="button"
                           className="btn"
-                          onClick={() => saveSpotifyShowId(connection.id)}
+                          onClick={() => saveSpotifyShowId(connection?.id)}
                           disabled={spotifySaving}
                           style={actionButtonStyle({
                             background: "#1DB954",
@@ -1811,7 +1784,7 @@ export default function IntegrationsPage() {
                       marginBottom: isConnected ? 12 : 0,
                     }}
                   >
-                    {isConnected ? (
+                    {isConnected && connection ? (
                       <>
                         <button
                           type="button"
@@ -1832,21 +1805,23 @@ export default function IntegrationsPage() {
                           {isSyncing ? text("Pobieranie...", "Importing...") : text("Synchronizuj", "Synchronize")}
                         </button>
 
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() =>
-                            (window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`)
-                          }
-                          title={text("Zreautoryzuj profil", "Reauthorize profile")}
-                          style={actionButtonStyle({
-                            background: css.surfaceSoft,
-                            color: css.muted,
-                            border: `1px solid ${css.border}`,
-                          })}
-                        >
-                          <ExternalLink size={14} />
-                        </button>
+                        {platform !== "spotify" && (
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() =>
+                              (window.location.href = `/api/oauth/${platform}?workspace_id=${workspaceId}`)
+                            }
+                            title={text("Zreautoryzuj profil", "Reauthorize profile")}
+                            style={actionButtonStyle({
+                              background: css.surfaceSoft,
+                              color: css.muted,
+                              border: `1px solid ${css.border}`,
+                            })}
+                          >
+                            <ExternalLink size={14} />
+                          </button>
+                        )}
 
                         <button
                           type="button"
@@ -1867,7 +1842,7 @@ export default function IntegrationsPage() {
                           )}
                         </button>
                       </>
-                    ) : (
+                    ) : platform === "spotify" ? null : (
                       <button
                         type="button"
                         className="btn"
@@ -1878,13 +1853,16 @@ export default function IntegrationsPage() {
                             void saveBlog();
                           }
                         }}
-                        disabled={platform === "blog" && blogSaving}
+                        disabled={
+                          platform === "blog" && blogSaving
+                        }
                         style={{
                           width: "100%",
                           ...actionButtonStyle({
                             background: meta.color,
                             color: platform === "tiktok" ? "#050505" : "#fff",
-                            disabled: platform === "blog" && blogSaving,
+                            disabled:
+                              platform === "blog" && blogSaving,
                           }),
                         }}
                       >
@@ -1904,7 +1882,7 @@ export default function IntegrationsPage() {
                     )}
                   </div>
 
-                  {isConnected && (
+                  {isConnected && connection && (
                     <>
                       <button
                         type="button"

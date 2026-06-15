@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-type SpotifyConnection = {
-  id: string;
-  access_token: string | null;
-  refresh_token: string | null;
-  token_expires_at: string | null;
-};
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type SpotifyShow = {
   id?: string;
@@ -15,6 +11,7 @@ type SpotifyShow = {
   images?: Array<{ url?: string }>;
   external_urls?: { spotify?: string };
   total_episodes?: number;
+  error?: { message?: string };
 };
 
 function extractShowId(value: string) {
@@ -24,91 +21,56 @@ function extractShowId(value: string) {
   return urlMatch?.[1] || uriMatch?.[1] || trimmed;
 }
 
-function isExpiringSoon(expiresAt: string | null) {
-  return Boolean(
-    expiresAt &&
-      new Date(expiresAt).getTime() < Date.now() + 10 * 60 * 1000
-  );
-}
-
-async function getConnection(
-  connectionId: string
-): Promise<{
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  connection: SpotifyConnection;
-} | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  const { data } = await supabase
-    .schema("contentiq")
-    .from("platform_connections")
-    .select("id,access_token,refresh_token,token_expires_at")
-    .eq("id", connectionId)
-    .eq("platform", "spotify")
-    .eq("connected", true)
-    .single();
-
-  if (!data) return null;
-  return { supabase, connection: data as SpotifyConnection };
-}
-
-async function getAccessToken(
+async function resolveWorkspaceId(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  connection: SpotifyConnection
+  workspace: string,
+  userId: string
 ) {
-  if (
-    connection.access_token &&
-    !isExpiringSoon(connection.token_expires_at)
-  ) {
-    return connection.access_token;
+  const query = supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .select("id")
+    .eq("user_id", userId);
+
+  const { data } = UUID_RE.test(workspace)
+    ? await query.eq("id", workspace).single()
+    : await query.eq("slug", workspace).single();
+
+  if (!data?.id) throw new Error("Nie znaleziono przestrzeni aplikacji.");
+  return data.id as string;
+}
+
+async function getSpotifyAppToken() {
+  const clientId = process.env.SPOTIFY_CLIENT_ID?.trim() || "";
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim() || "";
+
+  if (!clientId || !clientSecret) {
+    throw new Error("Brakuje SPOTIFY_CLIENT_ID lub SPOTIFY_CLIENT_SECRET.");
   }
 
-  if (!connection.refresh_token) {
-    throw new Error("Token Spotify wygasł. Połącz konto ponownie.");
-  }
-
-  const credentials = Buffer.from(
-    `${process.env.SPOTIFY_CLIENT_ID?.trim() || ""}:${process.env.SPOTIFY_CLIENT_SECRET?.trim() || ""}`
-  ).toString("base64");
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
   const response = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: connection.refresh_token,
-    }),
+    body: new URLSearchParams({ grant_type: "client_credentials" }),
   });
   const data = await response.json();
 
   if (!response.ok || data.error || !data.access_token) {
     throw new Error(
-      data.error_description || data.error || "Nie udało się odświeżyć tokenu Spotify."
+      data.error_description || data.error || "Nie udało się połączyć ze Spotify API."
     );
   }
 
-  const expiresAt = data.expires_in
-    ? new Date(Date.now() + Number(data.expires_in) * 1000).toISOString()
-    : connection.token_expires_at;
-
-  await supabase
-    .schema("contentiq")
-    .from("platform_connections")
-    .update({
-      access_token: data.access_token,
-      token_expires_at: expiresAt,
-      ...(data.refresh_token ? { refresh_token: data.refresh_token } : {}),
-    })
-    .eq("id", connection.id);
-
-  return data.access_token as string;
+  return {
+    accessToken: data.access_token as string,
+    expiresAt: data.expires_in
+      ? new Date(Date.now() + Number(data.expires_in) * 1000).toISOString()
+      : null,
+  };
 }
 
 function normalizeShow(show: SpotifyShow) {
@@ -122,84 +84,92 @@ function normalizeShow(show: SpotifyShow) {
   };
 }
 
-export async function GET(request: NextRequest) {
-  const connectionId = request.nextUrl.searchParams.get("connection_id") || "";
-  const context = await getConnection(connectionId);
-
-  if (!context) {
-    return NextResponse.json({ error: "Połączenie Spotify nie istnieje." }, { status: 404 });
-  }
-
-  try {
-    const token = await getAccessToken(context.supabase, context.connection);
-    const response = await fetch("https://api.spotify.com/v1/me/shows?limit=50", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await response.json();
-
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || `Spotify API: ${response.status}`);
-    }
-
-    return NextResponse.json({
-      shows: (data.items || [])
-        .map((item: { show?: SpotifyShow }) => item.show)
-        .filter(Boolean)
-        .map(normalizeShow),
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 400 }
-    );
-  }
-}
-
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = (await request.json().catch(() => null)) as {
+    workspace_id?: string;
     connection_id?: string;
     show?: string;
   } | null;
-  const connectionId = body?.connection_id || "";
   const showId = extractShowId(body?.show || "");
-  const context = await getConnection(connectionId);
 
-  if (!context) {
-    return NextResponse.json({ error: "Połączenie Spotify nie istnieje." }, { status: 404 });
-  }
-
-  if (!/^[A-Za-z0-9]+$/.test(showId)) {
+  if (!body?.workspace_id || !/^[A-Za-z0-9]{22}$/.test(showId)) {
     return NextResponse.json(
-      { error: "Wklej poprawny link do podcastu Spotify albo jego Show ID." },
+      { error: "Wklej poprawny link do podcastu Spotify." },
       { status: 400 }
     );
   }
 
   try {
-    const token = await getAccessToken(context.supabase, context.connection);
+    const workspaceId = await resolveWorkspaceId(
+      supabase,
+      body.workspace_id,
+      user.id
+    );
+    const token = await getSpotifyAppToken();
     const response = await fetch(`https://api.spotify.com/v1/shows/${showId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token.accessToken}` },
     });
-    const show = (await response.json()) as SpotifyShow & {
-      error?: { message?: string };
-    };
+    const show = (await response.json()) as SpotifyShow;
 
     if (!response.ok || show.error || !show.id) {
       throw new Error(show.error?.message || "Nie znaleziono podcastu Spotify.");
     }
 
-    const { error } = await context.supabase
+    const connectionData = {
+      workspace_id: workspaceId,
+      platform: "spotify",
+      account_id: show.id,
+      account_name: show.name || "Podcast Spotify",
+      access_token: token.accessToken,
+      refresh_token: null,
+      token_expires_at: token.expiresAt,
+      connected: true,
+      last_synced_at: null,
+    };
+
+    const { data: existing } = await supabase
       .schema("contentiq")
       .from("platform_connections")
-      .update({
-        account_id: show.id,
-        account_name: show.name || "Podcast Spotify",
-      })
-      .eq("id", connectionId);
+      .select("id")
+      .eq("workspace_id", workspaceId)
+      .eq("platform", "spotify")
+      .limit(1)
+      .maybeSingle();
 
-    if (error) throw new Error(error.message);
+    const connectionId = body.connection_id || existing?.id;
+    const result = connectionId
+      ? await supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .update(connectionData)
+          .eq("id", connectionId)
+          .select("id")
+          .single()
+      : await supabase
+          .schema("contentiq")
+          .from("platform_connections")
+          .insert(connectionData)
+          .select("id")
+          .single();
 
-    return NextResponse.json({ ok: true, show: normalizeShow(show) });
+    if (result.error || !result.data?.id) {
+      throw new Error(result.error?.message || "Nie udało się zapisać Spotify.");
+    }
+
+    return NextResponse.json({
+      ok: true,
+      connectionId: result.data.id,
+      show: normalizeShow(show),
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : String(error) },

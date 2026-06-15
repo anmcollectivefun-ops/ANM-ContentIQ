@@ -32,6 +32,7 @@ type RequestBody = {
   platforms?: string[];
   contentType?: string;
   historicalData?: unknown;
+  structured_json?: boolean;
 };
 
 // ─── SYSTEM PROMPTS ──────────────────────────────────────────────────────────
@@ -410,9 +411,11 @@ ${JSON_SCHEMAS.strategy}
 async function askDeepSeek({
   systemPrompt,
   fullPrompt,
+  structuredJson = false,
 }: {
   systemPrompt: string;
   fullPrompt: string;
+  structuredJson?: boolean;
 }) {
   const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
 
@@ -431,6 +434,9 @@ async function askDeepSeek({
       { role: "system", content: systemPrompt },
       { role: "user", content: fullPrompt },
     ],
+    ...(structuredJson
+      ? { response_format: { type: "json_object" as const } }
+      : {}),
   });
 
   return {
@@ -446,9 +452,11 @@ async function askDeepSeek({
 async function askGemini({
   systemPrompt,
   fullPrompt,
+  structuredJson = false,
 }: {
   systemPrompt: string;
   fullPrompt: string;
+  structuredJson?: boolean;
 }) {
   const apiKey = getGeminiApiKey();
 
@@ -465,6 +473,7 @@ async function askGemini({
     contents: fullPrompt,
     config: {
       systemInstruction: systemPrompt,
+      ...(structuredJson ? { responseMimeType: "application/json" } : {}),
     },
   });
 
@@ -505,6 +514,7 @@ export async function POST(req: Request) {
     const platforms = Array.isArray(body?.platforms) ? body.platforms : [];
     const contentType = body?.contentType || "";
     const historicalData = body?.historicalData || null;
+    const structuredJson = body?.structured_json === true;
 
     if (!prompt.trim()) {
       return NextResponse.json(
@@ -526,8 +536,8 @@ export async function POST(req: Request) {
 
     const aiResult =
       provider === "gemini"
-        ? await askGemini({ systemPrompt, fullPrompt })
-        : await askDeepSeek({ systemPrompt, fullPrompt });
+        ? await askGemini({ systemPrompt, fullPrompt, structuredJson })
+        : await askDeepSeek({ systemPrompt, fullPrompt, structuredJson });
 
     const rawAnswer = aiResult.answer || "";
 
@@ -535,6 +545,7 @@ export async function POST(req: Request) {
     let parseError: string | null = null;
 
     if (
+      structuredJson ||
       ["generate", "analyze", "adapt", "recommend", "hooks", "strategy"].includes(
         mode
       )
