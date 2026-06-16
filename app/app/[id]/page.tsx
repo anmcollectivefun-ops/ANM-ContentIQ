@@ -817,6 +817,8 @@ function AppWorkspacePageInner() {
     }
     return "The account is connected, but synchronization has not saved any posts yet. Run data synchronization.";
   };
+  const accountHandle = (account: Account) =>
+    account.connected ? account.handle : tx("Niepodłączone", "Not connected");
   const supabase = createClient();
   const workspaceId = Array.isArray(params.id) ? params.id[0] : params.id as string;
   const [syncingAccount, setSyncingAccount] = useState<string | null>(null);
@@ -2132,7 +2134,7 @@ const formatProfileNumber = (value: any) => {
           </h3>
 
           <p style={{ ...st.summaryNote, color: css.muted }}>
-            {bestAccount.aiTag}
+            {accountInsight(bestAccount)}
           </p>
         </div>
       </div>
@@ -2190,7 +2192,7 @@ const formatProfileNumber = (value: any) => {
           </h3>
 
           <p style={{ ...st.summaryNote, color: css.muted }}>
-            {weakestAccount.aiTag}
+            {accountInsight(weakestAccount)}
           </p>
         </div>
       </div>
@@ -2420,7 +2422,7 @@ const formatProfileNumber = (value: any) => {
                 </div>
 
                 <div style={{ ...st.tileHandle, color: css.muted }}>
-                  {account.handle}
+                  {accountHandle(account)}
                 </div>
               </div>
 
@@ -2985,7 +2987,7 @@ const formatProfileNumber = (value: any) => {
             </div>
 
             <div style={{ fontSize: 13, color: css.muted, marginTop: 6 }}>
-              {activeAccount.handle}
+              {accountHandle(activeAccount)}
             </div>
 
             <div

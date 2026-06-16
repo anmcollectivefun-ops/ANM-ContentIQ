@@ -17,6 +17,7 @@ type Platform =
 
 type TemplateKind = "content" | "video" | "short" | "creative";
 type TemplateSource = "content_drafts" | "short_templates";
+type CopyText = (polish: string, english: string) => string;
 
 interface TemplateDraft {
   id: string;
@@ -136,9 +137,9 @@ function platformMatches(template: UnifiedTemplate, platform: Platform) {
   return PLATFORM_ALIASES[platform].some((alias) => targets.includes(alias));
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "Brak daty";
-  return new Date(value).toLocaleDateString("pl-PL", {
+function formatDate(value: string | null, lang: "pl" | "en") {
+  if (!value) return lang === "pl" ? "Brak daty" : "No date";
+  return new Date(value).toLocaleDateString(lang === "pl" ? "pl-PL" : "en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -232,7 +233,7 @@ function getSummary(text: string, length = 180) {
   return `${clean.slice(0, length).trim()}...`;
 }
 
-function draftToUnified(template: TemplateDraft): UnifiedTemplate {
+function draftToUnified(template: TemplateDraft, text: CopyText): UnifiedTemplate {
   const body = template.body || "";
   const hashtags = extractHashtags(body);
   const platforms = safeArray(template.target_platforms);
@@ -245,7 +246,7 @@ function draftToUnified(template: TemplateDraft): UnifiedTemplate {
     id: template.id,
     source: "content_drafts",
     kind: getTemplateKindFromDraft(template),
-    title: template.title || template.topic || "Szablon bez tytułu",
+    title: template.title || template.topic || text("Szablon bez tytułu", "Untitled template"),
     description: body || template.ai_feedback || "",
     topic: template.topic,
     content_type: template.content_type,
@@ -261,7 +262,7 @@ function draftToUnified(template: TemplateDraft): UnifiedTemplate {
   };
 }
 
-function shortTemplateToUnified(template: ShortTemplateRow): UnifiedTemplate {
+function shortTemplateToUnified(template: ShortTemplateRow, text: CopyText): UnifiedTemplate {
   const body = [
     template.hook ? `Hook:\n${template.hook}` : "",
     template.caption ? `Opis:\n${template.caption}` : "",
@@ -276,7 +277,7 @@ function shortTemplateToUnified(template: ShortTemplateRow): UnifiedTemplate {
     id: template.id,
     source: "short_templates",
     kind: "short",
-    title: template.title || template.thumbnail_text || "Szablon shorta",
+    title: template.title || template.thumbnail_text || text("Szablon shorta", "Short template"),
     description: body,
     topic: template.title,
     content_type: "Short Studio / video template",
@@ -334,7 +335,7 @@ export default function Templates({
   onOpenStudio: () => void;
   kind?: TemplateKind;
 }) {
-  const { text } = useContentIQLanguage();
+  const { lang, text } = useContentIQLanguage();
   const supabase = createClient();
 
   const [templates, setTemplates] = useState<UnifiedTemplate[]>([]);
@@ -448,8 +449,8 @@ export default function Templates({
         );
 
         const merged = [
-          ...hydratedDrafts.map(draftToUnified),
-          ...hydratedShortTemplates.map(shortTemplateToUnified),
+          ...hydratedDrafts.map((template) => draftToUnified(template, text)),
+          ...hydratedShortTemplates.map((template) => shortTemplateToUnified(template, text)),
         ];
 
         if (!cancelled) setTemplates(merged);
@@ -465,7 +466,7 @@ export default function Templates({
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, supabase]);
+  }, [workspaceId, supabase, text]);
 
   const visibleTemplates = useMemo(() => {
     return templates.filter((template) => template.kind === kind);
@@ -707,7 +708,7 @@ export default function Templates({
               <span style={{ fontSize: 10, fontWeight: 900, color: platformInfo.color, background: `${platformInfo.color}18`, padding: "4px 8px", borderRadius: 8 }}>
                 {platformInfo.icon}
               </span>
-              <span style={{ fontSize: 10, color: css.muted }}>{formatDate(template.created_at)}</span>
+              <span style={{ fontSize: 10, color: css.muted }}>{formatDate(template.created_at, lang)}</span>
             </div>
 
             <h3 style={{ margin: 0, color: css.text, fontSize: 15, lineHeight: 1.35, fontWeight: 900 }}>{template.title}</h3>
@@ -718,7 +719,7 @@ export default function Templates({
             </div>
           </div>
 
-          {!isDetailsOpen && <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>{getSummary(template.description || "Brak opisu.", 170)}</p>}
+          {!isDetailsOpen && <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>{getSummary(template.description || text("Brak opisu.", "No description."), 170)}</p>}
 
           <button type="button" onClick={() => toggleDetails(template.id)} style={{ border: `1px solid ${css.border}`, borderRadius: 11, background: css.surface, color: css.text, padding: "9px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
             {isDetailsOpen ? text("Ukryj szczegóły", "Hide details") : text("Pokaż szczegóły", "Show details")}
@@ -748,7 +749,7 @@ export default function Templates({
 
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>{text("Opis", "Description")}</div>
-                <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{template.description || "Brak opisu."}</p>
+                <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{template.description || text("Brak opisu.", "No description.")}</p>
               </div>
             </div>
           )}
@@ -856,7 +857,10 @@ export default function Templates({
 
         {!loading && !error && visibleTemplates.length === 0 && (
           <div style={{ padding: 18, borderRadius: 14, background: css.surface, border: `1px solid ${css.border}`, color: css.muted, fontSize: 13 }}>
-            Nie ma jeszcze zapisanych szablonów dla tej sekcji. Zapisuj je z Content Studio, Short Studio, Video Studio albo Creative Studio.
+            {text(
+              "Nie ma jeszcze zapisanych szablonów dla tej sekcji. Zapisuj je z Content Studio, Short Studio, Video Studio albo Creative Studio.",
+              "There are no saved templates for this section yet. Save them from Content Studio, Short Studio, Video Studio or Creative Studio."
+            )}
           </div>
         )}
 
@@ -868,7 +872,9 @@ export default function Templates({
                 <span style={{ fontSize: 15, fontWeight: 900, color: css.text }}>{platform.name}</span>
               </div>
 
-              <span style={{ fontSize: 11, color: css.muted }}>{items.length} szablonów</span>
+              <span style={{ fontSize: 11, color: css.muted }}>
+                {text(`${items.length} szablonów`, `${items.length} templates`)}
+              </span>
             </summary>
 
             <div style={{ padding: "0 16px 16px" }}>

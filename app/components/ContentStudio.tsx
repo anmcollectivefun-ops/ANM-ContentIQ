@@ -152,6 +152,12 @@ type ApiResponse = {
   details?: string;
 };
 
+type ActionDialogState = {
+  title: string;
+  message: string;
+  type: "ok" | "err";
+};
+
 const STORAGE_BUCKET = "content-temp-media";
 
 const PLATFORMS: { id: Platform; pl: string; en: string; color: string }[] = [
@@ -1258,6 +1264,349 @@ function ChipGroup({
   );
 }
 
+
+function ManualContentEditorPanel({
+  css,
+  lang,
+  platform,
+  selectedPlatforms,
+  contentFormat,
+  workspaceId,
+  media,
+  setMedia,
+  result,
+  loading,
+  onGenerate,
+  title,
+  setTitle,
+  body,
+  setBody,
+  cta,
+  setCta,
+  hashtags,
+  setHashtags,
+}: {
+  css: Record<string, string>;
+  lang: Lang;
+  platform: Platform;
+  selectedPlatforms: Platform[];
+  contentFormat: string;
+  workspaceId: string;
+  media: LocalMediaItem[];
+  setMedia: React.Dispatch<React.SetStateAction<LocalMediaItem[]>>;
+  result: StudioResult | null;
+  loading: boolean;
+  onGenerate: () => void;
+  title: string;
+  setTitle: (value: string) => void;
+  body: string;
+  setBody: (value: string) => void;
+  cta: string;
+  setCta: (value: string) => void;
+  hashtags: string;
+  setHashtags: (value: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  function normalizeTags(value: string) {
+    return value
+      .split(/[\s,]+/)
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+      .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
+  }
+
+  const tags = normalizeTags(hashtags);
+  const info = getPlatformInfo(platform);
+  const selectedNames = selectedPlatforms
+    .map((id) => {
+      const item = getPlatformInfo(id);
+      return lang === "pl" ? item.pl : item.en;
+    })
+    .join(", ");
+
+  const editorPost: GeneratedPost = {
+    title: title || t("Ręcznie tworzona treść", "Manual content"),
+    hook: title,
+    body,
+    cta,
+    hashtags: tags,
+    estimated_score: 0,
+    platform_notes: t(
+      "Treść przygotowana lub poprawiona ręcznie przez użytkownika w edytorze Content Studio.",
+      "Content prepared or edited manually by the user in Content Studio editor."
+    ),
+    format: contentFormat,
+  };
+
+  const hasContent = Boolean(title.trim() || body.trim() || cta.trim() || tags.length || media.length);
+  const generatedPrimary = result?.primary;
+
+  function loadGeneratedToEditor() {
+    if (!generatedPrimary) return;
+    setTitle(generatedPrimary.title || generatedPrimary.hook || "");
+    setBody(generatedPrimary.body || "");
+    setCta(generatedPrimary.cta || "");
+    setHashtags(safeArray(generatedPrimary.hashtags).join(" "));
+    setTimeout(() => editorRef.current?.focus(), 80);
+  }
+
+  async function copyManual() {
+    const textToCopy = fullPostText(editorPost);
+    await navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <div
+      style={{
+        background: css.surface,
+        border: `1px solid ${css.border}`,
+        borderRadius: 24,
+        padding: 18,
+        boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 14,
+          marginBottom: 14,
+        }}
+      >
+        <div>
+          <SectionLabel color={css.accent}>
+            {t("Ręczne tworzenie contentu", "Manual content editor")}
+          </SectionLabel>
+
+          <h3
+            style={{
+              margin: "0 0 8px",
+              color: css.heading,
+              fontFamily: "var(--font-heading)",
+              fontSize: 31,
+              lineHeight: 1.02,
+              fontWeight: 500,
+            }}
+          >
+            {t("Napisz, popraw lub dopracuj gotowy post", "Write, edit or polish the final post")}
+          </h3>
+
+          <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.65, maxWidth: 850 }}>
+            {t(
+              "To jest właściwe miejsce pracy nad treścią. Możesz napisać post samodzielnie, dodać media i hashtagi, a po wygenerowaniu treści AI jednym kliknięciem wczytać ją tutaj do dalszej edycji.",
+              "This is the actual workspace for content. You can write manually, add media and hashtags, then load AI-generated copy here for final editing."
+            )}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={loading}
+          style={{
+            ...actionButton(css, true),
+            minWidth: 150,
+            background: css.aiBg,
+            border: `1px solid ${css.aiBorder}`,
+            boxShadow: css.aiGlow,
+            color: css.aiText,
+          }}
+        >
+          {loading ? t("AI tworzy...", "AI writing...") : t("Poproś AI niżej", "Ask AI below")}
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.1fr .9fr",
+          gap: 14,
+          alignItems: "start",
+        }}
+        className="ciq-manual-editor-grid"
+      >
+        <div style={{ display: "grid", gap: 10 }}>
+          <div>
+            <SectionLabel color={css.muted}>{t("Tytuł / hook", "Title / hook")}</SectionLabel>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t(
+                "Np. Dlaczego cyfrowe zaproszenie robi więcej niż piękna kartka?",
+                "E.g. Why a digital invitation does more than a pretty card?"
+              )}
+              style={inputStyle(css)}
+            />
+          </div>
+
+          <div>
+            <SectionLabel color={css.muted}>{t("Treść posta", "Post body")}</SectionLabel>
+            <textarea
+              ref={editorRef}
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder={t(
+                "Wpisz tutaj własną treść albo wczytaj wygenerowaną propozycję AI i dopracuj ją ręcznie.",
+                "Write your own content here or load AI-generated copy and polish it manually."
+              )}
+              style={{
+                ...inputStyle(css),
+                minHeight: 210,
+                lineHeight: 1.72,
+                resize: "vertical",
+                overflow: "auto",
+              }}
+            />
+          </div>
+
+          <div className="ciq-two">
+            <div>
+              <SectionLabel color={css.muted}>CTA</SectionLabel>
+              <input
+                value={cta}
+                onChange={(event) => setCta(event.target.value)}
+                placeholder={t("Np. Zobacz demo / link w komentarzu", "E.g. See the demo / link in comments")}
+                style={inputStyle(css)}
+              />
+            </div>
+
+            <div>
+              <SectionLabel color={css.muted}>{t("Hashtagi", "Hashtags")}</SectionLabel>
+              <input
+                value={hashtags}
+                onChange={(event) => setHashtags(event.target.value)}
+                placeholder="#anmcollective #contentiq #ai"
+                style={inputStyle(css)}
+              />
+            </div>
+          </div>
+
+          {tags.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    background: `${info.color}18`,
+                    color: info.color,
+                    border: `1px solid ${info.color}40`,
+                    borderRadius: 999,
+                    padding: "5px 8px",
+                    fontSize: 10,
+                    fontWeight: 900,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: generatedPrimary ? "1fr 1fr 1fr" : "1fr 1fr",
+              gap: 8,
+            }}
+          >
+            {generatedPrimary && (
+              <button type="button" onClick={loadGeneratedToEditor} style={actionButton(css, true)}>
+                {t("Wczytaj wynik AI", "Load AI result")}
+              </button>
+            )}
+
+            <button type="button" onClick={copyManual} disabled={!hasContent} style={actionButton(css, false)}>
+              {copied ? t("Skopiowano", "Copied") : t("Kopiuj całość", "Copy all")}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTitle("");
+                setBody("");
+                setCta("");
+                setHashtags("");
+              }}
+              disabled={!hasContent}
+              style={{ ...actionButton(css, false), color: "#ef4444" }}
+            >
+              {t("Wyczyść", "Clear")}
+            </button>
+          </div>
+
+          {hasContent && (
+            <ContentActions
+              item={editorPost}
+              platform={platform}
+              prompt={title || body}
+              contentType={contentFormat}
+              workspaceId={workspaceId}
+              css={css}
+              lang={lang}
+              media={media}
+            />
+          )}
+        </div>
+
+        <div style={{ display: "grid", gap: 11 }}>
+          <div
+            style={{
+              border: `1px solid ${css.border}`,
+              background: css.surfaceSoft,
+              borderRadius: 18,
+              padding: 13,
+            }}
+          >
+            <SectionLabel color={css.muted}>{t("Ustawienia treści", "Content settings")}</SectionLabel>
+            <div style={{ display: "grid", gap: 8, color: css.text, fontSize: 12, lineHeight: 1.6 }}>
+              <div>
+                <strong style={{ color: css.accent }}>{t("Platforma główna:", "Main platform:")}</strong>{" "}
+                <span style={{ color: info.color }}>{lang === "pl" ? info.pl : info.en}</span>
+              </div>
+              <div>
+                <strong style={{ color: css.accent }}>{t("Wybrane kanały:", "Selected channels:")}</strong>{" "}
+                {selectedNames}
+              </div>
+              <div>
+                <strong style={{ color: css.accent }}>{t("Format:", "Format:")}</strong> {contentFormat}
+              </div>
+            </div>
+          </div>
+
+          <MediaPicker media={media} setMedia={setMedia} css={css} lang={lang} />
+
+          <div
+            style={{
+              border: `1px solid ${css.aiBorder}`,
+              background: css.aiBg,
+              boxShadow: css.aiGlow,
+              borderRadius: 18,
+              padding: 13,
+            }}
+          >
+            <SectionLabel color={css.aiText}>{t("Jak używać z AI", "How to use with AI")}</SectionLabel>
+            <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7 }}>
+              {t(
+                "Najpierw możesz wygenerować propozycję niżej, potem kliknąć „Wczytaj wynik AI” i dopracować tekst ręcznie. Zapis, harmonogram i publikacja użyją właśnie treści z tego edytora.",
+                "Generate a proposal below, then click “Load AI result” and polish it manually. Save, schedule and publish will use the content from this editor."
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FlowCard({
   active,
   title,
@@ -1957,6 +2306,121 @@ function ScheduleModal({
   );
 }
 
+function ActionDialog({
+  dialog,
+  onClose,
+  css,
+  lang,
+}: {
+  dialog: ActionDialogState;
+  onClose: () => void;
+  css: Record<string, string>;
+  lang: Lang;
+}) {
+  const ok = dialog.type === "ok";
+  const accent = ok ? "#22c55e" : "#ef4444";
+  const soft = ok ? "rgba(34,197,94,0.14)" : "rgba(239,68,68,0.14)";
+
+  function t(pl: string, en: string) {
+    return lang === "pl" ? pl : en;
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.68)",
+        zIndex: 220,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 18,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          width: 470,
+          maxWidth: "100%",
+          background: css.surface,
+          border: `1px solid ${ok ? "#22c55e66" : "#ef444466"}`,
+          borderRadius: 24,
+          padding: 24,
+          color: css.text,
+          fontFamily: "var(--font-body)",
+          boxShadow: `0 24px 70px rgba(0,0,0,.46), 0 0 42px ${ok ? "rgba(34,197,94,.16)" : "rgba(239,68,68,.16)"}`,
+        }}
+      >
+        <div
+          style={{
+            width: 54,
+            height: 54,
+            borderRadius: 18,
+            display: "grid",
+            placeItems: "center",
+            background: soft,
+            color: accent,
+            border: `1px solid ${accent}55`,
+            fontSize: 26,
+            fontWeight: 900,
+            marginBottom: 14,
+          }}
+        >
+          {ok ? "✓" : "!"}
+        </div>
+
+        <h3
+          style={{
+            margin: "0 0 8px",
+            color: css.heading,
+            fontFamily: "var(--font-heading)",
+            fontSize: 30,
+            lineHeight: 1.05,
+            fontWeight: 500,
+          }}
+        >
+          {dialog.title}
+        </h3>
+
+        <p
+          style={{
+            margin: 0,
+            color: css.muted,
+            fontSize: 13,
+            lineHeight: 1.7,
+          }}
+        >
+          {dialog.message}
+        </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            marginTop: 20,
+            width: "100%",
+            border: "none",
+            borderRadius: 14,
+            background: accent,
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: 13,
+            fontWeight: 900,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          {t("OK, rozumiem", "OK, got it")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ContentActions({
   item,
   platform,
@@ -1985,7 +2449,7 @@ function ContentActions({
   const [showModal, setShowModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("");
-  const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
+  const [actionDialog, setActionDialog] = useState<ActionDialogState | null>(null);
 
   const score = "estimated_score" in item ? item.estimated_score : item.score;
   const notes = "platform_notes" in item ? item.platform_notes : item.notes;
@@ -1996,9 +2460,16 @@ function ContentActions({
     return lang === "pl" ? pl : en;
   }
 
-  function showToast(msg: string, type: "ok" | "err") {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+  function showToast(msg: string, type: "ok" | "err", title?: string) {
+    setActionDialog({
+      title:
+        title ||
+        (type === "ok"
+          ? t("Gotowe", "Done")
+          : t("Nie udało się wykonać akcji", "The action could not be completed")),
+      message: msg,
+      type,
+    });
   }
 
   async function getOrCreateWorkspaceUuid() {
@@ -2197,9 +2668,13 @@ function ContentActions({
         throw mediaError;
       }
 
-      showToast(t("✓ Zapisano jako inspirację", "✓ Saved as inspiration"), "ok");
+      showToast(
+        t("Treść została dodana do biblioteki inspiracji. Możesz wrócić do niej w sekcji Inspiracje i wykorzystać ją dalej w pracy nad contentem.", "The content has been added to the inspiration library. You can find it in Inspirations and reuse it in your content workflow."),
+        "ok",
+        t("Dodano do inspiracji", "Added to inspirations")
+      );
     } catch (err) {
-      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(err instanceof Error ? err.message : String(err), "err");
     } finally {
       setSaving(false);
     }
@@ -2244,9 +2719,13 @@ function ContentActions({
 
     try {
       await saveTemplate("template");
-      showToast(t("✓ Zapisano jako szablon", "✓ Saved as template"), "ok");
+      showToast(
+        t("Treść została zapisana jako szablon. Znajdziesz ją w bibliotece szablonów dla tej sekcji.", "The content has been saved as a template. You will find it in the template library for this section."),
+        "ok",
+        t("Dodano jako szablon", "Added as template")
+      );
     } catch (err) {
-      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(err instanceof Error ? err.message : String(err), "err");
     } finally {
       setSavingTemplate(false);
     }
@@ -2296,16 +2775,21 @@ function ContentActions({
 
       if (publishImmediately) {
         await publishScheduledPost(workspaceId, scheduled.id);
-        showToast(t("✓ Opublikowano na wybranej platformie", "✓ Published to the selected platform"), "ok");
+        showToast(
+          t("Post został opublikowany na wybranej platformie. W razie potrzeby sprawdź go także po stronie połączonego konta.", "The post has been published to the selected platform. If needed, also check it directly in the connected account."),
+          "ok",
+          t("Post opublikowany", "Post published")
+        );
         return;
       }
 
       showToast(
-        `${t("✓ Zaplanowano na", "✓ Scheduled for")} ${new Date(scheduledAt).toLocaleString("pl-PL")}`,
-        "ok"
+        `${t("Publikacja została dodana do harmonogramu na", "The publication has been added to the schedule for")} ${new Date(scheduledAt).toLocaleString(lang === "pl" ? "pl-PL" : "en-US")}.`,
+        "ok",
+        t("Dodano do harmonogramu", "Added to schedule")
       );
     } catch (err) {
-      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(err instanceof Error ? err.message : String(err), "err");
     } finally {
       setScheduling(false);
     }
@@ -2317,7 +2801,7 @@ function ContentActions({
     try {
       await schedulePost(new Date().toISOString(), true);
     } catch (err) {
-      showToast(`${t("Błąd:", "Error:")} ${err instanceof Error ? err.message : String(err)}`, "err");
+      showToast(err instanceof Error ? err.message : String(err), "err");
     } finally {
       setPublishing(false);
     }
@@ -2325,25 +2809,13 @@ function ContentActions({
 
   return (
     <>
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            top: 20,
-            right: 20,
-            zIndex: 200,
-            padding: "10px 18px",
-            borderRadius: 12,
-            background: toast.type === "ok" ? "#052e16" : "#450a0a",
-            color: toast.type === "ok" ? "#22c55e" : "#ef4444",
-            fontSize: 13,
-            border: `1px solid ${toast.type === "ok" ? "#166534" : "#991b1b"}`,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-            fontFamily: "var(--font-body)",
-          }}
-        >
-          {toast.msg}
-        </div>
+      {actionDialog && (
+        <ActionDialog
+          dialog={actionDialog}
+          css={css}
+          lang={lang}
+          onClose={() => setActionDialog(null)}
+        />
       )}
 
       {showModal && (
@@ -2457,6 +2929,10 @@ export default function ContentStudio({
   const [blogText, setBlogText] = useState("");
   const [media, setMedia] = useState<LocalMediaItem[]>([]);
   const [aiContext, setAiContext] = useState<AiContext>(EMPTY_CONTEXT);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualBody, setManualBody] = useState("");
+  const [manualCta, setManualCta] = useState("");
+  const [manualHashtags, setManualHashtags] = useState("");
 
   const [contextLoading, setContextLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2770,14 +3246,16 @@ export default function ContentStudio({
         .ciq-studio-grid { display:grid; grid-template-columns: 0.92fr 1.08fr; gap:18px; align-items:start; }
         .ciq-flow-grid { display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap:10px; }
         .ciq-two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .ciq-manual-editor-grid { display:grid; grid-template-columns:1.1fr .9fr; gap:14px; }
         button { transition: all .15s ease; }
         button:hover:not(:disabled) { opacity:.86; }
         @media(max-width:1220px) {
           .ciq-flow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .ciq-studio-grid { grid-template-columns:1fr; }
+          .ciq-manual-editor-grid { grid-template-columns:1fr !important; }
         }
         @media(max-width:680px) {
-          .ciq-flow-grid, .ciq-two { grid-template-columns: 1fr; }
+          .ciq-flow-grid, .ciq-two, .ciq-manual-editor-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -2816,12 +3294,26 @@ export default function ContentStudio({
           </p>
         </div>
 
-        <AiContextPanel
+        <ManualContentEditorPanel
           css={css}
           lang={language}
-          context={aiContext}
-          loading={contextLoading}
-          onRefresh={loadAiContext}
+          platform={platform}
+          selectedPlatforms={selectedPlatforms}
+          contentFormat={contentFormat}
+          workspaceId={workspaceId}
+          media={media}
+          setMedia={setMedia}
+          result={result}
+          loading={loading}
+          onGenerate={handleGenerate}
+          title={manualTitle}
+          setTitle={setManualTitle}
+          body={manualBody}
+          setBody={setManualBody}
+          cta={manualCta}
+          setCta={setManualCta}
+          hashtags={manualHashtags}
+          setHashtags={setManualHashtags}
         />
 
         <div className="ciq-flow-grid">
