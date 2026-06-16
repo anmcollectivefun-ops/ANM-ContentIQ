@@ -1082,17 +1082,40 @@ const integrations = t.integrations;
 }
 
   async function getOrCreateWorkspace() {
-    const { data: existing } = await supabase
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error(tx("Brak aktywnej sesji", "No active session"));
+
+    const { data: ownBySlug } = await supabase
       .schema("contentiq")
       .from("workspaces")
-      .select("id")
+      .select("id, slug")
       .eq("slug", workspaceId)
-      .single();
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
 
-    if (existing?.id) return existing.id as string;
+    if (ownBySlug?.id) return ownBySlug.id as string;
 
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) throw new Error("Brak aktywnej sesji");
+    const { data: ownWorkspace } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id, slug")
+      .eq("user_id", auth.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (ownWorkspace?.id) {
+      const ownSlug = (ownWorkspace.slug as string) || workspaceId;
+      if (ownSlug !== workspaceId) {
+        const query = searchParams.toString();
+        router.replace(`/app/${ownSlug}${query ? `?${query}` : ""}`);
+      }
+      return ownWorkspace.id as string;
+    }
+
+    const uniqueSlug =
+      workspaceId === "anm-collective"
+        ? `anm-collective-${auth.user.id.slice(0, 8)}`
+        : workspaceId;
 
     const { data: created, error } = await supabase
       .schema("contentiq")
@@ -1104,13 +1127,18 @@ const integrations = t.integrations;
           .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
           .join(" "),
         type: "Firma",
-        slug: workspaceId,
+        slug: uniqueSlug,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (error || !created?.id) {
       throw new Error(error?.message || "Nie można utworzyć workspace");
+    }
+
+    if (uniqueSlug !== workspaceId) {
+      const query = searchParams.toString();
+      router.replace(`/app/${uniqueSlug}${query ? `?${query}` : ""}`);
     }
 
     return created.id as string;

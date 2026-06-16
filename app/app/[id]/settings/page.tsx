@@ -4,7 +4,7 @@
 // ANM ContentIQ — Integracje / social media / linki ręczne
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getLang } from "@/lib/contentiq-app-copy";
@@ -613,6 +613,7 @@ function ManualLinksPanel({ connection }: { connection: Connection }) {
 
 export default function IntegrationsPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const lang = getLang(searchParams.get("lang"));
   const text = (polish: string, english: string) => (lang === "pl" ? polish : english);
@@ -643,17 +644,40 @@ export default function IntegrationsPage() {
   }
 
   async function getOrCreateWs() {
-    const { data: ex } = await supabase
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) throw new Error(text("Brak sesji", "No active session"));
+
+    const { data: ownBySlug } = await supabase
       .schema("contentiq")
       .from("workspaces")
-      .select("id")
+      .select("id, slug")
       .eq("slug", workspaceId)
-      .single();
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
 
-    if (ex?.id) return ex.id as string;
+    if (ownBySlug?.id) return ownBySlug.id as string;
 
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) throw new Error("Brak sesji");
+    const { data: ownWorkspace } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id, slug")
+      .eq("user_id", auth.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (ownWorkspace?.id) {
+      const ownSlug = (ownWorkspace.slug as string) || workspaceId;
+      if (ownSlug !== workspaceId) {
+        const query = searchParams.toString();
+        router.replace(`/app/${ownSlug}/settings${query ? `?${query}` : ""}`);
+      }
+      return ownWorkspace.id as string;
+    }
+
+    const uniqueSlug =
+      workspaceId === "anm-collective"
+        ? `anm-collective-${auth.user.id.slice(0, 8)}`
+        : workspaceId;
 
     const { data: cr, error } = await supabase
       .schema("contentiq")
@@ -665,12 +689,16 @@ export default function IntegrationsPage() {
           .map((p: string) => p[0].toUpperCase() + p.slice(1))
           .join(" "),
         type: "Firma",
-        slug: workspaceId,
+        slug: uniqueSlug,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (error || !cr?.id) throw new Error(error?.message || "Błąd workspace");
+    if (uniqueSlug !== workspaceId) {
+      const query = searchParams.toString();
+      router.replace(`/app/${uniqueSlug}/settings${query ? `?${query}` : ""}`);
+    }
     return cr.id as string;
   }
 

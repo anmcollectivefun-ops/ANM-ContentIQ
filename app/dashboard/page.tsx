@@ -832,6 +832,7 @@ function DashboardPageInner() {
   const [dark, setDark] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [workspaceSlug, setWorkspaceSlug] = useState(WORKSPACE_SLUG);
   const [signingOut, setSigningOut] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState(true);
   const [accounts, setAccounts] = useState<AccountData[]>(() =>
@@ -840,22 +841,28 @@ function DashboardPageInner() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const dashboardNavGroups = makeDashboardNavGroups(lang);
+  const activeWorkspaceSlug = workspaceSlug || WORKSPACE_SLUG;
   const privacyHref = `/privacy?lang=${lang}`;
   const termsHref = `/terms?lang=${lang}`;
 
   async function getOrCreateWorkspace(slug: string) {
-    const { data: existing } = await supabase
-      .schema("contentiq")
-      .from("workspaces")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
-
-    if (existing?.id) return existing.id as string;
-
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) throw new Error("No active session");
 
+    const { data: existing } = await supabase
+      .schema("contentiq")
+      .from("workspaces")
+      .select("id, slug")
+      .eq("user_id", auth.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing?.id) {
+      setWorkspaceSlug((existing.slug as string) || slug);
+      return existing.id as string;
+    }
+
+    const userSlug = `${slug}-${auth.user.id.slice(0, 8)}`;
     const { data: created, error } = await supabase
       .schema("contentiq")
       .from("workspaces")
@@ -863,15 +870,16 @@ function DashboardPageInner() {
         user_id: auth.user.id,
         name: "ANM Collective",
         type: "Firma",
-        slug,
+        slug: userSlug,
       })
-      .select("id")
+      .select("id, slug")
       .single();
 
     if (error || !created?.id) {
       throw new Error(error?.message || "Could not create workspace");
     }
 
+    setWorkspaceSlug((created.slug as string) || userSlug);
     return created.id as string;
   }
 
@@ -1139,7 +1147,7 @@ function DashboardPageInner() {
           }}
         >
           <Link
-            href={`/app/${WORKSPACE_SLUG}`}
+            href={`/app/${activeWorkspaceSlug}`}
             style={{
               display: "flex",
               alignItems: "center",
@@ -1250,7 +1258,10 @@ function DashboardPageInner() {
                     >
                       {group.items.map((item) => {
                         const href =
-                          item.href || `/app/${WORKSPACE_SLUG}?tab=${item.tab}`;
+                          (item.href || `/app/${activeWorkspaceSlug}?tab=${item.tab}`).replace(
+                            `/app/${WORKSPACE_SLUG}`,
+                            `/app/${activeWorkspaceSlug}`
+                          );
 
                         return (
                           <Link
@@ -1314,7 +1325,7 @@ function DashboardPageInner() {
             </Link>
 
             <Link
-              href={`/app/${WORKSPACE_SLUG}`}
+              href={`/app/${activeWorkspaceSlug}`}
               className="dash-btn"
               style={{
                 padding: "10px 16px",
@@ -1330,7 +1341,7 @@ function DashboardPageInner() {
             </Link>
 
             <Link
-              href={`/app/${WORKSPACE_SLUG}/settings?tab=integrations`}
+              href={`/app/${activeWorkspaceSlug}/settings?tab=integrations`}
               className="dash-btn"
               style={{
                 padding: "10px 14px",
@@ -1471,7 +1482,7 @@ function DashboardPageInner() {
 
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <Link
-                  href={`/app/${WORKSPACE_SLUG}`}
+                  href={`/app/${activeWorkspaceSlug}`}
                   className="dash-btn"
                   style={{
                     borderRadius: 16,
@@ -1490,7 +1501,7 @@ function DashboardPageInner() {
                 </Link>
 
                 <Link
-                  href={`/app/${WORKSPACE_SLUG}?tab=studio`}
+                  href={`/app/${activeWorkspaceSlug}?tab=studio`}
                   className="dash-btn"
                   style={{
                     borderRadius: 16,
@@ -1564,7 +1575,7 @@ function DashboardPageInner() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <Link
-                href={`/app/${WORKSPACE_SLUG}?tab=strategist`}
+                href={`/app/${activeWorkspaceSlug}?tab=strategist`}
                 className="dash-btn"
                 style={{
                   borderRadius: 15,
@@ -1581,7 +1592,7 @@ function DashboardPageInner() {
               </Link>
 
               <Link
-                href={`/app/${WORKSPACE_SLUG}?tab=partner`}
+                href={`/app/${activeWorkspaceSlug}?tab=partner`}
                 className="dash-btn"
                 style={{
                   borderRadius: 15,
@@ -1789,7 +1800,7 @@ function DashboardPageInner() {
                 minHeight: 360,
               }}
               onClick={() =>
-                router.push(`/app/${WORKSPACE_SLUG}?tab=accounts&platform=${acc.id}`)
+                router.push(`/app/${activeWorkspaceSlug}?tab=accounts&platform=${acc.id}`)
               }
             >
               <div style={{ height: 5, background: acc.gradient }} />
@@ -1838,7 +1849,7 @@ function DashboardPageInner() {
                     </span>
                   ) : (
                     <Link
-                      href={`/app/${WORKSPACE_SLUG}/settings?tab=integrations`}
+                      href={`/app/${activeWorkspaceSlug}/settings?tab=integrations`}
                       onClick={(e) => e.stopPropagation()}
                       className="dash-btn"
                       style={{
@@ -2000,7 +2011,7 @@ function DashboardPageInner() {
 
                 <div style={{ display: "flex", gap: 8 }}>
                   <Link
-                    href={`/app/${WORKSPACE_SLUG}?tab=accounts&platform=${acc.id}`}
+                    href={`/app/${activeWorkspaceSlug}?tab=accounts&platform=${acc.id}`}
                     onClick={(e) => e.stopPropagation()}
                     className="dash-btn"
                     style={{
@@ -2019,7 +2030,7 @@ function DashboardPageInner() {
                   </Link>
 
                   <Link
-                    href={`/app/${WORKSPACE_SLUG}/settings?tab=integrations`}
+                    href={`/app/${activeWorkspaceSlug}/settings?tab=integrations`}
                     onClick={(e) => e.stopPropagation()}
                     className="dash-btn"
                     style={{
@@ -2054,28 +2065,28 @@ function DashboardPageInner() {
             {
               label: t.quickLinks.fullApp,
               desc: t.quickLinks.fullAppDesc,
-              href: `/app/${WORKSPACE_SLUG}`,
+              href: `/app/${activeWorkspaceSlug}`,
               icon: "→",
               color: css.accent,
             },
             {
               label: t.quickLinks.studio,
               desc: t.quickLinks.studioDesc,
-              href: `/app/${WORKSPACE_SLUG}?tab=studio`,
+              href: `/app/${activeWorkspaceSlug}?tab=studio`,
               icon: "✦",
               color: css.aiText,
             },
             {
               label: t.quickLinks.blog,
               desc: t.quickLinks.blogDesc,
-              href: `/app/${WORKSPACE_SLUG}?tab=blogStudio`,
+              href: `/app/${activeWorkspaceSlug}?tab=blogStudio`,
               icon: "✍",
               color: "#22c55e",
             },
             {
               label: t.quickLinks.offers,
               desc: t.quickLinks.offersDesc,
-              href: `/app/${WORKSPACE_SLUG}?tab=offers`,
+              href: `/app/${activeWorkspaceSlug}?tab=offers`,
               icon: "□",
               color: "#f59e0b",
             },
