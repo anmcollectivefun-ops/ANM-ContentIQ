@@ -530,20 +530,20 @@ function compactMetric(value: number) {
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
 }
-function formatLastSync(value: string | null) {
-  if (!value) return "Nie zsynchronizowano";
+function formatLastSync(value: string | null, lang: Lang = "pl") {
+  if (!value) return lang === "pl" ? "Nie zsynchronizowano" : "Not synchronized";
 
   const diffMs = Date.now() - new Date(value).getTime();
   const diffMin = Math.max(0, Math.round(diffMs / 60000));
 
-  if (diffMin < 1) return "teraz";
-  if (diffMin < 60) return `${diffMin} min temu`;
+  if (diffMin < 1) return lang === "pl" ? "teraz" : "now";
+  if (diffMin < 60) return lang === "pl" ? `${diffMin} min temu` : `${diffMin} min ago`;
 
   const diffHours = Math.round(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} godz. temu`;
+  if (diffHours < 24) return lang === "pl" ? `${diffHours} godz. temu` : `${diffHours} h ago`;
 
   const diffDays = Math.round(diffHours / 24);
-  return `${diffDays} dni temu`;
+  return lang === "pl" ? `${diffDays} dni temu` : `${diffDays} days ago`;
 }
 
 function formatNumber(value: number) {
@@ -693,7 +693,8 @@ function mergeConnections(
   accounts: Account[],
   connections: PlatformConnection[],
   postsByPlatform: Record<Platform, Post[]>,
-  manualLinks: ManualLink[] = []
+  manualLinks: ManualLink[] = [],
+  lang: Lang = "pl"
 ) {
   return accounts.map((account) => {
     const connection = connections.find((item) => item.platform === account.id);
@@ -727,7 +728,7 @@ function mergeConnections(
       connected: true,
       connection_id: connection.id,
       handle: connection.account_name || account.name,
-      lastSync: formatLastSync(connection.last_synced_at),
+      lastSync: formatLastSync(connection.last_synced_at, lang),
       manualAccountUrl: accountLink?.url,
     };
 
@@ -834,7 +835,7 @@ function AppWorkspacePageInner() {
   ai: true,
   settings: true,
 });
-  const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform()));
+  const [accounts, setAccounts] = useState<Account[]>(() => mergeConnections(ACCOUNTS, [], emptyPostsByPlatform(), [], lang));
   const [postsByPlatform, setPostsByPlatform] = useState<Record<Platform, Post[]>>(emptyPostsByPlatform);
   const css = dark ? darkVars : lightVars;
 const navGroups = useMemo(() => makeNavGroups(t), [t]);
@@ -1143,7 +1144,7 @@ const integrations = t.integrations;
             if (!connectionIds.length) {
               const emptyPosts = emptyPostsByPlatform();
               setPostsByPlatform(emptyPosts);
-              setAccounts(mergeConnections(ACCOUNTS, [], emptyPosts));
+              setAccounts(mergeConnections(ACCOUNTS, [], emptyPosts, [], lang));
               return;
             }
 
@@ -1178,7 +1179,7 @@ const integrations = t.integrations;
                 manualLinks
               );
               setPostsByPlatform(nextPosts);
-              setAccounts(mergeConnections(ACCOUNTS, connections, nextPosts, manualLinks));
+              setAccounts(mergeConnections(ACCOUNTS, connections, nextPosts, manualLinks, lang));
             });
           });
       })
@@ -2310,7 +2311,7 @@ const formatProfileNumber = (value: any) => {
             marginBottom: 6,
           }}
         >
-          Podsumowanie kont
+          {tx("Podsumowanie kont", "Account summary")}
         </div>
 
         <h2
@@ -2323,7 +2324,7 @@ const formatProfileNumber = (value: any) => {
             fontWeight: 500,
           }}
         >
-          Kliknij konto, żeby zobaczyć szczegóły i publikacje
+          {tx("Kliknij konto, żeby zobaczyć szczegóły i publikacje", "Click an account to view details and publications")}
         </h2>
       </div>
 
@@ -2335,8 +2336,10 @@ const formatProfileNumber = (value: any) => {
           maxWidth: 430,
         }}
       >
-        Każdy kafelek pokazuje wynik live, świeżość danych i krótki wniosek AI.
-        Możesz od razu wejść w szczegóły albo zsynchronizować konto.
+        {tx(
+          "Każdy kafelek pokazuje wynik live, świeżość danych i krótki wniosek AI. Możesz od razu wejść w szczegóły albo zsynchronizować konto.",
+          "Each tile shows a live score, data freshness and a short AI insight. You can open details or synchronize the account right away."
+        )}
       </div>
     </div>
 
@@ -3917,7 +3920,7 @@ const formatProfileNumber = (value: any) => {
                 textTransform: "uppercase",
               }}
             >
-              Szczegóły publikacji
+              {tx("Szczegóły publikacji", "Publication details")}
             </div>
 
             <h2
@@ -3959,7 +3962,7 @@ const formatProfileNumber = (value: any) => {
                       textDecoration: "none",
                     }}
                   >
-                    Otwórz post ↗
+                    {tx("Otwórz post", "Open post")} ↗
                   </a>
                 </>
               )}
@@ -4040,7 +4043,7 @@ const formatProfileNumber = (value: any) => {
                   marginBottom: 6,
                 }}
               >
-                Tytuł / hook
+                {tx("Tytuł / hook", "Title / hook")}
               </div>
 
               <div
@@ -4051,7 +4054,7 @@ const formatProfileNumber = (value: any) => {
                   lineHeight: 1.35,
                 }}
               >
-                {selectedPostDetails.title || "Publikacja bez tytułu"}
+                {selectedPostDetails.title || tx("Publikacja bez tytułu", "Untitled publication")}
               </div>
             </div>
 
@@ -4067,7 +4070,7 @@ const formatProfileNumber = (value: any) => {
                   marginBottom: 6,
                 }}
               >
-                Pełny opis
+                {tx("Pełny opis", "Full description")}
               </div>
 
               <div
@@ -4085,7 +4088,7 @@ const formatProfileNumber = (value: any) => {
                 {selectedPostDetails.description ||
                   selectedPostDetails.content ||
                   selectedPostDetails.title ||
-                  "Brak pełnego opisu dla tej publikacji."}
+                  tx("Brak pełnego opisu dla tej publikacji.", "No full description for this publication.")}
               </div>
             </div>
           </div>
@@ -4099,17 +4102,17 @@ const formatProfileNumber = (value: any) => {
           }}
         >
           {[
-            ["Zasięg", selectedPostDetails.reach],
-            ["Wyświetlenia", selectedPostDetails.impressions ?? "—"],
+            [tx("Zasięg", "Reach"), selectedPostDetails.reach],
+            [tx("Wyświetlenia", "Impressions"), selectedPostDetails.impressions ?? "—"],
             [
-              "Polubienia",
+              tx("Polubienia", "Likes"),
               selectedPostDetails.likes > 0
                 ? selectedPostDetails.likes.toLocaleString()
                 : "—",
             ],
-            ["Komentarze", String(selectedPostDetails.comments ?? 0)],
+            [tx("Komentarze", "Comments"), String(selectedPostDetails.comments ?? 0)],
             [
-              "Udost.",
+              tx("Udost.", "Shares"),
               selectedPostDetails.shares ? String(selectedPostDetails.shares) : "—",
             ],
           ].map(([label, value]) => (
@@ -4175,7 +4178,7 @@ const formatProfileNumber = (value: any) => {
             }}
           >
             <Wand2 size={15} color={css.aiIcon} />
-            AI Score i miejsce na analizę
+            {tx("AI Score i miejsce na analizę", "AI score and analysis placeholder")}
           </div>
 
           <div
@@ -4211,9 +4214,10 @@ const formatProfileNumber = (value: any) => {
                 lineHeight: 1.7,
               }}
             >
-              Na tym etapie AI Score jest punktacją techniczną. W kolejnym kroku
-              podłączymy tutaj pełne wyjaśnienie: dlaczego publikacja dostała
-              taki wynik, co poprawić i jaki następny krok wykonać.
+              {tx(
+                "Na tym etapie AI Score jest punktacją techniczną. W kolejnym kroku podłączymy tutaj pełne wyjaśnienie: dlaczego publikacja dostała taki wynik, co poprawić i jaki następny krok wykonać.",
+                "At this stage AI Score is a technical score. In the next step this area will include the full explanation: why the publication received this result, what to improve and what to do next."
+              )}
             </div>
           </div>
 
@@ -4226,16 +4230,25 @@ const formatProfileNumber = (value: any) => {
           >
             {[
               {
-                title: "Dlaczego taki wynik?",
-                text: "Tu pojawi się wyjaśnienie AI na podstawie zasięgu, interakcji, formatu i historii konta.",
+                title: tx("Dlaczego taki wynik?", "Why this score?"),
+                text: tx(
+                  "Tu pojawi się wyjaśnienie AI na podstawie zasięgu, interakcji, formatu i historii konta.",
+                  "AI will explain this based on reach, interactions, format and account history."
+                ),
               },
               {
-                title: "Co poprawić?",
-                text: "Tu pojawią się konkretne wskazówki naprawy: hook, format, CTA, miniatura, opis.",
+                title: tx("Co poprawić?", "What to improve?"),
+                text: tx(
+                  "Tu pojawią się konkretne wskazówki naprawy: hook, format, CTA, miniatura, opis.",
+                  "Concrete fixes will appear here: hook, format, CTA, thumbnail and description."
+                ),
               },
               {
-                title: "Co zrobić dalej?",
-                text: "Tu pojawi się rekomendacja: przerób na short, dodaj do harmonogramu albo opublikuj wariant.",
+                title: tx("Co zrobić dalej?", "What to do next?"),
+                text: tx(
+                  "Tu pojawi się rekomendacja: przerób na short, dodaj do harmonogramu albo opublikuj wariant.",
+                  "A recommendation will appear here: turn it into a short, add it to the schedule or publish a variant."
+                ),
               },
             ].map((item) => (
               <div

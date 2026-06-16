@@ -132,6 +132,15 @@ const GOALS: ShortGoal[] = [
   "eksperckość",
 ];
 
+const GOAL_LABELS: Record<ShortGoal, { pl: string; en: string }> = {
+  "zasięg": { pl: "zasięg", en: "reach" },
+  edukacja: { pl: "edukacja", en: "education" },
+  sprzedaż: { pl: "sprzedaż", en: "sales" },
+  lead: { pl: "lead", en: "lead" },
+  społeczność: { pl: "społeczność", en: "community" },
+  eksperckość: { pl: "eksperckość", en: "expertise" },
+};
+
 const FORMATS = [
   "3 błędy",
   "3 wskazówki",
@@ -1779,7 +1788,10 @@ export default function ShortStudio({
                   <textarea
                     value={videoAnalysisNotes}
                     onChange={(event) => setVideoAnalysisNotes(event.target.value)}
-                    placeholder="Np. przygotuj opis sprzedażowy, mocny hook, CTA do obserwowania i hashtagi pod wybrane platformy."
+                    placeholder={text(
+                      "Np. przygotuj opis sprzedażowy, mocny hook, CTA do obserwowania i hashtagi pod wybrane platformy.",
+                      "E.g. prepare sales copy, a strong hook, a follow CTA and hashtags for the selected platforms."
+                    )}
                     style={{
                       width: "100%",
                       minHeight: 78,
@@ -1872,10 +1884,10 @@ export default function ShortStudio({
                   }}
                 >
                   {uploadingVideo
-                    ? "Uploaduję film..."
+                    ? text("Uploaduję film...", "Uploading video...")
                     : analyzingVideo
-                      ? "AI analizuje film..."
-                      : "Przeanalizuj film AI"}
+                      ? text("AI analizuje film...", "AI is analyzing the video...")
+                      : text("Przeanalizuj film AI", "Analyze video with AI")}
                 </button>
 
                 {videoUpload && (
@@ -1896,7 +1908,7 @@ export default function ShortStudio({
                       fontFamily: "inherit",
                     }}
                   >
-                    {deletingVideo ? "Usuwam..." : "Usuń plik"}
+                    {deletingVideo ? text("Usuwam...", "Deleting...") : text("Usuń plik", "Delete file")}
                   </button>
                 )}
               </div>
@@ -1917,7 +1929,7 @@ export default function ShortStudio({
                       marginBottom: 6,
                     }}
                   >
-                    <span>{uploadingVideo ? "Upload filmu" : analyzingVideo ? "Analiza AI" : "Gotowe"}</span>
+                    <span>{uploadingVideo ? text("Upload filmu", "Video upload") : analyzingVideo ? text("Analiza AI", "AI analysis") : text("Gotowe", "Done")}</span>
                     <span>{Math.round(videoProgress)}%</span>
                   </div>
 
@@ -1963,7 +1975,7 @@ export default function ShortStudio({
             <Card css={css} variant="aiGlow" minHeight={420}>
               <SectionLabel color={css.aiText}>
                 <Wand2 size={15} color={css.aiIcon} />
-                Wynik wygenerowanej treści od AI
+                {text("Wynik wygenerowanej treści od AI", "AI-generated content result")}
               </SectionLabel>
 
               {!videoAnalysis && !analyzingVideo && (
@@ -1982,7 +1994,10 @@ export default function ShortStudio({
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>⊞</div>
                     <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Tutaj pojawi się opis filmu", "Your video post copy will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
-                      Po analizie AI zobaczysz hook, opis posta, hashtagi i platformy, do których zapiszesz szablon.
+                      {text(
+                        "Po analizie AI zobaczysz hook, opis posta, hashtagi i platformy, do których zapiszesz szablon.",
+                        "After AI analysis you will see the hook, caption, hashtags and platforms for saving the template."
+                      )}
                     </p>
                   </div>
                 </div>
@@ -2016,7 +2031,7 @@ export default function ShortStudio({
 
               {videoAnalysis && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <ResultBox label="Platformy szablonu" css={css} accent>
+                  <ResultBox label={text("Platformy szablonu", "Template platforms")} css={css} accent>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {selectedPlatforms.map((platform) => (
                         <span
@@ -2215,7 +2230,7 @@ export default function ShortStudio({
                   >
                     {GOALS.map((item) => (
                       <option key={item} value={item}>
-                        {item}
+                        {text(GOAL_LABELS[item].pl, GOAL_LABELS[item].en)}
                       </option>
                     ))}
                   </select>
@@ -2271,7 +2286,10 @@ export default function ShortStudio({
                 <textarea
                   value={topic}
                   onChange={(event) => setTopic(event.target.value)}
-                  placeholder="np. Dlaczego firmy nie powinny kopiować tego samego contentu na wszystkie platformy"
+                  placeholder={text(
+                    "np. Dlaczego firmy nie powinny kopiować tego samego contentu na wszystkie platformy",
+                    "e.g. Why companies should not copy the same content across every platform"
+                  )}
                   style={{
                     width: "100%",
                     minHeight: 92,
@@ -2294,7 +2312,10 @@ export default function ShortStudio({
                 <textarea
                   value={sourceContent}
                   onChange={(event) => setSourceContent(event.target.value)}
-                  placeholder="Wklej post, opis bloga albo użyj analizy filmu."
+                  placeholder={text(
+                    "Wklej post, opis bloga albo użyj analizy filmu.",
+                    "Paste a post, blog description or use the video analysis."
+                  )}
                   style={{
                     width: "100%",
                     minHeight: 78,
@@ -2317,7 +2338,10 @@ export default function ShortStudio({
                 <textarea
                   value={brandContext}
                   onChange={(event) => setBrandContext(event.target.value)}
-                  placeholder="np. marka ekspercka B2B, ton prosty i konkretny."
+                  placeholder={text(
+                    "np. marka ekspercka B2B, ton prosty i konkretny.",
+                    "e.g. expert B2B brand, simple and concrete tone."
+                  )}
                   style={{
                     width: "100%",
                     minHeight: 72,
@@ -2344,7 +2368,7 @@ export default function ShortStudio({
                   opacity: loading || !canGenerate ? 0.5 : 1,
                 }}
               >
-                {loading ? "AI tworzy treści..." : "✦ Wygeneruj treści AI"}
+                {loading ? text("AI tworzy treści...", "AI is creating content...") : text("✦ Wygeneruj treści AI", "✦ Generate AI content")}
               </button>
 
               {error && (
@@ -2368,7 +2392,7 @@ export default function ShortStudio({
             <Card css={css} variant="aiGlow" minHeight={420}>
               <SectionLabel color={css.aiText}>
                 <Wand2 size={15} color={css.aiIcon} />
-                Wygenerowana treść AI
+                {text("Wygenerowana treść AI", "Generated AI content")}
               </SectionLabel>
 
               {!result && !loading && (
@@ -2387,7 +2411,10 @@ export default function ShortStudio({
                     <div style={{ fontSize: 42, opacity: 0.16, marginBottom: 10 }}>✦</div>
                     <h3 style={{ ...panelTitleStyle, fontSize: 25 }}>{text("Warianty shortów pojawią się tutaj", "Short variants will appear here")}</h3>
                     <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.7, margin: 0 }}>
-                      Po kliknięciu generowania AI przygotuje osobne scenariusze, opisy i hashtagi dla wybranych platform.
+                      {text(
+                        "Po kliknięciu generowania AI przygotuje osobne scenariusze, opisy i hashtagi dla wybranych platform.",
+                        "After generation, AI will prepare separate scripts, captions and hashtags for the selected platforms."
+                      )}
                     </p>
                   </div>
                 </div>
@@ -2421,7 +2448,7 @@ export default function ShortStudio({
 
               {result && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <ResultBox label="AI podsumowanie" css={css} accent>
+                  <ResultBox label={text("AI podsumowanie", "AI summary")} css={css} accent>
                     <h3 style={{ margin: "0 0 8px", color: css.text, fontSize: 20, lineHeight: 1.2 }}>
                       {result.idea_title}
                     </h3>
@@ -2431,7 +2458,7 @@ export default function ShortStudio({
                     </p>
 
                     <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>
-                      Kąt: {result.main_angle}
+                      {text("Kąt", "Angle")}: {result.main_angle}
                     </p>
                   </ResultBox>
 
@@ -2498,13 +2525,13 @@ export default function ShortStudio({
                             </p>
                           </ResultBox>
 
-                          <ResultBox label="Scenariusz" css={css}>
+                          <ResultBox label={text("Scenariusz", "Script")} css={css}>
                             <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
                               {variant.script}
                             </p>
                           </ResultBox>
 
-                          <ResultBox label="Opis i hashtagi" css={css}>
+                          <ResultBox label={text("Opis i hashtagi", "Caption and hashtags")} css={css}>
                             <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
                               {variant.caption}
                             </p>
@@ -2548,7 +2575,7 @@ export default function ShortStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {copied ? "✓ Skopiowano" : "Kopiuj"}
+                      {copied ? text("✓ Skopiowano", "✓ Copied") : text("Kopiuj", "Copy")}
                     </button>
 
                     <button
@@ -2568,7 +2595,7 @@ export default function ShortStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {savingTemplate ? "Zapisuję..." : "Szablon"}
+                      {savingTemplate ? text("Zapisuję...", "Saving...") : text("Szablon", "Template")}
                     </button>
 
                     <button
@@ -2588,7 +2615,7 @@ export default function ShortStudio({
                         fontFamily: "inherit",
                       }}
                     >
-                      {saving ? "Zapisuję..." : "Szkic"}
+                      {saving ? text("Zapisuję...", "Saving...") : text("Szkic", "Draft")}
                     </button>
                   </div>
 
@@ -2602,7 +2629,7 @@ export default function ShortStudio({
                       }}
                     >
                       <summary style={{ color: css.muted, fontSize: 11, cursor: "pointer", fontWeight: 800 }}>
-                        Surowa odpowiedź AI
+                        {text("Surowa odpowiedź AI", "Raw AI response")}
                       </summary>
 
                       <pre

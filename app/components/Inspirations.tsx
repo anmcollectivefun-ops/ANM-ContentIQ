@@ -834,7 +834,7 @@ export default function Inspirations({
             </div>
 
             <h3 style={{ margin: 0, color: css.text, fontSize: 15, lineHeight: 1.35, fontWeight: 900 }}>
-              {item.title || "Inspiracja bez tytułu"}
+              {item.title || text("Inspiracja bez tytułu", "Untitled inspiration")}
             </h3>
 
             <div style={{ marginTop: 6, color: css.muted, fontSize: 11, lineHeight: 1.5 }}>
@@ -845,7 +845,7 @@ export default function Inspirations({
 
           {!isDetailsOpen && (
             <p style={{ margin: 0, color: css.muted, fontSize: 12, lineHeight: 1.6 }}>
-              {getSummary(item.description || item.body || "Brak opisu.", 170)}
+              {getSummary(item.description || item.body || text("Brak opisu.", "No description."), 170)}
             </p>
           )}
 
@@ -864,7 +864,7 @@ export default function Inspirations({
               fontFamily: "inherit",
             }}
           >
-            {isDetailsOpen ? "Ukryj szczegóły" : "Pokaż szczegóły"}
+            {isDetailsOpen ? text("Ukryj szczegóły", "Hide details") : text("Pokaż szczegóły", "Show details")}
           </button>
 
           {isDetailsOpen && (
@@ -881,16 +881,16 @@ export default function Inspirations({
             >
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>
-                  Tytuł
+                  {text("Tytuł", "Title")}
                 </div>
                 <div style={{ fontSize: 13, color: css.text, fontWeight: 800, lineHeight: 1.45 }}>
-                  {item.title || "Inspiracja bez tytułu"}
+                  {item.title || text("Inspiracja bez tytułu", "Untitled inspiration")}
                 </div>
               </div>
 
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>
-                  Hashtagi
+                  {text("Hashtagi", "Hashtags")}
                 </div>
 
                 {hashtags.length ? (
@@ -918,10 +918,10 @@ export default function Inspirations({
 
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, color: css.accent, textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 4 }}>
-                  Opis
+                  {text("Opis", "Description")}
                 </div>
                 <p style={{ margin: 0, color: css.text, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                  {[item.description, item.body].filter(Boolean).join("\n\n") || "Brak opisu."}
+                  {[item.description, item.body].filter(Boolean).join("\n\n") || text("Brak opisu.", "No description.")}
                 </p>
               </div>
             </div>
@@ -945,7 +945,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Dodaj jako szablon
+              {text("Dodaj jako szablon", "Add as template")}
             </button>
 
             <button
@@ -963,7 +963,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Harmonogram
+              {text("Harmonogram", "Schedule")}
             </button>
           </div>
 
@@ -985,7 +985,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Publikuj teraz
+              {text("Publikuj teraz", "Publish now")}
             </button>
 
             <button
@@ -1005,7 +1005,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Edytuj
+              {text("Edytuj", "Edit")}
             </button>
 
             <button
@@ -1025,7 +1025,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Drukuj
+              {text("Drukuj", "Print")}
             </button>
 
             <button
@@ -1045,7 +1045,7 @@ export default function Inspirations({
                 fontFamily: "inherit",
               }}
             >
-              Usuń
+              {text("Usuń", "Delete")}
             </button>
           </div>
 

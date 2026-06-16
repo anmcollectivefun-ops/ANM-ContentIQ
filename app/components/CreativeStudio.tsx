@@ -84,6 +84,14 @@ const ASSET_TYPES: { id: CreativeAssetType; label: string }[] = [
   { id: "ad", label: "Grafika reklamowa" },
 ];
 
+const ASSET_TYPE_LABELS: Record<CreativeAssetType, { pl: string; en: string }> = {
+  post: { pl: "Grafika do posta", en: "Post graphic" },
+  cover: { pl: "Okładka / cover", en: "Cover" },
+  thumbnail: { pl: "Miniatura", en: "Thumbnail" },
+  carousel: { pl: "Karuzela / slajd", en: "Carousel / slide" },
+  ad: { pl: "Grafika reklamowa", en: "Ad graphic" },
+};
+
 const FORMAT_OPTIONS: CreativeFormat[] = ["1:1", "4:5", "9:16", "16:9"];
 
 const STYLE_OPTIONS: CreativeStyle[] = [
@@ -95,6 +103,16 @@ const STYLE_OPTIONS: CreativeStyle[] = [
   "editorial",
   "cinematic",
 ];
+
+const STYLE_LABELS: Record<CreativeStyle, { pl: string; en: string }> = {
+  realistyczny: { pl: "realistyczny", en: "realistic" },
+  minimalistyczny: { pl: "minimalistyczny", en: "minimalist" },
+  premium: { pl: "premium", en: "premium" },
+  nowoczesny: { pl: "nowoczesny", en: "modern" },
+  brandowy: { pl: "brandowy", en: "branded" },
+  editorial: { pl: "editorial", en: "editorial" },
+  cinematic: { pl: "cinematic", en: "cinematic" },
+};
 
 function SectionLabel({
   children,
@@ -608,7 +626,7 @@ export default function CreativeStudio({
                   fontFamily: "inherit",
                 }}
               >
-                Własny API key
+                {text("Własny API key", "Own API key")}
               </button>
             </div>
 
@@ -625,10 +643,19 @@ export default function CreativeStudio({
               }}
             >
               {providerMode === "huggingface"
-                ? "Darmowy wariant przez Hugging Face Serverless Inference API. Wymaga HF_TOKEN w env."
+                ? text(
+                    "Darmowy wariant przez Hugging Face Serverless Inference API. Wymaga HF_TOKEN w env.",
+                    "Free variant through Hugging Face Serverless Inference API. Requires HF_TOKEN in env."
+                  )
                 : providerMode === "anm"
-                  ? "Tryb Google / Gemini używa klucza Google ustawionego w zmiennych środowiskowych aplikacji."
-                  : "Tryb własny API key użyje Twojego klucza tylko do tego jednego żądania."}
+                  ? text(
+                      "Tryb Google / Gemini używa klucza Google ustawionego w zmiennych środowiskowych aplikacji.",
+                      "Google / Gemini mode uses the Google key configured in the app environment variables."
+                    )
+                  : text(
+                      "Tryb własny API key użyje Twojego klucza tylko do tego jednego żądania.",
+                      "Own API key mode uses your key only for this single request."
+                    )}
             </div>
 
             {providerMode === "own" && (
@@ -637,7 +664,7 @@ export default function CreativeStudio({
                   value={userApiKey}
                   onChange={(e) => setUserApiKey(e.target.value)}
                   type="password"
-                  placeholder="Wklej własny Gemini API key"
+                  placeholder={text("Wklej własny Gemini API key", "Paste your Gemini API key")}
                   style={{
                     width: "100%",
                     borderRadius: 12,
@@ -658,7 +685,10 @@ export default function CreativeStudio({
                     lineHeight: 1.5,
                   }}
                 >
-                  Klucz nie zapisuje się w Supabase. Jeśli ten klucz także ma limit 0, Google zwróci błąd quota.
+                  {text(
+                    "Klucz nie zapisuje się w Supabase. Jeśli ten klucz także ma limit 0, Google zwróci błąd quota.",
+                    "The key is not saved in Supabase. If this key also has a 0 quota, Google will return a quota error."
+                  )}
                 </div>
               </div>
             )}
@@ -722,7 +752,7 @@ export default function CreativeStudio({
                     fontFamily: "inherit",
                   }}
                 >
-                  {item.label}
+                  {text(ASSET_TYPE_LABELS[item.id].pl, ASSET_TYPE_LABELS[item.id].en)}
                 </button>
               ))}
             </div>
@@ -780,7 +810,7 @@ export default function CreativeStudio({
                     fontFamily: "inherit",
                   }}
                 >
-                  {item}
+                  {text(STYLE_LABELS[item].pl, STYLE_LABELS[item].en)}
                 </button>
               ))}
             </div>
@@ -805,10 +835,10 @@ export default function CreativeStudio({
                 outline: "none",
               }}
             >
-              <option value={1}>1 wariant</option>
-              <option value={2}>2 warianty</option>
-              <option value={3}>3 warianty</option>
-              <option value={4}>4 warianty</option>
+              <option value={1}>{text("1 wariant", "1 variant")}</option>
+              <option value={2}>{text("2 warianty", "2 variants")}</option>
+              <option value={3}>{text("3 warianty", "3 variants")}</option>
+              <option value={4}>{text("4 warianty", "4 variants")}</option>
             </select>
           </div>
 
@@ -819,7 +849,10 @@ export default function CreativeStudio({
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="np. Dynamiczna okładka do shorta o 3 błędach firm na TikToku, ciemne tło, nowoczesny biznesowy klimat, osoba przy laptopie, estetyka SaaS"
+              placeholder={text(
+                "np. Dynamiczna okładka do shorta o 3 błędach firm na TikToku, ciemne tło, nowoczesny biznesowy klimat, osoba przy laptopie, estetyka SaaS",
+                "e.g. Dynamic short cover about 3 company mistakes on TikTok, dark background, modern business mood, person at a laptop, SaaS aesthetic"
+              )}
               style={{
                 width: "100%",
                 minHeight: 120,
@@ -843,7 +876,7 @@ export default function CreativeStudio({
             <input
               value={overlayText}
               onChange={(e) => setOverlayText(e.target.value)}
-              placeholder="np. 3 błędy firm na TikToku"
+              placeholder={text("np. 3 błędy firm na TikToku", "e.g. 3 company mistakes on TikTok")}
               style={{
                 width: "100%",
                 borderRadius: 14,
@@ -865,7 +898,10 @@ export default function CreativeStudio({
             <textarea
               value={negativePrompt}
               onChange={(e) => setNegativePrompt(e.target.value)}
-              placeholder="np. rozmyty obraz, niska jakość, źle ułożony tekst"
+              placeholder={text(
+                "np. rozmyty obraz, niska jakość, źle ułożony tekst",
+                "e.g. blurry image, low quality, poorly placed text"
+              )}
               style={{
                 width: "100%",
                 minHeight: 90,
@@ -899,7 +935,7 @@ export default function CreativeStudio({
               fontFamily: "inherit",
             }}
           >
-            ✦ Przygotuj warianty do generowania
+            {text("✦ Przygotuj warianty do generowania", "✦ Prepare variants for generation")}
           </button>
 
           {error && (
@@ -949,7 +985,7 @@ export default function CreativeStudio({
                     color: css.text,
                   }}
                 >
-                  Warianty grafik pojawią się tutaj
+                  {text("Warianty grafik pojawią się tutaj", "Graphic variants will appear here")}
                 </h3>
 
                 <p
@@ -961,9 +997,10 @@ export default function CreativeStudio({
                     margin: 0,
                   }}
                 >
-                  Na tym etapie komponent tworzy gotowe drafty promptów i układu
-                  generowania. Po kliknięciu generowania i aktywnym limicie API
-                  tutaj pojawią się prawdziwe wygenerowane obrazy.
+                  {text(
+                    "Na tym etapie komponent tworzy gotowe drafty promptów i układu generowania. Po kliknięciu generowania i aktywnym limicie API tutaj pojawią się prawdziwe wygenerowane obrazy.",
+                    "At this stage the component prepares prompt and layout drafts. After generation, with an active API limit, real generated images will appear here."
+                  )}
                 </p>
               </div>
             </div>
@@ -1048,7 +1085,7 @@ export default function CreativeStudio({
                               fontWeight: 700,
                             }}
                           >
-                            Podgląd miejsca na grafikę
+                            {text("Podgląd miejsca na grafikę", "Image placeholder preview")}
                           </div>
 
                           {item.overlayText ? (
@@ -1070,7 +1107,7 @@ export default function CreativeStudio({
                                 fontWeight: 800,
                               }}
                             >
-                              Wariant {index + 1}
+                              {text(`Wariant ${index + 1}`, `Variant ${index + 1}`)}
                             </div>
                           )}
                         </div>
@@ -1163,7 +1200,7 @@ export default function CreativeStudio({
                             fontFamily: "inherit",
                           }}
                         >
-                          Kopiuj prompt
+                          {text("Kopiuj prompt", "Copy prompt")}
                         </button>
 
                         <button
@@ -1183,7 +1220,7 @@ export default function CreativeStudio({
                             fontFamily: "inherit",
                           }}
                         >
-                          {savingTemplateId === item.id ? "Zapisuję..." : "Zapisz szablon"}
+                          {savingTemplateId === item.id ? text("Zapisuję...", "Saving...") : text("Zapisz szablon", "Save template")}
                         </button>
 
                         <button
@@ -1204,12 +1241,12 @@ export default function CreativeStudio({
                           }}
                         >
                           {generatingImageId === item.id
-                            ? "Generuję..."
+                            ? text("Generuję...", "Generating...")
                             : providerMode === "huggingface"
                               ? "Generuj HF"
                               : providerMode === "anm"
                                 ? "Generuj Google"
-                                : "Generuj własnym"}
+                                : text("Generuj własnym", "Generate with own key")}
                         </button>
                       </div>
 
@@ -1221,7 +1258,7 @@ export default function CreativeStudio({
                           lineHeight: 1.6,
                         }}
                       >
-                        Provider: {item.providerMode === "huggingface" ? "Hugging Face SDXL" : item.providerMode === "anm" ? "Google / Gemini" : "Własny API key"}
+                        Provider: {item.providerMode === "huggingface" ? "Hugging Face SDXL" : item.providerMode === "anm" ? "Google / Gemini" : text("Własny API key", "Own API key")}
                       </div>
                     </div>
                   </div>

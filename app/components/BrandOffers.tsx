@@ -88,6 +88,20 @@ const OFFER_TYPES = [
   "portfolio",
 ];
 
+const OFFER_TYPE_LABELS: Record<string, { pl: string; en: string }> = {
+  aplikacja: { pl: "aplikacja", en: "app" },
+  "usługa": { pl: "usługa", en: "service" },
+  szkolenie: { pl: "szkolenie", en: "training" },
+  kurs: { pl: "kurs", en: "course" },
+  webinar: { pl: "webinar", en: "webinar" },
+  ebook: { pl: "ebook", en: "ebook" },
+  "landing page": { pl: "landing page", en: "landing page" },
+  produkt: { pl: "produkt", en: "product" },
+  konsultacja: { pl: "konsultacja", en: "consultation" },
+  "case study": { pl: "case study", en: "case study" },
+  portfolio: { pl: "portfolio", en: "portfolio" },
+};
+
 const PLATFORMS: { id: Platform; name: string; color: string }[] = [
   { id: "linkedin", name: "LinkedIn", color: "#0A66C2" },
   { id: "instagram", name: "Instagram", color: "#E1306C" },
@@ -779,7 +793,7 @@ Zwróć wyłącznie JSON bez markdown:
           textAlign: "center",
         }}
       >
-        Ładowanie ofert marki...
+        {text("Ładowanie ofert marki...", "Loading brand offers...")}
       </div>
     );
   }
@@ -929,7 +943,7 @@ Zwróć wyłącznie JSON bez markdown:
             }}
           >
             <Plus size={15} />
-            Dodaj ofertę
+            {text("Dodaj ofertę", "Add offer")}
           </button>
 
           {offers.length === 0 && (
@@ -944,8 +958,10 @@ Zwróć wyłącznie JSON bez markdown:
                 textAlign: "center",
               }}
             >
-              Nie masz jeszcze żadnej oferty. Dodaj pierwszą aplikację, kurs,
-              usługę albo landing page.
+              {text(
+                "Nie masz jeszcze żadnej oferty. Dodaj pierwszą aplikację, kurs, usługę albo landing page.",
+                "You do not have any offers yet. Add your first app, course, service or landing page."
+              )}
             </div>
           )}
 
@@ -994,7 +1010,7 @@ Zwróć wyłącznie JSON bez markdown:
                     paddingRight: 22,
                   }}
                 >
-                  {offer.name || "Oferta bez nazwy"}
+                  {offer.name || text("Oferta bez nazwy", "Untitled offer")}
                 </div>
 
                 <div
@@ -1016,7 +1032,7 @@ Zwróć wyłącznie JSON bez markdown:
                       fontWeight: 900,
                     }}
                   >
-                    {offer.offer_type}
+                    {text(OFFER_TYPE_LABELS[offer.offer_type]?.pl || offer.offer_type, OFFER_TYPE_LABELS[offer.offer_type]?.en || offer.offer_type)}
                   </span>
 
                   <span
@@ -1026,7 +1042,7 @@ Zwróć wyłącznie JSON bez markdown:
                       fontWeight: 900,
                     }}
                   >
-                    {score}% uzupełnienia
+                    {text(`${score}% uzupełnienia`, `${score}% complete`)}
                   </span>
                 </div>
 
@@ -1044,7 +1060,7 @@ Zwróć wyłącznie JSON bez markdown:
                 >
                   {offer.short_description ||
                     offer.full_description ||
-                    "Brak krótkiego opisu oferty."}
+                    text("Brak krótkiego opisu oferty.", "No short offer description.")}
                 </p>
               </button>
             );
@@ -1072,7 +1088,7 @@ Zwróć wyłącznie JSON bez markdown:
           >
             <div>
               <SectionLabel color={css.accent}>
-                {draft.id ? "Edycja oferty" : "Nowa oferta"}
+                {draft.id ? text("Edycja oferty", "Edit offer") : text("Nowa oferta", "New offer")}
               </SectionLabel>
 
               <h3
@@ -1085,7 +1101,7 @@ Zwróć wyłącznie JSON bez markdown:
                   fontWeight: 500,
                 }}
               >
-                {draft.name || "Dodaj produkt, usługę albo aplikację"}
+                {draft.name || text("Dodaj produkt, usługę albo aplikację", "Add a product, service or app")}
               </h3>
 
               <p
@@ -1097,9 +1113,10 @@ Zwróć wyłącznie JSON bez markdown:
                   maxWidth: 720,
                 }}
               >
-                Im dokładniej opiszesz ofertę, tym lepiej AI dobierze tematy,
-                CTA, kąty sprzedażowe i linki w Content Studio, Blog Studio,
-                AI Partnerze oraz Strategu.
+                {text(
+                  "Im dokładniej opiszesz ofertę, tym lepiej AI dobierze tematy, CTA, kąty sprzedażowe i linki w Content Studio, Blog Studio, AI Partnerze oraz Strategu.",
+                  "The more precisely you describe the offer, the better AI can choose topics, CTAs, sales angles and links in Content Studio, Blog Studio, AI Partner and AI Strategist."
+                )}
               </p>
             </div>
 
@@ -1153,7 +1170,7 @@ Zwróć wyłącznie JSON bez markdown:
                   marginBottom: 6,
                 }}
               >
-                Gotowość oferty dla AI
+                {text("Gotowość oferty dla AI", "Offer readiness for AI")}
               </div>
 
               <div
@@ -1198,7 +1215,7 @@ Zwróć wyłącznie JSON bez markdown:
 
           <div className="bo-three">
             <TextInput
-              label="Nazwa oferty"
+              label={text("Nazwa oferty", "Offer name")}
               value={draft.name}
               onChange={(value) => updateDraft({ name: value })}
               placeholder="np. ANM ContentIQ"
@@ -1224,7 +1241,7 @@ Zwróć wyłącznie JSON bez markdown:
               >
                 {OFFER_TYPES.map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {text(OFFER_TYPE_LABELS[type]?.pl || type, OFFER_TYPE_LABELS[type]?.en || type)}
                   </option>
                 ))}
               </select>
@@ -1258,7 +1275,7 @@ Zwróć wyłącznie JSON bez markdown:
 
           <div className="bo-two">
             <TextInput
-              label="Link do oferty"
+              label={text("Link do oferty", "Offer link")}
               value={draft.url}
               onChange={(value) => updateDraft({ url: value })}
               placeholder="https://..."
@@ -1266,7 +1283,7 @@ Zwróć wyłącznie JSON bez markdown:
             />
 
             <TextInput
-              label="Logo / grafika URL"
+              label={text("Logo / grafika URL", "Logo / image URL")}
               value={draft.image_url}
               onChange={(value) => updateDraft({ image_url: value })}
               placeholder="https://.../image.webp"
@@ -1297,7 +1314,7 @@ Zwróć wyłącznie JSON bez markdown:
                 >
                   <img
                     src={draft.image_url}
-                    alt={draft.name || "Oferta"}
+                    alt={draft.name || text("Oferta", "Offer")}
                     style={{
                       width: "100%",
                       height: "100%",
@@ -1339,7 +1356,7 @@ Zwróć wyłącznie JSON bez markdown:
                         lineHeight: 1.1,
                       }}
                     >
-                      Otwórz link oferty
+                      {text("Otwórz link oferty", "Open offer link")}
                     </div>
                     <div style={{ color: css.muted, fontSize: 12, marginTop: 5 }}>
                       {draft.url}
@@ -1351,28 +1368,37 @@ Zwróć wyłącznie JSON bez markdown:
           )}
 
           <TextArea
-            label="Krótki opis do contentu"
+            label={text("Krótki opis do contentu", "Short content description")}
             value={draft.short_description}
             onChange={(value) => updateDraft({ short_description: value })}
-            placeholder="Jedno zdanie, które AI może używać w postach, CTA i opisach."
+            placeholder={text(
+              "Jedno zdanie, które AI może używać w postach, CTA i opisach.",
+              "One sentence AI can use in posts, CTAs and descriptions."
+            )}
             css={css}
             rows={3}
           />
 
           <TextArea
-            label="Pełniejszy opis oferty"
+            label={text("Pełniejszy opis oferty", "Fuller offer description")}
             value={draft.full_description}
             onChange={(value) => updateDraft({ full_description: value })}
-            placeholder="Co to jest, jaki problem rozwiązuje, dla kogo, jak działa i dlaczego warto."
+            placeholder={text(
+              "Co to jest, jaki problem rozwiązuje, dla kogo, jak działa i dlaczego warto.",
+              "What it is, what problem it solves, who it is for, how it works and why it matters."
+            )}
             css={css}
             rows={5}
           />
 
           <TextArea
-            label="Grupa docelowa"
+            label={text("Grupa docelowa", "Target audience")}
             value={draft.target_audience}
             onChange={(value) => updateDraft({ target_audience: value })}
-            placeholder="Dla kogo jest ta oferta? Firmy, twórcy, kursanci, pacjenci, agencje, właściciele biznesów..."
+            placeholder={text(
+              "Dla kogo jest ta oferta? Firmy, twórcy, kursanci, pacjenci, agencje, właściciele biznesów...",
+              "Who is this offer for? Companies, creators, students, patients, agencies, business owners..."
+            )}
             css={css}
             rows={3}
           />
@@ -1418,19 +1444,19 @@ Zwróć wyłącznie JSON bez markdown:
 
           <div className="bo-two">
             <ArrayEditor
-              label="Problemy odbiorcy"
+              label={text("Problemy odbiorcy", "Audience pain points")}
               values={draft.pain_points}
               onChange={(values) => updateDraft({ pain_points: values })}
-              placeholder="Każdy problem w nowej linii, np. brak czasu na content"
+              placeholder={text("Każdy problem w nowej linii, np. brak czasu na content", "Each problem on a new line, e.g. no time for content")}
               css={css}
               color="#ef4444"
             />
 
             <ArrayEditor
-              label="Korzyści"
+              label={text("Korzyści", "Benefits")}
               values={draft.benefits}
               onChange={(values) => updateDraft({ benefits: values })}
-              placeholder="Każda korzyść w nowej linii, np. mniej chaosu w planowaniu"
+              placeholder={text("Każda korzyść w nowej linii, np. mniej chaosu w planowaniu", "Each benefit on a new line, e.g. less planning chaos")}
               css={css}
               color="#22c55e"
             />
@@ -1438,7 +1464,7 @@ Zwróć wyłącznie JSON bez markdown:
 
           <div className="bo-two">
             <ArrayEditor
-              label="Funkcje / elementy oferty"
+              label={text("Funkcje / elementy oferty", "Offer features / elements")}
               values={draft.features}
               onChange={(values) => updateDraft({ features: values })}
               placeholder="np. AI Partner, Harmonogram, Analiza kont"
@@ -1447,10 +1473,10 @@ Zwróć wyłącznie JSON bez markdown:
             />
 
             <ArrayEditor
-              label="CTA / wezwania do działania"
+              label={text("CTA / wezwania do działania", "CTAs / calls to action")}
               values={draft.cta_options}
               onChange={(values) => updateDraft({ cta_options: values })}
-              placeholder="np. Zobacz demo, Napisz do nas, Sprawdź moduł"
+              placeholder={text("np. Zobacz demo, Napisz do nas, Sprawdź moduł", "e.g. See the demo, Contact us, Check the module")}
               css={css}
               color={css.aiText}
             />
@@ -1458,7 +1484,7 @@ Zwróć wyłącznie JSON bez markdown:
 
           <div className="bo-two">
             <ArrayEditor
-              label="Słowa kluczowe"
+              label={text("Słowa kluczowe", "Keywords")}
               values={draft.keywords}
               onChange={(values) => updateDraft({ keywords: values })}
               placeholder="np. AI, content, automatyzacja, strategia"
@@ -1467,20 +1493,23 @@ Zwróć wyłącznie JSON bez markdown:
             />
 
             <ArrayEditor
-              label="Słowa, których unikać"
+              label={text("Słowa, których unikać", "Words to avoid")}
               values={draft.avoid_words}
               onChange={(values) => updateDraft({ avoid_words: values })}
-              placeholder="np. nachalna sprzedaż, obietnice bez pokrycia"
+              placeholder={text("np. nachalna sprzedaż, obietnice bez pokrycia", "e.g. pushy sales, unsupported promises")}
               css={css}
               color="#ef4444"
             />
           </div>
 
           <ArrayEditor
-            label="Kąty contentowe / serie wokół tej oferty"
+            label={text("Kąty contentowe / serie wokół tej oferty", "Content angles / series around this offer")}
             values={draft.content_angles}
             onChange={(values) => updateDraft({ content_angles: values })}
-            placeholder="np. Jak planować content na podstawie danych&#10;Kulisy budowy aplikacji&#10;Błędy w publikowaniu na social media"
+            placeholder={text(
+              "np. Jak planować content na podstawie danych\nKulisy budowy aplikacji\nBłędy w publikowaniu na social media",
+              "e.g. How to plan content with data\nBehind the scenes of building the app\nSocial media publishing mistakes"
+            )}
             css={css}
             color={css.aiText}
           />
@@ -1509,7 +1538,7 @@ Zwróć wyłącznie JSON bez markdown:
               }}
             >
               <Wand2 size={15} color={css.aiIcon} />
-              AI jako strateg oferty
+              {text("AI jako strateg oferty", "AI as offer strategist")}
             </div>
 
             <p
@@ -1520,10 +1549,10 @@ Zwróć wyłącznie JSON bez markdown:
                 lineHeight: 1.7,
               }}
             >
-              Wpisz minimum nazwę, typ i link albo krótki opis. AI może
-              uzupełnić korzyści, CTA, problemy odbiorców i kąty contentowe.
-              Potem te dane wykorzystamy w Content Studio, Blog Studio,
-              AI Partnerze i Strategu.
+              {text(
+                "Wpisz minimum nazwę, typ i link albo krótki opis. AI może uzupełnić korzyści, CTA, problemy odbiorców i kąty contentowe. Potem te dane wykorzystamy w Content Studio, Blog Studio, AI Partnerze i Strategu.",
+                "Enter at least a name, type and link or a short description. AI can fill in benefits, CTAs, audience pain points and content angles. Later these data points are used in Content Studio, Blog Studio, AI Partner and AI Strategist."
+              )}
             </p>
 
             <div
@@ -1540,7 +1569,7 @@ Zwróć wyłącznie JSON bez markdown:
                 onClick={suggestWithAi}
               >
                 <Sparkles size={14} />
-                {aiLoading ? "AI myśli..." : "Uzupełnij z AI"}
+                {aiLoading ? text("AI myśli...", "AI is thinking...") : text("Uzupełnij z AI", "Fill with AI")}
               </SmallButton>
 
               <SmallButton
@@ -1549,7 +1578,7 @@ Zwróć wyłącznie JSON bez markdown:
                 onClick={makePrimary}
               >
                 <Star size={14} />
-                Ustaw jako główną
+                {text("Ustaw jako główną", "Set as primary")}
               </SmallButton>
 
               <SmallButton
@@ -1558,7 +1587,7 @@ Zwróć wyłącznie JSON bez markdown:
                 onClick={deleteOffer}
               >
                 <Trash2 size={14} />
-                {deleting ? "Usuwam..." : "Usuń"}
+                {deleting ? text("Usuwam...", "Deleting...") : text("Usuń", "Delete")}
               </SmallButton>
             </div>
           </div>
@@ -1574,8 +1603,14 @@ Zwróć wyłącznie JSON bez markdown:
           >
             <div style={{ color: css.muted, fontSize: 12, lineHeight: 1.55 }}>
               {draft.is_primary
-                ? "Ta oferta jest oznaczona jako główna. AI może ją traktować jako priorytet sprzedażowy."
-                : "Możesz oznaczyć jedną ofertę jako główną, żeby AI częściej brało ją pod uwagę."}
+                ? text(
+                    "Ta oferta jest oznaczona jako główna. AI może ją traktować jako priorytet sprzedażowy.",
+                    "This offer is marked as primary. AI can treat it as a sales priority."
+                  )
+                : text(
+                    "Możesz oznaczyć jedną ofertę jako główną, żeby AI częściej brało ją pod uwagę.",
+                    "You can mark one offer as primary so AI considers it more often."
+                  )}
             </div>
 
             <button
@@ -1599,7 +1634,7 @@ Zwróć wyłącznie JSON bez markdown:
               }}
             >
               <Save size={15} />
-              {saving ? "Zapisuję..." : "Zapisz ofertę"}
+              {saving ? text("Zapisuję...", "Saving...") : text("Zapisz ofertę", "Save offer")}
             </button>
           </div>
 
