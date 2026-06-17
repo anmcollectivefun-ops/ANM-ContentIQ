@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Lang = "pl" | "en";
@@ -23,6 +24,11 @@ const copy = {
     emailPlaceholder: "your@email.com",
     password: "Password",
     passwordPlaceholder: "minimum 6 characters",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
+    forgotPassword: "Forgot password?",
+    resetEmailMissing: "Enter your email address first.",
+    resetEmailSent: "Password reset email has been sent. Check your inbox.",
     processing: "Processing...",
     loginSubmit: "Log in with email",
     registerSubmit: "Create account",
@@ -51,6 +57,11 @@ const copy = {
     emailPlaceholder: "twoj@email.pl",
     password: "Hasło",
     passwordPlaceholder: "minimum 6 znaków",
+    showPassword: "Pokaż hasło",
+    hidePassword: "Ukryj hasło",
+    forgotPassword: "Zapomniałam hasła?",
+    resetEmailMissing: "Najpierw wpisz adres email.",
+    resetEmailSent: "Email do resetu hasła został wysłany. Sprawdź skrzynkę.",
     processing: "Przetwarzanie...",
     loginSubmit: "Zaloguj przez email",
     registerSubmit: "Utwórz konto",
@@ -106,6 +117,7 @@ function LoginPageInner() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -145,6 +157,30 @@ function LoginPageInner() {
       setMessage(error.message);
       setLoading(false);
     }
+  }
+
+  async function handlePasswordReset() {
+    setMessage("");
+
+    if (!email.trim()) {
+      setMessage(t.resetEmailMissing);
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${siteUrl}/auth/callback?next=/login?lang=${lang}`,
+    });
+
+    if (error) {
+      setMessage(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setMessage(t.resetEmailSent);
+    setLoading(false);
   }
 
   async function handleEmailAuth(event: React.FormEvent<HTMLFormElement>) {
@@ -288,18 +324,43 @@ function LoginPageInner() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-white/70">
-              {t.password}
-            </label>
-            <input
-              type="password"
-              placeholder={t.passwordPlaceholder}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={6}
-              className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 outline-none placeholder:text-white/30 focus:border-cyan-300"
-            />
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <label className="block text-sm text-white/70">
+                {t.password}
+              </label>
+
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={loading}
+                  className="text-xs font-bold text-cyan-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {t.forgotPassword}
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder={t.passwordPlaceholder}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                minLength={6}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pr-12 outline-none placeholder:text-white/30 focus:border-cyan-300"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? t.hidePassword : t.showPassword}
+                title={showPassword ? t.hidePassword : t.showPassword}
+                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-white/55 transition hover:bg-white/10 hover:text-white"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {mode === "register" && (
