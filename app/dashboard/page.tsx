@@ -51,6 +51,14 @@ interface PlatformConnection {
   connected: boolean;
 }
 
+interface WorkspaceRow {
+  id: string;
+  name: string | null;
+  type: string | null;
+  slug: string;
+  created_at?: string | null;
+}
+
 interface DbPost {
   connection_id: string;
   post_type: string | null;
@@ -80,6 +88,18 @@ type DashboardNavGroup = {
 
 const WORKSPACE_SLUG = "anm-collective";
 
+function slugifyProjectName(value: string) {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+  return normalized || "projekt";
+}
+
 const copy = {
   en: {
     otherFlag: "🇵🇱",
@@ -99,6 +119,15 @@ const copy = {
     integrations: "Integrations",
     settings: "Settings",
     signOut: "Sign out",
+    projectsTitle: "Projects",
+    projectsText:
+      "Each project has separate integrations, content, calendar, AI context and analytics.",
+    activeProject: "Active project",
+    createProject: "Create project",
+    projectNamePlaceholder: "Client or project name",
+    creatingProject: "Creating...",
+    openProject: "Open",
+    projectCreateError: "Could not create project.",
 
     nav: {
       analysis: "Analytics",
@@ -220,6 +249,15 @@ const copy = {
     integrations: "Integracje",
     settings: "Ustawienia",
     signOut: "Wyloguj",
+    projectsTitle: "Projekty",
+    projectsText:
+      "Każdy projekt ma osobne integracje, content, harmonogram, kontekst AI i analitykę.",
+    activeProject: "Aktywny projekt",
+    createProject: "Dodaj projekt",
+    projectNamePlaceholder: "Nazwa klienta lub projektu",
+    creatingProject: "Tworzenie...",
+    openProject: "Otwórz",
+    projectCreateError: "Nie udało się utworzyć projektu.",
 
     nav: {
       analysis: "Analiza",
@@ -833,6 +871,10 @@ function DashboardPageInner() {
   const [mounted, setMounted] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [workspaceSlug, setWorkspaceSlug] = useState(WORKSPACE_SLUG);
+  const [projects, setProjects] = useState<WorkspaceRow[]>([]);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [projectError, setProjectError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState(true);
   const [accounts, setAccounts] = useState<AccountData[]>(() =>
@@ -841,25 +883,77 @@ function DashboardPageInner() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const dashboardNavGroups = makeDashboardNavGroups(lang);
+  const selectedProjectSlug = searchParams.get("project") || WORKSPACE_SLUG;
   const activeWorkspaceSlug = workspaceSlug || WORKSPACE_SLUG;
+  const activeProject = projects.find((project) => project.slug === activeWorkspaceSlug);
   const privacyHref = `/privacy?lang=${lang}`;
   const termsHref = `/terms?lang=${lang}`;
 
-  async function getOrCreateWorkspace(slug: string) {
+  async function loadWorkspaceData(resolvedWorkspaceId: string) {
+    const { data, error } = await supabase
+      .schema("contentiq")
+      .from("platform_connections")
+      .select("id, platform, account_name, last_synced_at, connected")
+      .eq("workspace_id", resolvedWorkspaceId)
+      .eq("connected", true);
+
+    if (error) {
+      console.error("Connections load error:", error.message);
+      return;
+    }
+
+    const connections = (data || []) as PlatformConnection[];
+    const connectionIds = connections.map((connection) => connection.id);
+
+    if (!connectionIds.length) {
+      setAccounts(mergeConnections(makeAccounts(lang), [], new Map(), lang));
+      return;
+    }
+
+    const { data: postRows, error: postsError } = await supabase
+      .schema("contentiq")
+      .from("posts")
+      .select(
+        "connection_id, post_type, published_at, fetched_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score"
+      )
+      .in("connection_id", connectionIds);
+
+    if (postsError) {
+      console.error("Dashboard posts load error:", postsError.message);
+    }
+
+    const postsByConnection = new Map<string, DbPost[]>();
+
+    ((postRows || []) as DbPost[]).forEach((post) => {
+      const current = postsByConnection.get(post.connection_id) || [];
+      current.push(post);
+      postsByConnection.set(post.connection_id, current);
+    });
+
+    setAccounts(mergeConnections(makeAccounts(lang), connections, postsByConnection, lang));
+  }
+
+  async function loadProjectsAndCurrentWorkspace(slug: string) {
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) throw new Error("No active session");
 
-    const { data: existing } = await supabase
+    const { data: existingProjects, error: projectsError } = await supabase
       .schema("contentiq")
       .from("workspaces")
-      .select("id, slug")
+      .select("id, name, type, slug, created_at")
       .eq("user_id", auth.user.id)
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
 
-    if (existing?.id) {
-      setWorkspaceSlug((existing.slug as string) || slug);
-      return existing.id as string;
+    if (projectsError) throw new Error(projectsError.message);
+
+    const ownedProjects = (existingProjects || []) as WorkspaceRow[];
+    const requestedProject = ownedProjects.find((project) => project.slug === slug);
+    const fallbackProject = requestedProject || ownedProjects[0];
+
+    if (fallbackProject?.id) {
+      setProjects(ownedProjects);
+      setWorkspaceSlug(fallbackProject.slug || slug);
+      return fallbackProject.id as string;
     }
 
     const userSlug = `${slug}-${auth.user.id.slice(0, 8)}`;
@@ -872,15 +966,59 @@ function DashboardPageInner() {
         type: "Firma",
         slug: userSlug,
       })
-      .select("id, slug")
+      .select("id, name, type, slug, created_at")
       .single();
 
     if (error || !created?.id) {
       throw new Error(error?.message || "Could not create workspace");
     }
 
-    setWorkspaceSlug((created.slug as string) || userSlug);
+    const createdProject = created as WorkspaceRow;
+    setProjects([createdProject]);
+    setWorkspaceSlug(createdProject.slug || userSlug);
     return created.id as string;
+  }
+
+  async function createProject() {
+    const name = newProjectName.trim();
+    if (!name || creatingProject) return;
+
+    setCreatingProject(true);
+    setProjectError("");
+
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error("No active session");
+
+      const slug = `${slugifyProjectName(name)}-${crypto.randomUUID().slice(0, 8)}`;
+
+      const { data: created, error } = await supabase
+        .schema("contentiq")
+        .from("workspaces")
+        .insert({
+          user_id: auth.user.id,
+          name,
+          type: "Projekt",
+          slug,
+        })
+        .select("id, name, type, slug, created_at")
+        .single();
+
+      if (error || !created?.id) {
+        throw new Error(error?.message || t.projectCreateError);
+      }
+
+      const nextProject = created as WorkspaceRow;
+      setProjects((current) => [...current, nextProject]);
+      setWorkspaceSlug(nextProject.slug);
+      setNewProjectName("");
+      setAccounts(mergeConnections(makeAccounts(lang), [], new Map(), lang));
+      router.push(`/dashboard?lang=${lang}&project=${nextProject.slug}`);
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : t.projectCreateError);
+    } finally {
+      setCreatingProject(false);
+    }
   }
 
   useEffect(() => {
@@ -896,59 +1034,8 @@ function DashboardPageInner() {
       else setUserEmail(data.user.email || "");
     });
 
-    getOrCreateWorkspace(WORKSPACE_SLUG)
-      .then((resolvedWorkspaceId) => {
-        supabase
-          .schema("contentiq")
-          .from("platform_connections")
-          .select("id, platform, account_name, last_synced_at, connected")
-          .eq("workspace_id", resolvedWorkspaceId)
-          .eq("connected", true)
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Connections load error:", error.message);
-              return;
-            }
-
-            const connections = (data || []) as PlatformConnection[];
-            const connectionIds = connections.map((connection) => connection.id);
-
-            if (!connectionIds.length) {
-              setAccounts(mergeConnections(makeAccounts(lang), [], new Map(), lang));
-              return;
-            }
-
-            supabase
-              .schema("contentiq")
-              .from("posts")
-              .select(
-                "connection_id, post_type, published_at, fetched_at, reach, impressions, likes, comments, shares, saves, clicks, ai_score"
-              )
-              .in("connection_id", connectionIds)
-              .then(({ data: postRows, error: postsError }) => {
-                if (postsError) {
-                  console.error("Dashboard posts load error:", postsError.message);
-                }
-
-                const postsByConnection = new Map<string, DbPost[]>();
-
-                ((postRows || []) as DbPost[]).forEach((post) => {
-                  const current = postsByConnection.get(post.connection_id) || [];
-                  current.push(post);
-                  postsByConnection.set(post.connection_id, current);
-                });
-
-                setAccounts(
-                  mergeConnections(
-                    makeAccounts(lang),
-                    connections,
-                    postsByConnection,
-                    lang
-                  )
-                );
-              });
-          });
-      })
+    loadProjectsAndCurrentWorkspace(selectedProjectSlug)
+      .then((resolvedWorkspaceId) => loadWorkspaceData(resolvedWorkspaceId))
       .catch((error) => {
         console.error(
           "Workspace load error:",
@@ -956,7 +1043,7 @@ function DashboardPageInner() {
         );
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
+  }, [lang, selectedProjectSlug]);
 
   const toggleTheme = () => {
     const next = !dark;
@@ -1402,6 +1489,171 @@ function DashboardPageInner() {
           padding: "34px 28px 80px",
         }}
       >
+        <section
+          className="fade-up"
+          style={{
+            background: css.surface,
+            border: `1px solid ${css.border}`,
+            borderRadius: 24,
+            padding: 18,
+            marginBottom: 18,
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 16,
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: css.accent,
+                fontFamily: "var(--font-label)",
+                fontSize: 12,
+                fontWeight: 900,
+                textTransform: "uppercase",
+                letterSpacing: ".13em",
+                marginBottom: 8,
+              }}
+            >
+              {t.projectsTitle}
+            </div>
+
+            <h2
+              style={{
+                color: css.heading,
+                fontFamily: "var(--font-heading)",
+                fontSize: 30,
+                lineHeight: 1,
+                fontWeight: 500,
+                marginBottom: 8,
+              }}
+            >
+              {activeProject?.name || activeWorkspaceSlug}
+            </h2>
+
+            <p style={{ color: css.muted, fontSize: 13, lineHeight: 1.6 }}>
+              {t.projectsText}
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 10,
+              minWidth: 360,
+              maxWidth: 520,
+            }}
+          >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {projects.map((project) => {
+                const active = project.slug === activeWorkspaceSlug;
+
+                return (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => {
+                      setWorkspaceSlug(project.slug);
+                      router.push(`/dashboard?lang=${lang}&project=${project.slug}`);
+                    }}
+                    style={{
+                      border: `1px solid ${active ? css.accentBorder : css.border}`,
+                      background: active ? css.accentSoft : css.surfaceSoft,
+                      color: active ? css.accent : css.text,
+                      borderRadius: 999,
+                      padding: "9px 12px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-body)",
+                    }}
+                  >
+                    {active ? `${t.activeProject}: ` : ""}
+                    {project.name || project.slug}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8 }}>
+              <input
+                value={newProjectName}
+                onChange={(event) => setNewProjectName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void createProject();
+                }}
+                placeholder={t.projectNamePlaceholder}
+                style={{
+                  border: `1px solid ${css.border}`,
+                  background: css.surfaceSoft,
+                  color: css.text,
+                  borderRadius: 14,
+                  padding: "11px 12px",
+                  fontSize: 13,
+                  outline: "none",
+                  fontFamily: "var(--font-body)",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => void createProject()}
+                disabled={!newProjectName.trim() || creatingProject}
+                className="dash-btn"
+                style={{
+                  border: `1px solid ${css.aiBorder}`,
+                  background: css.aiBg,
+                  color: css.aiText,
+                  boxShadow: css.aiGlow,
+                  borderRadius: 14,
+                  padding: "11px 14px",
+                  fontSize: 12,
+                  fontWeight: 950,
+                  cursor: !newProjectName.trim() || creatingProject ? "not-allowed" : "pointer",
+                  opacity: !newProjectName.trim() || creatingProject ? 0.55 : 1,
+                  fontFamily: "var(--font-body)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {creatingProject ? t.creatingProject : t.createProject}
+              </button>
+
+              <Link
+                href={`/app/${activeWorkspaceSlug}`}
+                className="dash-btn"
+                style={{
+                  borderRadius: 14,
+                  background: d ? "#FFFFFF" : "#111111",
+                  color: d ? "#050505" : "#FFFFFF",
+                  padding: "11px 14px",
+                  fontSize: 12,
+                  fontWeight: 950,
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.openProject}
+              </Link>
+            </div>
+
+            {projectError && (
+              <div
+                style={{
+                  color: "#ef4444",
+                  background: "#ef444414",
+                  border: "1px solid #ef444440",
+                  borderRadius: 12,
+                  padding: "9px 10px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                {projectError}
+              </div>
+            )}
+          </div>
+        </section>
+
         <section
           className="dash-hero fade-up"
           style={{

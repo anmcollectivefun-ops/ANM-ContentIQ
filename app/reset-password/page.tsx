@@ -24,6 +24,12 @@ const copy = {
     tooShort: "Password must have at least 6 characters.",
     success: "Password has been changed. You can log in now.",
     login: "Go to login",
+    loginTitle: "Log in with the new password",
+    loginSubtitle: "Use the same email address and the password you just set.",
+    email: "Email",
+    emailPlaceholder: "your@email.com",
+    loginPassword: "Password",
+    loginSubmit: "Log in",
     missingSession:
       "This reset link has expired or was already used. Request a new password reset email.",
   },
@@ -42,6 +48,12 @@ const copy = {
     tooShort: "Hasło musi mieć minimum 6 znaków.",
     success: "Hasło zostało zmienione. Możesz się teraz zalogować.",
     login: "Przejdź do logowania",
+    loginTitle: "Zaloguj się nowym hasłem",
+    loginSubtitle: "Użyj tego samego adresu email i hasła, które właśnie ustawiono.",
+    email: "Email",
+    emailPlaceholder: "twoj@email.pl",
+    loginPassword: "Hasło",
+    loginSubmit: "Zaloguj",
     missingSession:
       "Ten link resetujący wygasł albo został już użyty. Poproś o nowy email resetujący hasło.",
   },
@@ -59,6 +71,10 @@ function ResetPasswordInner() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginMessage, setLoginMessage] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -98,6 +114,25 @@ function ResetPasswordInner() {
     setSuccess(true);
     setMessage(t.success);
     setLoading(false);
+  }
+
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginMessage("");
+    setLoginLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
+    });
+
+    if (error) {
+      setLoginMessage(error.message);
+      setLoginLoading(false);
+      return;
+    }
+
+    window.location.href = `/dashboard?lang=${lang}`;
   }
 
   return (
@@ -163,12 +198,64 @@ function ResetPasswordInner() {
         )}
 
         {success && (
-          <Link
-            href={`/login?lang=${lang}`}
-            className="mt-5 block w-full rounded-2xl border border-white/10 px-5 py-4 text-center text-sm font-bold text-white transition hover:border-cyan-300"
-          >
-            {t.login}
-          </Link>
+          <div className="mt-6 rounded-[1.5rem] border border-cyan-300/25 bg-cyan-300/[0.06] p-5">
+            <div className="mb-4">
+              <h2 className="text-lg font-black text-white">{t.loginTitle}</h2>
+              <p className="mt-1 text-sm text-white/55">{t.loginSubtitle}</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm text-white/70">
+                  {t.email}
+                </label>
+                <input
+                  type="email"
+                  placeholder={t.emailPlaceholder}
+                  value={loginEmail}
+                  onChange={(event) => setLoginEmail(event.target.value)}
+                  required
+                  className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 outline-none placeholder:text-white/30 focus:border-cyan-300"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-white/70">
+                  {t.loginPassword}
+                </label>
+                <PasswordInput
+                  value={loginPassword}
+                  onChange={setLoginPassword}
+                  placeholder={t.passwordPlaceholder}
+                  show={showPassword}
+                  toggleShow={() => setShowPassword((value) => !value)}
+                  showLabel={t.showPassword}
+                  hideLabel={t.hidePassword}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="block w-full rounded-2xl bg-cyan-400 px-5 py-4 text-center font-bold text-[#070816] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loginLoading ? t.processing : t.loginSubmit}
+              </button>
+            </form>
+
+            {loginMessage && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 text-sm text-white/70">
+                {loginMessage}
+              </div>
+            )}
+
+            <Link
+              href={`/login?lang=${lang}`}
+              className="mt-4 block text-center text-xs font-bold text-cyan-300 transition hover:text-white"
+            >
+              {t.login}
+            </Link>
+          </div>
         )}
       </div>
     </main>
