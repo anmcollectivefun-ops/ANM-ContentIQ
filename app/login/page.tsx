@@ -170,7 +170,7 @@ function LoginPageInner() {
     setLoading(true);
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${siteUrl}/auth/callback?next=/login?lang=${lang}`,
+      redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(`/reset-password?lang=${lang}`)}`,
     });
 
     if (error) {
