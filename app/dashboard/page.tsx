@@ -940,9 +940,9 @@ function DashboardPageInner() {
     const { data: existingProjects, error: projectsError } = await supabase
       .schema("contentiq")
       .from("workspaces")
-      .select("id, name, type, slug, created_at")
+      .select("id, name, type, slug")
       .eq("user_id", auth.user.id)
-      .order("created_at", { ascending: true });
+      .order("name", { ascending: true });
 
     if (projectsError) throw new Error(projectsError.message);
 
@@ -966,7 +966,7 @@ function DashboardPageInner() {
         type: "Firma",
         slug: userSlug,
       })
-      .select("id, name, type, slug, created_at")
+      .select("id, name, type, slug")
       .single();
 
     if (error || !created?.id) {
@@ -1001,7 +1001,7 @@ function DashboardPageInner() {
           type: "Projekt",
           slug,
         })
-        .select("id, name, type, slug, created_at")
+        .select("id, name, type, slug")
         .single();
 
       if (error || !created?.id) {

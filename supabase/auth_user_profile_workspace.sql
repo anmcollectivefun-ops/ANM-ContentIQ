@@ -25,6 +25,13 @@ alter table contentiq.workspaces
   add column if not exists created_at timestamptz not null default now(),
   add column if not exists updated_at timestamptz not null default now();
 
+alter table contentiq.workspaces
+  alter column id set default gen_random_uuid(),
+  alter column name set default 'ANM Collective',
+  alter column type set default 'Firma',
+  alter column created_at set default now(),
+  alter column updated_at set default now();
+
 -- Workspaces are private per user, so the same friendly slug can exist
 -- for multiple test accounts. RLS keeps each user's rows separated.
 alter table if exists contentiq.workspaces
