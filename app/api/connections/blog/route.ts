@@ -10,28 +10,46 @@ async function resolveWorkspaceId(
 ) {
   if (UUID_RE.test(workspace)) return workspace;
 
-  const { data, error } = await supabase
+  const { data } = await supabase
     .schema("contentiq")
     .from("workspaces")
     .select("id")
     .eq("slug", workspace)
-    .single();
+    .eq("user_id", userId)
+    .maybeSingle();
 
   if (data?.id) {
     return data.id as string;
   }
+
+  const { data: ownWorkspace } = await supabase
+    .schema("contentiq")
+    .from("workspaces")
+    .select("id")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (ownWorkspace?.id) {
+    return ownWorkspace.id as string;
+  }
+
+  const safeSlug =
+    workspace === "anm-collective"
+      ? `anm-collective-${userId.slice(0, 8)}`
+      : workspace;
 
   const { data: created, error: createError } = await supabase
     .schema("contentiq")
     .from("workspaces")
     .insert({
       user_id: userId,
-      name: workspace
+      name: safeSlug
         .split("-")
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(" "),
       type: "Firma",
-      slug: workspace,
+      slug: safeSlug,
     })
     .select("id")
     .single();

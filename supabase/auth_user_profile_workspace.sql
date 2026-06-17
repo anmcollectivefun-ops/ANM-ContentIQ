@@ -5,6 +5,14 @@
 
 create schema if not exists contentiq;
 
+-- Workspaces are private per user, so the same friendly slug can exist
+-- for multiple test accounts. RLS keeps each user's rows separated.
+alter table if exists contentiq.workspaces
+  drop constraint if exists workspaces_slug_key;
+
+create unique index if not exists workspaces_user_id_slug_key
+  on contentiq.workspaces(user_id, slug);
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
