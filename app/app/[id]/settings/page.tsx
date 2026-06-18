@@ -8,6 +8,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getLang } from "@/lib/contentiq-app-copy";
+import SupportWidget from "@/app/components/SupportWidget";
 import {
   AlertCircle,
   ArrowLeft,
@@ -1976,6 +1977,12 @@ export default function IntegrationsPage() {
           ))}
         </footer>
       </main>
+
+      <SupportWidget
+        lang={lang}
+        workspaceId={workspaceId}
+        source="Integrations settings"
+      />
     </div>
   );
 }

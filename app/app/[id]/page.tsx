@@ -54,6 +54,7 @@ import BlogStudio from "@/app/components/BlogStudio";
 import BrandOffers from "@/app/components/BrandOffers";
 import BlogLibrary from "@/app/components/BlogLibrary";
 import EngagementStudio from "@/app/components/EngagementStudio";
+import SupportWidget from "@/app/components/SupportWidget";
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type Platform =
@@ -5332,6 +5333,11 @@ const formatProfileNumber = (value: any) => {
           </footer>
         </div>
       </div>
+      <SupportWidget
+        lang={lang}
+        workspaceId={workspaceId}
+        source="Main app"
+      />
     </div>
     </LanguageProvider>
   );

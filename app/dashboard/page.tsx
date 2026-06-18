@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import SupportWidget from "@/app/components/SupportWidget";
 import {
   calculatePerformanceScore,
   getMetricEngagement,
@@ -2409,6 +2410,13 @@ function DashboardPageInner() {
           </span>
         </footer>
       </main>
+
+      <SupportWidget
+        lang={lang}
+        workspaceId={activeWorkspaceSlug}
+        source="Dashboard"
+        userEmail={userEmail}
+      />
     </div>
   );
 }
