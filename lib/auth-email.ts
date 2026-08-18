@@ -10,28 +10,41 @@ function env(name: string) {
 }
 
 export async function sendContentIQEmail({ to, subject, html, text }: MailInput) {
-  const apiKey = env("CONTENTIQ_RESEND_API_KEY") || env("RESEND_API_KEY");
-  const from =
-    env("CONTENTIQ_EMAIL_FROM") ||
-    env("SUPPORT_EMAIL_FROM") ||
-    "ANM ContentIQ <contentiq@anmcollective.fun>";
+  const host = env("CONTENTIQ_SMTP_HOST");
+  const port = Number(env("CONTENTIQ_SMTP_PORT") || "465");
+  const user = env("CONTENTIQ_SMTP_USER");
+  const password = env("CONTENTIQ_SMTP_PASSWORD");
+  const from = env("CONTENTIQ_EMAIL_FROM") || user || "contentiq@anmcollective.fun";
 
-  if (!apiKey) return { sent: false, error: "Missing RESEND_API_KEY." };
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from, to, subject, html, text }),
-  });
-
-  if (!response.ok) {
-    return { sent: false, error: `${response.status}: ${await response.text()}` };
+  if (!host || !user || !password) {
+    return { sent: false, error: "Missing ContentIQ SMTP configuration." };
   }
 
-  return { sent: true };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodemailer = require("nodemailer");
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass: password },
+    });
+
+    await transporter.sendMail({
+      from: `ANM ContentIQ <${from}>`,
+      to,
+      subject,
+      html,
+      text,
+    });
+
+    return { sent: true };
+  } catch (error) {
+    return {
+      sent: false,
+      error: error instanceof Error ? error.message : "SMTP delivery failed.",
+    };
+  }
 }
 
 export function authEmailHtml({
