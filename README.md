@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## ANM ContentIQ — rejestracja i poczta
+
+W środowisku produkcyjnym ustaw:
+
+```env
+NEXT_PUBLIC_SITE_URL=https://contentiq.anmcollective.fun
+SUPABASE_SERVICE_ROLE_KEY=...
+CONTENTIQ_SMTP_HOST=mail.anmcollective.fun
+CONTENTIQ_SMTP_PORT=465
+CONTENTIQ_SMTP_USER=contentiq@anmcollective.fun
+CONTENTIQ_SMTP_PASSWORD=...
+CONTENTIQ_EMAIL_FROM=contentiq@anmcollective.fun
+CONTENTIQ_REGISTRATION_NOTIFICATION_EMAIL=contentiq@anmcollective.fun
+CONTENTIQ_SUPPORT_EMAIL_TO=contentiq@anmcollective.fun
+```
+
+Rejestracja e-mail, reset hasła, alerty o nowych kontach i wiadomości supportu korzystają z projektowej skrzynki SMTP.
+
