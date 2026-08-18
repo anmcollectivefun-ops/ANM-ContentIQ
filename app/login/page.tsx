@@ -23,7 +23,10 @@ const copy = {
     email: "Email",
     emailPlaceholder: "your@email.com",
     password: "Password",
-    passwordPlaceholder: "minimum 6 characters",
+    passwordPlaceholder: "minimum 8 characters",
+    confirmPassword: "Repeat password",
+    confirmPasswordPlaceholder: "repeat your password",
+    passwordMismatch: "Passwords are not the same.",
     showPassword: "Show password",
     hidePassword: "Hide password",
     forgotPassword: "Forgot password?",
@@ -56,7 +59,10 @@ const copy = {
     email: "Email",
     emailPlaceholder: "twoj@email.pl",
     password: "Hasło",
-    passwordPlaceholder: "minimum 6 znaków",
+    passwordPlaceholder: "minimum 8 znaków",
+    confirmPassword: "Powtórz hasło",
+    confirmPasswordPlaceholder: "powtórz hasło",
+    passwordMismatch: "Hasła nie są takie same.",
     showPassword: "Pokaż hasło",
     hidePassword: "Ukryj hasło",
     forgotPassword: "Zapomniałam hasła?",
@@ -117,6 +123,7 @@ function LoginPageInner() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
@@ -169,18 +176,23 @@ function LoginPageInner() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(`/reset-password?lang=${lang}`)}`,
-    });
-
-    if (error) {
-      setMessage(error.message);
+    try {
+      const response = await fetch("/api/auth/recovery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), lang }),
+      });
+      const result = await response.json().catch(() => null);
+      setMessage(
+        response.ok
+          ? result?.message || t.resetEmailSent
+          : result?.error || "Email delivery failed."
+      );
+    } catch {
+      setMessage(lang === "pl" ? "Nie udało się połączyć z serwerem." : "Could not connect to the server.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setMessage(t.resetEmailSent);
-    setLoading(false);
   }
 
   async function handleEmailAuth(event: React.FormEvent<HTMLFormElement>) {
@@ -211,22 +223,29 @@ function LoginPageInner() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${siteUrl}/auth/callback`,
-      },
-    });
-
-    if (error) {
-      setMessage(error.message);
+    if (password !== confirmPassword) {
+      setMessage(t.passwordMismatch);
       setLoading(false);
       return;
     }
 
-    setMessage(t.accountCreated);
-    setLoading(false);
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password, lang }),
+      });
+      const result = await response.json().catch(() => null);
+      setMessage(
+        response.ok
+          ? result?.message || t.accountCreated
+          : result?.error || "Registration failed."
+      );
+    } catch {
+      setMessage(lang === "pl" ? "Nie udało się połączyć z serwerem." : "Could not connect to the server.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -348,7 +367,7 @@ function LoginPageInner() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pr-12 outline-none placeholder:text-white/30 focus:border-cyan-300"
               />
               <button
@@ -362,6 +381,24 @@ function LoginPageInner() {
               </button>
             </div>
           </div>
+
+          {mode === "register" && (
+            <div>
+              <label className="mb-2 block text-sm text-white/70">
+                {t.confirmPassword}
+              </label>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder={t.confirmPasswordPlaceholder}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 outline-none placeholder:text-white/30 focus:border-cyan-300"
+              />
+            </div>
+          )}
 
           {mode === "register" && (
             <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
