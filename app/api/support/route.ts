@@ -102,8 +102,14 @@ async function sendSlack(text: string) {
 
 async function sendEmail(subject: string, text: string, replyTo: string) {
   const apiKey = env("RESEND_API_KEY");
-  const to = env("SUPPORT_EMAIL_TO") || env("CONTACT_EMAIL_TO");
-  const from = env("SUPPORT_EMAIL_FROM") || "ANM ContentIQ <onboarding@resend.dev>";
+  const to =
+    env("CONTENTIQ_SUPPORT_EMAIL_TO") ||
+    env("SUPPORT_EMAIL_TO") ||
+    "contentiq@anmcollective.fun";
+  const from =
+    env("CONTENTIQ_EMAIL_FROM") ||
+    env("SUPPORT_EMAIL_FROM") ||
+    "ANM ContentIQ <contentiq@anmcollective.fun>";
 
   if (!apiKey || !to) return { skipped: true };
 
