@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sendContentIQEmail } from "@/lib/auth-email";
 
 type SupportBody = {
   app?: string;
@@ -100,39 +101,30 @@ async function sendSlack(text: string) {
   return { skipped: false };
 }
 
-async function sendEmail(subject: string, text: string, replyTo: string) {
-  const apiKey = env("RESEND_API_KEY");
+async function sendSupportEmail(subject: string, text: string, replyTo: string) {
   const to =
     env("CONTENTIQ_SUPPORT_EMAIL_TO") ||
     env("SUPPORT_EMAIL_TO") ||
     "contentiq@anmcollective.fun";
-  const from =
-    env("CONTENTIQ_EMAIL_FROM") ||
-    env("SUPPORT_EMAIL_FROM") ||
-    "ANM ContentIQ <contentiq@anmcollective.fun>";
 
-  if (!apiKey || !to) return { skipped: true };
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to,
-      subject,
-      text,
-      reply_to: replyTo || undefined,
-    }),
+  const result = await sendContentIQEmail({
+    to,
+    subject,
+    text: `${text}\n\nEmail do odpowiedzi: ${replyTo || "-"}`,
+    html: `<pre style="font-family:Arial,sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre><p><strong>Email do odpowiedzi:</strong> ${escapeHtml(replyTo || "-")}</p>`,
   });
 
-  if (!response.ok) {
-    throw new Error(`Email send error: ${response.status} ${await response.text()}`);
-  }
-
+  if (!result.sent) throw new Error(result.error || "Email send error");
   return { skipped: false };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 export async function POST(request: NextRequest) {
@@ -167,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     const [slackResult, emailResult] = await Promise.all([
       sendSlack(slackMessage),
-      sendEmail(emailSubject, plainMessage, contactEmail),
+      sendSupportEmail(emailSubject, plainMessage, contactEmail),
     ]);
 
     return NextResponse.json({
